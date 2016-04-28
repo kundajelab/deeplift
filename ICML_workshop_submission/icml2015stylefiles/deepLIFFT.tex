@@ -110,6 +110,21 @@ We show that the contributions as defined above can be computed using the follow
 \begin{equation}
 m_{xy} \delta_x = C_{xy}
 \end{equation} 
+Let $t$ represent the target neuron that we intend to compute contributions to, and let $O_x$ represent the set of outputs of $x$. We show that:
+\begin{equation}
+m_{xt} = \sum_{y \in O_x} m_{xy}m_{yt}
+\end{equation} 
+The equation above follows from the linear composition property and the definition of the multipliers, as proved below:
+\begin{equation}
+\begin{aligned}
+C_{xt} &= \sum_{y \in O_x} \frac{C_{xy}}{\delta_y}C_{yt}\\
+m_{xt} \delta_x &= \sum_{y \in O_x} \frac{C_{xy}}{\delta_y}(m_{yt} \delta_y)\\
+m_{xt} \delta_x &= \sum_{y \in O_x} C_{xy}m_{yt}\\
+m_{xt} &= \sum_{y \in O_x} \frac{C_{xy}}{\delta_x}m_{yt}\\
+m_{xt} &= \sum_{y \in O_x} m_{xy} m_{yt}
+\end{aligned}
+\end{equation} 
+
 In the equations below, $I_y$ denotes the set of inputs of $y$, and $t$ represents the target neuron that we intent to compute the contributions to.
 
 \subsubsection{Linearity}
