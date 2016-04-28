@@ -83,196 +83,75 @@ As neural networks become increasingly popular, their reputation as a ``black bo
 
 In this paper, we present a general method for assigning feature importance which focuses on the difference between a neuron's activation and its `default' activation, where the default activation is the activation that the neuron has when the network is provided a `default input'. The default input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its default value. In the case of a ReLU which fires when provided the default input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from default' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the default input, our method would assign a positive `difference from default' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
 
-\section{DeepLIFFT Method}
-\label{DeepLIFFT}
+\section{DeepLIFT Method}
+\label{DeepLIFT}
 
-We study the case of neural network architectures where the hidden units are either pooling operations or contain two linear regimes, and the output layer is a softmax. First, we demonstrate how the inputs into the softmax layer can be decomposed into a linear combination of the raw features plus biases.
+We define the contributions of every neuron $x$ to some downstream neuron $y$. We denote the contribution of $x$ to $y$ as $C_{xy}$. Let the activation of a neuron $n$ be denoted as $A_n$. Further, let the \emph{default} activation of neuron $n$ be denoted $A_n^0$, and let the $A_n - A_n^0$ be denoted as $\delta_n$. We define our contributions $C_{xy}$ to satisfy the following properties.
 
-\subsection{Linear Decomposition}
+\subsection{Summation to $\delta$}
 
-Consider the case where the activation function $f(z)$ consists of two linear regimes:\\
-$$f(z)=\begin{cases}
-a_1z + b_1 & \text{if } z < z'\\
-a_2z + b_2 & \text{if } z \geq z'
-\end{cases}$$
-We will use induction. Assume $z$ can be decomposed into a linear combination of the raw features; let $x_i$ denote raw feature $i$. If for some $b$ and $c_i$,
-$$z = b + \sum_i c_i x_i$$
-then if we define\\
-$$b'=\begin{cases}
-b_1 + a_1b & \text{if } z < z'\\
-b_2 + a_2b & \text{if } z \geq z'
-\end{cases}$$
-$$c_i'=\begin{cases}
-a_1c_i & \text{if } z < z'\\
-a_2c_i & \text{if } z \geq z'
-\end{cases}$$\\
-We have:
-$$f(z)=b' + \sum_i c_i' x_i$$
+For any set of neurons $S$ whose activations are minimally sufficient to compute the activation of $y$ (that is, if we know the activations of $S$, we can compute the activation of $y$, and there is no set $S' \subset S$ such that $S'$ is sufficient to compute the activation of $y$ - in layman's terms, $S$ is a full set of non-redundant inputs to $y$), the following property holds:
+\begin{equation}
+\sum_{s \in S} C_{sy} = \delta_y
+\end{equation}
+That is, the sum over all the contributions of neurons in $S$ equals the difference-from-default of $y$.
 
-Thus, if the input $z$ can be decomposed into a linear combination of the raw input features plus a bias term, so can $f(z)$. We further note that in the hidden layers, the input z is a linear combination of the activations of the previous layer. Hence, we can conclude that if all activation functions consist of two piecewise linear regimes, at any layer the activation of a particular neuron can be decomposed into a linear combination of the original raw inputs.
+\subsection{Linear composition}
 
-In the case where the activation is a max-pool, we set the decomposition of the output to be the same as the decomposition of the maximum input. If the activation is an average pool, we average the coefficients $c_i$ and bias terms $b$ over all the inputs to get the decomposition.
+Let $O_x$ represent the output neurons of $x$. The following property holds:\\
+\begin{equation}
+C_{xy} = \sum_{o \in O_x} \frac{C_{xo}}{\delta_o}C_{oy}
+\end{equation}
+In layman's terms, each neuron `inherits' a contribution through its outputs in proportion to how much that neuron contributes to the difference-from-default of the output.
 
-\subsection{Per-Input Feature Importance}
+\subsection{Backpropagation Rules}
 
-Consider the multi-class classification case with a softmax output layer. Let the inputs into the softmax node for training example $n$ be denoted $z_j$, where $j$ is the class index. The softmax activation is defined as:
-$$\sigma(\bf{z})_j = \frac{e^{z_j}}{\sum_{k=1}^K e^{z_k}}$$
-Where K is the total number of classes. Let the correct class be $j'$. Also, let the linear decomposition of $z_j$ be represented as:
-$$z_j = b^{(j)} + \sum_i c^{(j)}_i x_i$$
-The intuition for the approach is as follows: we sort the terms $c^{(j')}_ix_i$ of the correct class in descending order to get an ordering over the input features $i$. We then incrementally include the terms for the raw features according to this ordering and compute how much the softmax probability for the correct class changes with each term.
+We show that the contributions as defined above can be computed using the following rules (which can be implemented to run on a GPU). The computation is reminiscent of backpropagation, as equation $2$ allows contribution scores to be computed efficiently via dynamic programming. To avoid issues of numerical stability when $\delta_n$ for a particular neuron is small, rather than computing the contribution scores explicitly, we instead compute \emph{multipliers} $m_{xy}$ that satisfy the following condition:
+\begin{equation}
+m_{xy} \delta_x = C_{xy}
+\end{equation} 
+In the equations below, $I_y$ denotes the set of inputs of $y$, and $t$ represents the target neuron that we intent to compute the contributions to.
 
-Let the vector representing the ordering of these feature indices after being sorted in descending order of $c^{(j')}_ix_i$ be called $F$. Let $F_l$ represent the feature at index $l$ of $F$. Define $z_j^l$ as a quantity that considers only the terms corresponding to the raw features up to position $l$ in $F$:
-$$z_j^l = b^{(j)} + \sum_{l'=1}^l c^{(j)}_{F_{l'}} x_{F_{l'}}$$
-Also define $\sigma(z)_j^l$ to be the softmax probability when only these terms are considered:
-$$\sigma(z)_j^l = \frac{e^{z_j^l}}{\sum_{k=1}^K e^{z_k^l}}$$
-The feature importance score $\phi_{F_l}^n$ for training example $n$ and raw input $F_l$ with correct label $j'$ is:
-$$\phi_{F_l}^n=\begin{cases}
-\sigma(z)_{j'}^l - \sigma(z)_{j'}^{l-1} & \text{if } l > 1\\
-\sigma(z)_{j'}^l - \frac{e^{b^{j'}}}{\sum_{k=1}^K e^{b^{k}}}& \text{if } l = 1
-\end{cases}$$\\
-For clarification, when $l=1$, we simply consider what the change in the softmax probability is when the term corresponding to feature $F_l$ is included, as compared to the probability when only the bias terms are considered.
+\subsubsection{Linearity}
+Let
+\begin{equation}
+A_y = \left(\sum_{x \in I_y} w_{xy} A_x\right) + b  
+\end{equation}
+Then
+\begin{equation}
+\begin{aligned}
+m_{xy} &= w_{xy}
+m_{xt} &= w_{xy} m_{yt}
+\end{aligned}
+\end{equation}
 
-Note that it is straightforward to adapt the method to assess the importance of individual neurons within the network by treating the hidden layer of the neuron of interest as though it is the input layer. 
+{\bf Proof of summation to $\delta$}
 
-\subsection{Aggregate Feature Importance}
-
-We can now compute two types of scores. If the goal is interpretability, we compute a feature importance for $F_l$ for a specific class $c$ by averaging the scores $\phi_{F_l}^n$ over all correctly classified inputs corresponding to class $c$; this will reveal how relevant a particular feature is for correctly classifying $c$. Formally, if $y(n)$ denotes the correct class of example $n$ and $h(n)$ denotes the output of the neural net on example $n$, then the class-specific feature importance score $\phi^{(c)}_{F_l}$ is:
-$$\phi^{(c)}_{F_l} = \frac{\sum\limits_{\substack{n: y(n) = h(n) = c}} \phi_{F_l}^n}{\sum_n 1\{y(n) = h(n) = c\}}$$
-
-If the goal is to choose a subset of features that will give high classification accuracy, we can compute an overall feature importance $\Phi_{F_l}$ for feature $F_l$ by averaging the absolute values of the scores $\phi_{F_l}^n$ over all correctly classified inputs. Formally:
-$$\Phi_{F_l} = \frac{\sum\limits_{\substack{n: y(n) = h(n)}} |\phi_{F_l}^n|}{\sum_n 1\{y(n) = h(n)\}}$$
-
-\subsection{A note on taking the absolute value}
-A negative feature importance score indicates that a particular feature contributed adversely to the correct classification of the input example. This might lead one to think that to compute the overall feature importance score $\Phi_{F_l}$, we should average the signed scores, rather than averaging the absolute values of the scores. However, consider the following situation: your inputs fall into classes A, B or C, and you have features 1 and 2. Class A is distinguished by the absence of feature 1 and feature 2. Class B is distinguished by the presence of feature 1 but not feature 2, and class C is distinguished by the presence of feature 2, but also occasionally has feature 1 present. Whenever feature 1 is present for class C, it will likely receive a negative score because the occurrence of feature 1 favors classification as B. Thus, if we average the score of feature 1 over all training examples, we might obtain a net score near 0, even though feature 1 is important. The key is to realize that the only reason feature 1 obtains a negative score even on correctly classified examples from class C is because it is actually important for classification into a different class - class B. This is the justification for taking the absolute value, and also for restricting our attention to examples that are correctly classified. Note that when we compute feature importance scores $\phi^{(c)}_{F_l}$ for a specific class, we do not need to take the absolute value.
-
-\section{Data and Implementation}
-
-\subsection{Data}
-The human genome encodes a large number of regulatory elements that control the activation and repression of genes. These regulatory elements can be broadly classified into 8 functional classes namely Promoters, Enhancers, Pure CTCF, Transcribed, Heterochromatin, Bivalent elements, Repressed Polycomb elements or Quiescent elements. Identifying the DNA sequence features that encode these distinct functional classes of elements is an important problem in functional genomics. We consider the problem of classifying regulatory elements in the GM12878 lymphoblastoid cell lines into the 8 functional classes. The regulatory elements and their labels were obtained using a method called ChromHMM (Ernst and Kellis, 2012) that combines multiple genome-wide tracks of biochemical marks to decipher and annotate regulatory elements. We study either the 8-class classification problem (where the classes are Promoter, Enhancer, Pure CTCF, Transcribed, Heterochromatin, Bivalent, Repressed Polycomb or Quiescent) or a one-versus-all classification problem (where the positive class is one of Promoter, Enhancer or Pure CTCF). The features we use are the counts of 512 sequence motifs (representing binding sites of regulatory proteins) in 2kb region centered around the regulatory element. When we apply logistic regression, the counts are normalized to be in the range 0 to 1. There are 54,495 examples (elements) in the training set, 13,577 in the validation set and 16,871 in the test set. The test set contains elements from a chromosome not used to construct the training or validation sets.
-
-\subsection{Network architecture}
-In every case described, the network architecture used consisted of two fully connected hidden layers, the first with 200 ReLUs and the second with 100 ReLUs. The final layer was a softmax output layer. The net was constructed using pylearn2 (Goodfellow et al., 2013), and was trained with an initial learning rate of 0.01 and momentum 0.1. The batch size was 100.
-
-In each task, the net was trained once using all input features, and DeepLIFFT was performed on the validation set. The rankings obtained from DeepLIFFT were then used to restrict the feature space for various downstream algorithms in the benchmarking.
-
-\section{Benchmarking}
-
-\subsection{Comparison with L1 regularization}
-
-To assess performance, we compared the features chosen by DeepLIFFT with the features chosen by L1 regularization for a logistic regression classifier. Since logistic regression is a binary classification task, we considered the three tasks ``Promoter vs. All", ``Enhancer vs. All" and ``Pure CTCF vs. All". We trained a neural network on the input data and applied DeepLIFFT to obtain a feature ranking as described above. We then compared the performance of logistic regression on the top $n$ features from DeepLIFFT (and no regularization) with the performance of logistic regression when only $n$ weights are nonzero due to L1 regularization. As shown in Figure 1, DeepLIFFT outperforms L1 regularization when the number of features to be considered is small. This is particularly striking because the features selected by DeepLIFFT are intended to work with a neural network. Also shown in Figure 2 are the top 13 features selected by DeepLIFFT and by L1 regularization for the ``Promoter vs. All" task.
-
-\begin{figure}[!ht]
-\centerline{\includegraphics[width=\columnwidth]{logReg_prom}}
-\caption{Performance of logistic regression with L1 and DeepLIFFT features on ``Promoter vs. All" classification task. When the neural network is trained on this task, it obtains an accuracy of 87.1\%. The plots for the ``Enhancer vs. All" task and the ``Pure CTCF vs. All" tasks look similar.}
-\label{logReg_ctcf}
-\end{figure} 
-
-\begin{figure}[!ht]
-\centerline{\includegraphics[width=2.0in]{logReg_prom_features}}
-\label{logReg_prom_features}
-\caption{Top 13 features for ``Promoter vs. All" classification selected by L1 regularization (red) and by DeepLIFFT (blue)}
-\end{figure} 
+We show that
+\begin{equation}
+\sum_{x \in I_y} m_{xt} \delta_x = m_{yt} \delta_y
+\end{equation}
+Using the fact that $A_n = A_n^0 + \delta_n$, we have:
+\begin{equation}
+\begin{aligned}
+(A_y^0 + \delta_y) &= \left(\sum_{x \in I_y} w_{xy} (A_x^0 + \delta_x) \right) + b \\
+(A_y^0 + \delta_y) &= \left(\sum_{x \in I_y} w_{xy} A_x^0 \right) + b + \sum_{x \in I_y} w_{xy} \delta_x
+\end{aligned}
+\end{equation} 
+We also note that the default activation $A_y^0$ can be found as follows:
+\begin{equation}
+A_y^0 = \left(\sum_{x \in I_y} w_{xy} A_x^0 \right) + b
+\end{equation}
+Thus, canceling out $A_y^0$ yields:
+\begin{equation}
+\begin{aligned}
+\delta_y &= \sum_{x \in I_y} w_{xy} \delta_x\\
+m_{yt} \delta_y &= \sum_{x \in I_y} m_{yt} w_{xy} \delta_x\\
+m_{yt} \delta_y &= \sum_{x \in I_y} m_{xt} \delta_x 
+\end{aligned}
+\end{equation} 
 
 
-\subsection{Comparison with Random Forest}
-
-We also benchmarked against a random forest. When the random forest was restricted to features chosen according to the DeepLIFFT rankings, it performed comparably to when it was restricted to features chosen according to the random forest's own feature importance scores. However, the converse was not true; when the neural network was restricted to the features chosen according to DeepLIFFT, it performed better than when restricted to the features chosen according to the Random Forest's importance scores, as shown in Figure 3.
-
-\begin{figure}[!ht]
-\begin{center}
-\centerline{\includegraphics[width=\columnwidth]{rfChart}}
-\caption{Performance of Random Forest and Neural Network on the 8-class classification task, with features chosen either according to the random forest or according to DeepLIFFT.}
-\label{rfChart}
-\end{center}
-\end{figure} 
-
-Furthermore, it is worth noting that the class-specific feature importance scores of DeepLIFFT are more biologically interpretable than the scores generated by a Random Forest. As an example, consider the top 5 features picked by the Random Forest for the ``Pure CTCF vs. All" classification task shown in Table 1. The Pure CTCF elements should be exclusively enriched for motifs of CTCF and its primary co-factors namely RAD21; intuitively one would not expect to see the YY1\_disc3 motif, but the Random Forest includes this feature because it is effective at identifying negative examples (Promoters in this case; looking at the YY1\_disc3 motif - which is not the primary YY1 motif but was discovered at YY1 binding sites - we see that it is likely identifying CpG islands which are known to be enriched at Promoters). Unlike the Random Forest feature importance scores, the DeepLIFFT feature importance scores reveal that YY1 is actually negatively associated with the Pure CTCF class.
-
-\begin{table}[!ht]
-\vskip 0.15in
-\begin{center}
-\begin{small}
-\begin{tabular}{lcccc}
-\hline
-\abovespace\belowspace
-Motif & Logo & RF score & DL score & DL rank\\
-\hline
-\abovespace
-\small{CTCF\_known1}    &\includegraphics[width=0.7in]{CTCF_known1} &  0.183 & 0.193 & 1\\
-CTCF\_known2 &\includegraphics[width=0.7in]{CTCF_known2} &  0.087& 0.060 & 2\\
-YY1\_disc3   &\includegraphics[width=0.7in]{YY1_disc3} &  0.008 & -0.001 & 486\\
-CTCF\_disc3    &\includegraphics[width=0.7in]{CTCF_disc3} &  0.008 & 0.005 & 4\\
-RAD21\_disc3     &\includegraphics[width=0.7in]{RAD21_disc3} &  0.007 & 0.004 & 6\\
-\hline
-\end{tabular}
-\end{small}
-\caption{Top 4 features chosen by Random Forest in ``Pure CTCF vs. All" classification task, and corresponding DeepLIFFT class-specific scores and rank for the ``Pure CTCF" class. There are 512 motifs in total. Note how the DeepLIFFT class-specific score reveals that YY1\_disc3 is negatively associated with the Pure CTCF region; the Random Forest scores provide no such insight. Also keep in mind that the class-specific scores are distinct from DeepLIFFT's overall scores. The class-specific scores have the goal of interpretability; the overall scores have the goal of high performance with fewer features}
-\label{sample-table}
-\end{center}
-\vskip -0.1in
-\end{table}
-
-\section{Biological Interpretability and Correctness}
-As shown at the end of the previous section, a major advantage of DeepLIFFT is its ability to generate scores that allow the user to see which features are important for a specific class. For this task, we generated class specific scores for the Enhancer, Promoter and Pure CTCF classes, and our findings were consistent with known biology. The class-specific scores for the Enhancer, Promoter and Pure CTCF classes generated in the 8-class classification task are shown in Figures 4-6.
-\begin{figure}[!htb]
-\begin{center}
-\centerline{\includegraphics[width=3.0in, height=2.2in]{enhancer_motifs}}
-\caption{DeepLIFFT top ranked motifs for the Enhancer class.}
-\label{rfChart}
-\end{center}
-\end{figure} 
-\begin{figure}[!htb]
-\begin{center}
-\centerline{\includegraphics[width=3.0in, height=2.2in]{promoter_motifs}}
-\caption{DeepLIFFT top ranked motifs for the Promoter class}
-\label{rfChart}
-\end{center}
-\end{figure} 
-\begin{figure}[!htb]
-\begin{center}
-\centerline{\includegraphics[width=3.0in, height=2.2in]{ctcf_motifs}}
-\caption{DeepLIFFT top ranked motifs for the Pure CTCF class.}
-\label{rfChart}
-\end{center}
-\end{figure} 
-
-The top ranked motifs belong to DNA binding regulatory proteins that are known to be associated specifically with the respective classes of elements in lymphoblastoid cell-lines and B-cells. E.g. SPI1, PAX5, IRF and STAT are critical B-cell differentiation factors that have been shown to primarily bind distal enhancer elements using in-vivo protein-DNA binding experiments (Gerstein et al., 2012). On the other hand SP1, YY1, ELF, ETS and NRF have been shown to have a strong promoter bias in in-vivo binding experiments (Gerstein et al., 2012). As additional confirmation, we computed the proportion of in-vivo binding regions that fell within 2kb of a promoter; we found that our predicted promoter-associated proteins had a greater proportion of promoter-proximal sites compared to our predicted enhancer-associated proteins (EGR1, SP1 and ELF from the promoter-associated list have 67\%, 51\% and 63\% of their sites near a promoter; PAX5, SPII and IRF have 36\%, 20\% and 22\% respectively). Our results indicate that DeepLIFFT is able to precisely distinguish these class-specific features.
-
-
-\section{Revealing Input Heterogeneity}
-
-The ability to generate importance scores for individual features allows us to detect whether a particular class in our softmax output is actually comprised of multiple subclasses. We demonstrate this by doing k-means clustering on the feature importance scores of the top 10 motifs associated with the Enhancer class for all the correctly classified Enhancers in the full dataset.
-\begin{figure}[!htb]
-\begin{center}
-\centerline{\includegraphics[width=\columnwidth]{Enhancers_clustered}}
-\caption{K=5 means clustering of feature importance scores for the top 10 Enhancer-associated motifs. Each row is a correctly classified Enhancer from the full dataset. Red indicates a high feature importance score. On the right are the top 3 terms produced by GREAT, sorted by the hypergeometric test FDR (shown in parentheses)}
-\label{rfChart}
-\end{center}
-\end{figure} 
-As shown in Figure 7, clustering these elements according to the DeepLIFFT feature importance scores reveals novel regulatory heterogeneity i.e. subclasses of enhancers with distinct sequence grammars,
-such as an AP1\_disc3 enriched class and an SPI1-enriched class. We also note interesting combinatorics with the PAX5\_disc3 motif; the fourth cluster from the top is primarily enriched only for PAX5\_disc3, while the third cluster from the top is enriched for PAX5\_disc3 in conjunction with STAT\_disc3 and IRF\_known3. On the right we also list the top functional enrichments for genes associated with the regulatory elements in the cluster, obtained using GREAT (McLean et al., 2010). The background input into GREAT was the list of correctly classified Enhancers in our dataset.
-
-
-
-\section{Discussion}
-
-We showed that DeepLIFFT, while conceptually simple, is nevertheless an effective method of understanding which of the raw features are important for the accurate classification of a given input into the neural network. We further showed that the feature importance scores generated by DeepLIFFT can be used to do feature selection for other classifiers and can yield better results than L1 regularization. Finally, we have demonstrated that DeepLIFFT produces biologically meaningful results when applied to a real-world dataset, and that the feature importance scores for individual inputs can themselves be used in conjunction with techniques such as clustering to yield further insights about the data.
-
-Future work would involve comparing DeepLIFFT with the results of stimulus optimization and investigating whether the central idea can be applied to domains such as image classification. It would also be interesting to see if the feature importance scores can be meaningfully computed even when the intermediate hidden layers involve activation functions that do not consist of two piecewise linear regimes - a linear decomposition may no longer be simple, but a heuristic might give sufficiently accurate results.
-
-\section{References}
-\bibliography{example_paper}
-\bibliographystyle{icml2015}
-
-Le, Q., Ranzato, M., Monga, R., et al. (2012). Building high-level features using large scale unsupervised learning. Retrieved May 1, 2015, from http://arxiv.org/abs/1112.6209
-
-Goodfellow, I., Warde-Farley, D., Lamblin, P., et al. (2013). Pylearn2: a machine learning research library http://arxiv.org/abs/1308.4214
-
-Ernst J, Kellis M. ChromHMM: automating chromatin-state discovery and characterization. Nat Methods. 2012;9(3):215-6.
-
-Gerstein MB, Kundaje A, Hariharan M, et al. Architecture of the human regulatory network derived from ENCODE data. Nature. 2012;489(7414):91-100.
-
-Mclean CY, Bristor D, Hiller M, et al. GREAT improves functional interpretation of cis-regulatory regions. Nat Biotechnol. 2010;28(5):495-501.
 
 \end{document} 
 
