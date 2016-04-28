@@ -125,7 +125,7 @@ m_{xt} &= \sum_{y \in O_x} m_{xy} m_{yt}
 \end{aligned}
 \end{equation} 
 
-In the equations below, $I_y$ denotes the set of inputs of $y$, and $t$ represents the target neuron that we intent to compute the contributions to.
+In the equations below, $I_y$ denotes the set of inputs of $y$.
 
 \subsubsection{Linearity}
 Let
@@ -136,15 +136,14 @@ Then
 \begin{equation}
 \begin{aligned}
 m_{xy} &= w_{xy}
-m_{xt} &= w_{xy} m_{yt}
 \end{aligned}
 \end{equation}
 
-{\bf Proof of summation to $\delta$}
+{\bf Proof}
 
 We show that
 \begin{equation}
-\sum_{x \in I_y} m_{xt} \delta_x = m_{yt} \delta_y
+\delta_y = \sum_{x \in I_y} m_{xy} \delta_x 
 \end{equation}
 Using the fact that $A_n = A_n^0 + \delta_n$, we have:
 \begin{equation}
@@ -161,12 +160,17 @@ Thus, canceling out $A_y^0$ yields:
 \begin{equation}
 \begin{aligned}
 \delta_y &= \sum_{x \in I_y} w_{xy} \delta_x\\
-m_{yt} \delta_y &= \sum_{x \in I_y} m_{yt} w_{xy} \delta_x\\
-m_{yt} \delta_y &= \sum_{x \in I_y} m_{xt} \delta_x 
+\delta_y &= \sum_{x \in I_y} m_{xy} \delta_x
 \end{aligned}
 \end{equation} 
 
+\subsubsection{Pooling}
 
+\subsubsection{Nonlinearity}
+
+\subsection{A note on weight normalization for constrained inputs}
+
+\subsection{A note on softmax activations}
 
 \end{document} 
 
