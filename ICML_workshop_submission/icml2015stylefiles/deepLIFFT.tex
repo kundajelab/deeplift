@@ -51,8 +51,8 @@
 \begin{document} 
 
 \twocolumn[
-\icmltitle{LIFFTing the Top off the Black Box: \\ 
-           Feature Selection for Neural Networks in Biology}
+\icmltitle{Not Just A Black Box: \\ 
+           Interpretable Deep Learning using Difference from Default}
 
 % It is OKAY to include author information, even for blind
 % submissions: the style file will automatically remove it for you
@@ -68,13 +68,13 @@
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{DeepLIFT, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
+\icmlkeywords{DFD, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
 
 \vskip 0.3in
 ]
 
 \begin{abstract} 
-A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepLIFT (Deep Linear Importance Feature Tracker), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepLIFT compares the activation of each neuron to its `default activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `default activations'. We apply DeepLIFT to models trained on natural images as well as models trained on genomic sequences. We show that DeepLIFT correctly identifies important features in both cases and has significant advantages over gradient-based methods.
+A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DFD (Difference From Default), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DFD compares the activation of each neuron to its `default activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `default activations'. We apply DFD to models trained on natural images as well as models trained on genomic sequences. We show that DFD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
@@ -84,8 +84,8 @@ As neural networks become increasingly popular, their reputation as a ``black bo
 
 In this paper, we present a general method for assigning feature importance which focuses on the difference between a neuron's activation and its `default' activation, where the default activation is the activation that the neuron has when the network is provided a `default input'. The default input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its default value. In the case of a ReLU which fires when provided the default input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from default' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the default input, our method would assign a positive `difference from default' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
 
-\section{DeepLIFT Method}
-\label{DeepLIFT}
+\section{DFD Method}
+\label{DFD}
 
 We define the contributions of every neuron $x$ to some downstream neuron $y$. We denote the contribution of $x$ to $y$ as $C_{xy}$. Let the activation of a neuron $n$ be denoted as $A_n$. Further, let the \emph{default} activation of neuron $n$ be denoted $A_n^0$, and let the $A_n - A_n^0$ be denoted as $\delta_n$. We define our contributions $C_{xy}$ to satisfy the following properties.
 
@@ -185,11 +185,31 @@ Where $\bm{1}\{\}$ is the indicator function. If a symbolic computation package 
 \end{aligned}
 \end{equation}
 
-\subsubsection{Nonlinearity}
+\subsubsection{Individual nonlinearity}
+
+Here we describe the rule for nonlinear transformations such as the ReLU, sigmoid and tanh which are applied to individual inputs, typically following some affine transformation. Here, we have:
+\begin{equation}
+A_y = f(A_x)
+\end{equation}
+Where $f$ is the nonlinear transformation. When $\delta_x$ is large in magnitude, we can compute $m_{xy}$ according to its definition as follows:
+\begin{equation}
+m_{xy} = \frac{\delta_y}{\delta_x}
+\end{equation}
+When $\delta_x$ is small, the term on the right approaches $\frac{0}{0}$. However, as $\delta_y \rightarrow 0$ as $\delta_x \rightarrow 0$, we have:
+\begin{equation}
+\lim_{\delta_x \rightarrow 0} \frac{\delta_y}{\delta_x} = \frac{d \delta_y}{d \delta_x}
+\end{equation}
+Thus, when $\delta_x$ is close to zero, $m_{xy}$ is simply the derivative of $\delta_y$ with respect to $\delta_x$. Because $\delta_n = A_n - A_n^0$ and $A_n^0$ is a constant, this is the same as $\frac{dA_y}{dA_x}$ when $\delta_x$ is near $0$.
+
+\subsubsection{Softmax activation}
 
 \subsection{A note on weight normalization for constrained inputs}
 
-\subsection{A note on softmax activations}
+\section{Results}
+
+\section{Discussion}
+
+\section{References}
 
 \end{document} 
 
