@@ -52,7 +52,7 @@
 
 \twocolumn[
 \icmltitle{Not Just A Black Box: \\ 
-           Interpretable Deep Learning using Difference from Default}
+           Interpretable Deep Learning by Propagating Activation Differences}
 
 % It is OKAY to include author information, even for blind
 % submissions: the style file will automatically remove it for you
@@ -68,26 +68,26 @@
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{DFD, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
+\icmlkeywords{DFR, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
 
 \vskip 0.3in
 ]
 
 \begin{abstract} 
-A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DFD (Difference From Default), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DFD compares the activation of each neuron to its `default activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `default activations'. We apply DFD to models trained on natural images as well as models trained on genomic sequences. We show that DFD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
+A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepPAD (Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply DeepPAD to models trained on natural images as well as models trained on genomic sequences. We show that  correctly identifies important features in both cases and has significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
 \label{introduction}
 
-As neural networks become increasingly popular, their reputation as a ``black box" presents a barrier to adoption in fields were interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. A common approach is to leverage the gradients of a particular output with respect to the individual inputs (Simonyan et al. - cite) - however, approaches are limited because commonly used activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, yet a ReLU that does not fire can still carry information - particularly if the associated bias is positive (which means that in the absence of any input, the ReLU does fire). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs (cite), but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
+As neural networks become increasingly popular, their reputation as a ``black box" presents a barrier to adoption in fields were interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. A common approach is to leverage the gradients of a particular output with respect to the individual inputs (Simonyan et al. - cite) - however, such approaches are limited because activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, yet a ReLU that does not fire can still carry information - particularly if the associated bias is positive (which means that in the absence of any input, the ReLU does fire). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs (cite), but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
 
-In this paper, we present a general method for assigning feature importance which focuses on the difference between a neuron's activation and its `default' activation, where the default activation is the activation that the neuron has when the network is provided a `default input'. The default input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its default value. In the case of a ReLU which fires when provided the default input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from default' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the default input, our method would assign a positive `difference from default' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
+In this paper, we present a general method for assigning feature importance which focuses on the difference between a neuron's activation and its `reference' activation, where the reference activation is the activation that the neuron has when the network is provided a `reference input'. The reference input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its reference value. In the case of a ReLU that fires when provided the reference input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from reference' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the reference input, our method would assign a positive `difference from reference' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
 
-\section{DFD Method}
-\label{DFD}
+\section{DeepPAD Method}
+\label{PAD}
 
-We define the contributions of every neuron $x$ to some downstream neuron $y$. We denote the contribution of $x$ to $y$ as $C_{xy}$. Let the activation of a neuron $n$ be denoted as $A_n$. Further, let the \emph{default} activation of neuron $n$ be denoted $A_n^0$, and let the $A_n - A_n^0$ be denoted as $\delta_n$. We define our contributions $C_{xy}$ to satisfy the following properties.
+We denote the contribution of $x$ to $y$ as $C_{xy}$. Let the activation of a neuron $n$ be denoted as $A_n$. Further, let the \emph{reference} activation of neuron $n$ be denoted $A_n^0$, and let the $A_n - A_n^0$ be denoted as $\delta_n$. We define our contributions $C_{xy}$ to satisfy the following properties.
 
 \subsection{Summation to $\delta$}
 
@@ -95,7 +95,7 @@ For any set of neurons $S$ whose activations are minimally sufficient to compute
 \begin{equation}
 \sum_{s \in S} C_{sy} = \delta_y
 \end{equation}
-That is, the sum over all the contributions of neurons in $S$ equals the difference-from-default of $y$.
+That is, the sum over all the contributions of neurons in $S$ to $y$ equals the difference-from-reference of $y$.
 
 \subsection{Linear composition}
 
@@ -103,11 +103,11 @@ Let $O_x$ represent the output neurons of $x$. The following property holds:\\
 \begin{equation}
 C_{xy} = \sum_{o \in O_x} \frac{C_{xo}}{\delta_o}C_{oy}
 \end{equation}
-In layman's terms, each neuron `inherits' a contribution through its outputs in proportion to how much that neuron contributes to the difference-from-default of the output.
+In layman's terms, each neuron `inherits' a contribution through its outputs in proportion to how much that neuron contributes to the difference-from-reference of the output.
 
 \subsection{Backpropagation Rules}
 
-We show that the contributions as defined above can be computed using the following rules (which can be implemented to run on a GPU). The computation is reminiscent of backpropagation, as equation $2$ allows contribution scores to be computed efficiently via dynamic programming. To avoid issues of numerical stability when $\delta_n$ for a particular neuron is small, rather than computing the contribution scores explicitly, we instead compute \emph{multipliers} $m_{xy}$ that satisfy the following condition:
+We show that the contributions as defined above can be computed using the following rules (which can be implemented to run on a GPU). The computation is reminiscent of the chain rule used during gradient backpropagation, as equation $2$ makes it possible to start with contribution scores of later layers and use them to find the contribution scores of preceding layers. To avoid issues of numerical stability when $\delta_n$ for a particular neuron is small, rather than computing the contribution scores explicitly, we instead compute \emph{multipliers} $m_{xy}$ that, when multiplied with the difference-from-reference, give the contribution:
 \begin{equation}
 m_{xy} \delta_x = C_{xy}
 \end{equation} 
@@ -151,7 +151,7 @@ Using the fact that $A_n = A_n^0 + \delta_n$, we have:
                               &= \left(\sum_{x \in I_y} w_{xy} A_x^0 \right) + b + \sum_{x \in I_y} w_{xy} \delta_x
 \end{aligned}
 \end{equation} 
-We also note that the default activation $A_y^0$ can be found as follows:
+We also note that the reference activation $A_y^0$ can be found as follows:
 \begin{equation}
 A_y^0 = \left(\sum_{x \in I_y} w_{xy} A_x^0 \right) + b
 \end{equation}
@@ -169,7 +169,7 @@ We consider the case of maxpooling over a set of neurons in a convolutional laye
 \begin{equation}
 A_y = \max_{x \in I_y} A_x
 \end{equation}
-We make the assumption that all instances of a single convolutional filter have the same default activation, i.e. $A_x^0$ is the same for all $x$ in $I_y$ (this would not hold if the chosen default input were not uniform across all positions; the appropriate multiplier in that situation can be computed easily, but is omitted here for brevity). Then we have:
+We make the assumption that all instances of a single convolutional filter have the same reference activation, i.e. $A_x^0$ is the same for all $x$ in $I_y$ (this would not hold if the chosen reference input were not uniform across all positions; the appropriate multiplier in that situation can be computed easily, but is omitted here for brevity). Then we have:
 \begin{equation}
 m_{xy} = \bm{1}\{A_x = A_y\}
 \end{equation}
@@ -181,13 +181,14 @@ Where $\bm{1}\{\}$ is the indicator function. If a symbolic computation package 
 \delta_y &= A_y - A_y^0\\
              &= A_y - A_x^0\\
              &= \bm{1}\{A_x = A_y\} (A_x - A_x^0)\\
-             &= \bm{1}\{A_x = A_y\} \delta_x
+             &= \bm{1}\{A_x = A_y\} \delta_x\\
+             &= m_{xy} \delta_x
 \end{aligned}
 \end{equation}
 
 \subsubsection{Individual nonlinearity}
 
-Here we describe the rule for nonlinear transformations such as the ReLU, sigmoid and tanh which are applied to individual inputs, typically following some affine transformation. Here, we have:
+Here we describe the rule for nonlinear transformations such as the ReLU, sigmoid and tanh which are applied to individual inputs, typically following some affine transformation. We have:
 \begin{equation}
 A_y = f(A_x)
 \end{equation}
