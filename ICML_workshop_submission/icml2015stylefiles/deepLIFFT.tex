@@ -21,6 +21,7 @@
 \usepackage{amsmath}
 \usepackage{algorithm}
 \usepackage{algorithmic}
+\usepackage{bm}
 
 % As of 2011, we use the hyperref package to produce hyperlinks in the
 % resulting PDF.  If this breaks your system, please commend out the
@@ -119,7 +120,7 @@ The equation above follows from the linear composition property and the definiti
 \begin{aligned}
 C_{xt} &= \sum_{y \in O_x} \frac{C_{xy}}{\delta_y}C_{yt}\\
 m_{xt} \delta_x &= \sum_{y \in O_x} \frac{C_{xy}}{\delta_y}(m_{yt} \delta_y)\\
-m_{xt} \delta_x &= \sum_{y \in O_x} C_{xy}m_{yt}\\
+                         &= \sum_{y \in O_x} C_{xy}m_{yt}\\
 m_{xt} &= \sum_{y \in O_x} \frac{C_{xy}}{\delta_x}m_{yt}\\
 m_{xt} &= \sum_{y \in O_x} m_{xy} m_{yt}
 \end{aligned}
@@ -127,7 +128,7 @@ m_{xt} &= \sum_{y \in O_x} m_{xy} m_{yt}
 
 In the equations below, $I_y$ denotes the set of inputs of $y$.
 
-\subsubsection{Linearity}
+\subsubsection{Affine functions}
 Let
 \begin{equation}
 A_y = \left(\sum_{x \in I_y} w_{xy} A_x\right) + b  
@@ -139,9 +140,7 @@ m_{xy} &= w_{xy}
 \end{aligned}
 \end{equation}
 
-{\bf Proof}
-
-We show that
+{\bf Proof.} We show that
 \begin{equation}
 \delta_y = \sum_{x \in I_y} m_{xy} \delta_x 
 \end{equation}
@@ -149,7 +148,7 @@ Using the fact that $A_n = A_n^0 + \delta_n$, we have:
 \begin{equation}
 \begin{aligned}
 (A_y^0 + \delta_y) &= \left(\sum_{x \in I_y} w_{xy} (A_x^0 + \delta_x) \right) + b \\
-(A_y^0 + \delta_y) &= \left(\sum_{x \in I_y} w_{xy} A_x^0 \right) + b + \sum_{x \in I_y} w_{xy} \delta_x
+                              &= \left(\sum_{x \in I_y} w_{xy} A_x^0 \right) + b + \sum_{x \in I_y} w_{xy} \delta_x
 \end{aligned}
 \end{equation} 
 We also note that the default activation $A_y^0$ can be found as follows:
@@ -160,11 +159,31 @@ Thus, canceling out $A_y^0$ yields:
 \begin{equation}
 \begin{aligned}
 \delta_y &= \sum_{x \in I_y} w_{xy} \delta_x\\
-\delta_y &= \sum_{x \in I_y} m_{xy} \delta_x
+             &= \sum_{x \in I_y} m_{xy} \delta_x
 \end{aligned}
 \end{equation} 
 
-\subsubsection{Pooling}
+\subsubsection{Max pooling over convolutional filters}
+
+We consider the case of maxpooling over a set of neurons in a convolutional layer which all belong to the same convolutional filter:
+\begin{equation}
+A_y = \max_{x \in I_y} A_x
+\end{equation}
+We make the assumption that all instances of a single convolutional filter have the same default activation, i.e. $A_x^0$ is the same for all $x$ in $I_y$ (this would not hold if the chosen default input were not uniform across all positions; the appropriate multiplier in that situation can be computed easily, but is omitted here for brevity). Then we have:
+\begin{equation}
+m_{xy} = \bm{1}\{A_x = A_y\}
+\end{equation}
+Where $\bm{1}\{\}$ is the indicator function. If a symbolic computation package is used, then the gradient of $y$ with respect to $x$ can be used in place of $\bm{1}\{A_x = A_y\}$.
+
+{\bf Proof.} Because $A_x^0$ is assumed to be the same for all $x$, we have that $A_y^0 = A_x^0$. As $A_y = A_y^0 + \delta_y$, we get:
+\begin{equation}
+\begin{aligned}
+\delta_y &= A_y - A_y^0\\
+             &= A_y - A_x^0\\
+             &= \bm{1}\{A_x = A_y\} (A_x - A_x^0)\\
+             &= \bm{1}\{A_x = A_y\} \delta_x
+\end{aligned}
+\end{equation}
 
 \subsubsection{Nonlinearity}
 
