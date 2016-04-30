@@ -12,27 +12,52 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
+import deeplift_util
 
 
-
+ScoringMode = deeplift_util.enum(OneAndZeros="OneAndZeros")
 
 
 class Model(object):
-    pass
+    
+    def get_contrib_func(input_layer, target_layer, task_idx, scoring_mode):
+        raise NotImplementedError()
 
+    def get_contrib_to_pre_activation_func(
+        input_layer, target_layer, task_idx):
+
+        assert len(target_layer.get_output_layers())==0
+        final_activation_layer = target_layer.get_output_layers()[0]
+        deeplift_util.assert_is_type(final_activation_layer, blobs.Activation,
+                                     "final_activation_layer")
+
+        final_activation_type = type(final_activation_layer).__name__
+
+        if (final_activation_type == "Sigmoid"):
+            scoring_mode=ScoringMode.OneAndZeros
+        elif (final_activation_type == "Softmax"):
+            raise NotImplementedError()
+        else:
+            raise RuntimeError("Unsupported final_activation_type: "
+                               +final_activation_type)
+
+        return self.get_contrib_func(
+                    input_layer=input_layer,
+                    target_layer=target_layer,
+                    task_idx=task_idx,
+                    scoring_mode=scoring_mode)    
+        
 
 class SequentialModel(Model):
     
     def __init__(self, layers):
-        self.layers = layers
+        self._layers = layers
 
-    def set_target_node(layer_idx, task_idx, activation_layer_class):
-        """
-            activation_layer_class: a class that is a subclass of
-                blobs.Activation
-        """ 
-        raise NotImplementedError()
+    def get_layers(self):
+        return self._layers
 
-    def set_target_node_before_activation(**kwargs):
-        self.set_target_node(layer_idx=-2, task_idx=task_idx,
-                             activation_layer_class=activation_layer_class)
+    def get_contrib_to_pre_activation_func(input_layer, task_idx):
+        super(SequentialModel, self).get_contrib_func_for_pre_activation(
+                                      input_layer=input_layer,
+                                      target_layer=self.get_layers()[-2],
+                                      task_idx=task_idx)
