@@ -118,3 +118,37 @@ def convert_sequential_model(model):
 
     converted_layers[-1].build_fwd_pass_vars()
     return converted_layers
+
+
+def mean_normalise_first_conv_layer_weights(model):
+    layer_to_adjust = model.layers[0];
+    mean_normalise_columns_in_conv_layer(layer_to_adjust)
+
+
+def mean_normalise_conv_layer_with_name(model, layer_name):
+    """
+        model is supposed to be a keras Graph model
+    """
+    mean_normalise_columns_in_conv_layer(model.nodes[layer_name]);
+
+
+def mean_normalise_columns_in_conv_layer(layer_to_adjust):
+    """
+        For conv layers operating on one hot encoding,
+        adjust the weights/bias such that the output is
+        mathematically equivalent but now each position
+        is mean-normalised.
+    """
+    weights, biases = layerToAdjust.get_weights();
+    normalised_weights, normalised_bias =\
+     deeplift_util.mean_normalise_weights_for_sequence_convolution(
+                    weights, biases)
+    layer_to_adjust.set_weights([normalised_weights,
+                                 normalised_bias])
+
+
+def load_keras_model(weights, yaml):                                              
+    from keras.models import model_from_yaml                                    
+    model = model_from_yaml(open(yaml).read())                                  
+    model.load_weights(weights)                                                 
+    return model 
