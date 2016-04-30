@@ -30,6 +30,9 @@ class Blob(object):
         self._output_layers = []
         self._mxts_updated = False
 
+    def get_output_layers(self):
+        return self._output_layers
+
     def _layer_needs_to_be_built_message(self):
         raise RuntimeError("Layer needs to be built; name "+str(self.name))
 
@@ -274,7 +277,7 @@ class OneDimOutputMixin(object):
         self._task_index = B.shared(0)
 
     def update_task_index(self, task_index):
-        B.set_subtensor(self._task_index, task_index)
+        self._task_index.set_value(task_index)
 
     def _get_task_index(self):
         return self._task_index
