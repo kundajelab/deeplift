@@ -70,3 +70,22 @@ def run_function_in_batches(func,
         to_return.extend(func(*[x[i:i+batch_size] for x in input_data_list]));
         i += batch_size;
     return to_return
+
+def mean_normalise_weights_for_sequence_convolution(weights,
+                                                    bias,
+                                                    weightsHeight=4):
+    #weights: outputchannels, inputChannels, windowDims
+    assert len(weights.shape)==4
+    assert weights.shape[1]==1
+    assert weights.shape[2]==weightsHeight
+    mean_weights_at_positions=np.mean(weights,axis=2)
+    new_bias = bias + np.sum(np.sum(mean_weights_at_positions,axis=2),axis=1)
+    mean_weights_at_positions=mean_weights_at_positions[:,:,None,:]
+    renormalised_weights=weights-mean_weights_at_positions
+    return renormalised_weights, new_bias
+
+def load_keras_model(weights, yaml):                                              
+    from keras.models import model_from_yaml                                    
+    model = model_from_yaml(open(yaml).read())                                  
+    model.load_weights(weights)                                                 
+    return model 
