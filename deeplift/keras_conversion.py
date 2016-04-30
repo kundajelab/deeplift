@@ -8,6 +8,7 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
+import models
 import blobs
 import deeplift_util as deeplift_util  
 from deeplift_backend import PoolMode, BorderMode
@@ -24,7 +25,7 @@ ActivationTypes = deeplift_util.enum(relu='relu', prelu='prelu', sigmoid='sigmoi
 
 
 def conv2d_conversion(layer, name):
-    to_return = [deeplift.Conv2D(
+    to_return = [blobs.Conv2D(
             name=name,
             W=layer.get_weights()[0],
             b=layer.get_weights()[1],
@@ -35,7 +36,7 @@ def conv2d_conversion(layer, name):
 
 
 def pool2d_conversion(layer, name, pool_mode):
-    return [deeplift.Pool2D(
+    return [blobs.Pool2D(
              name=name,
              pool_size=layer.get_config()[KerasKeys.pool_size],
              strides=layer.get_config()[KerasKeys.strides],
@@ -45,11 +46,11 @@ def pool2d_conversion(layer, name, pool_mode):
 
 
 def flatten_conversion(layer, name):
-    return [deeplift.Flatten(name=name)]
+    return [blobs.Flatten(name=name)]
 
 
 def dense_conversion(layer, name):
-    to_return = [deeplift.Dense(name=name, 
+    to_return = [blobs.Dense(name=name, 
                   W=layer.get_weights()[0],
                   b=layer.get_weights()[1])]
     to_return.extend(activation_conversion(layer, "activ_"+str(name)))
@@ -57,19 +58,19 @@ def dense_conversion(layer, name):
 
 
 def prelu_conversion(layer, name):
-   return [deeplift.PReLU(alpha=layer.get_weights()[0], name=name)] 
+   return [blobs.PReLU(alpha=layer.get_weights()[0], name=name)] 
 
 
 def relu_conversion(layer, name):
-    return [deeplift.ReLU(name=name)]
+    return [blobs.ReLU(name=name)]
 
 
 def sigmoid_conversion(layer, name):
-    return [deeplift.Sigmoid(name=name)]
+    return [blobs.Sigmoid(name=name)]
 
 
 def softmax_conversion(layer, name):
-    return [deeplift.Softmax(name=name)]
+    return [blobs.Softmax(name=name)]
 
 
 def activation_conversion(layer, name):
@@ -104,7 +105,7 @@ layer_name_to_conversion_function = {
 def convert_sequential_model(model):
     converted_layers = []
     converted_layers.append(
-        deeplift.Input_FixedDefault(default=0.0, num_dims=4))
+        blobs.Input_FixedDefault(default=0.0, num_dims=4))
     for layer_idx, layer in enumerate(model.layers):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
@@ -117,7 +118,7 @@ def convert_sequential_model(model):
         last_layer_processed = layer
 
     converted_layers[-1].build_fwd_pass_vars()
-    return converted_layers
+    return models.SequentialModel(converted_layers)
 
 
 def mean_normalise_first_conv_layer_weights(model):
@@ -139,7 +140,7 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust):
         mathematically equivalent but now each position
         is mean-normalised.
     """
-    weights, biases = layerToAdjust.get_weights();
+    weights, biases = layer_to_adjust.get_weights();
     normalised_weights, normalised_bias =\
      deeplift_util.mean_normalise_weights_for_sequence_convolution(
                     weights, biases)
@@ -147,8 +148,11 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust):
                                  normalised_bias])
 
 
-def load_keras_model(weights, yaml):                                              
+def load_keras_model(weights, yaml,
+                     normalise_conv_for_one_hot_encoded_input=False): 
     from keras.models import model_from_yaml                                    
-    model = model_from_yaml(open(yaml).read())                                  
-    model.load_weights(weights)                                                 
+    model = model_from_yaml(open(yaml).read()) 
+    model.load_weights(weights) 
+    if (normalise_conv_for_one_hot_encoded_input):
+        mean_normalise_first_conv_layer_weights(model)
     return model 

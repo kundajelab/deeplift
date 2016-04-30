@@ -1,3 +1,4 @@
+import sys, os
 import theano
 from theano import tensor as T
 scripts_dir = os.environ.get("DEEPLIFT_DIR")
