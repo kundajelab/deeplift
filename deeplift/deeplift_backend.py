@@ -33,6 +33,10 @@ def tensor_with_dims(num_dims, name):
                         broadcastable=[False]*num_dims)(name)
 
 
+def shared(value):
+    return theano.shared(value=value)
+
+
 def dot(x, y):
     return T.dot(x, y)
 

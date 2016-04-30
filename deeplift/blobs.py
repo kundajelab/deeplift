@@ -14,6 +14,8 @@ if (scripts_dir is None):
 sys.path.insert(0, scripts_dir)
 import deeplift_util as deeplift_util  
 import deeplift_backend as B
+ScoringMode = deeplift_util.enum(OneAndZeros="OneAndZeros",
+                                 SoftmaxPreActivation="SoftmaxPreActivation")
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
@@ -266,15 +268,36 @@ class SingleInputMixin(object):
         return eval("self.inputs."+function_name+'()');
 
 
-class FixedDimOutputMixin(object):
+class OneDimOutputMixin(object):
+   
+    def _init_task_index(self):
+        self._task_index = B.shared(0)
 
-    def set_target_node(self, index):
-        self._mxts = B.zeros_like(self.get_activation_vars())
-        self._mxts = B.set_subtensor(self._mxts[:,index],1.0)
+    def update_task_index(self, task_index):
+        B.set_subtensor(self._task_index, task_index)
+
+    def _get_task_index(self):
+        return self._task_index
+    
+    def set_scoring_mode(self, scoring_mode):
+        self._init_task_index()
+        task_index = self._get_task_index()
+        if (scoring_mode == ScoringMode.OneAndZeros):
+            self._mxts = B.zeros_like(self.get_activation_vars())
+            self._mxts = B.set_subtensor(
+                           self._mxts[:,self._get_task_index()],
+                           1.0)
+        elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
+            n = self.get_activation_vars().shape[1]
+            self._mxts = B.ones_like(self.get_activation_vars())*(-1.0/n)
+            self._mxts = B.set_subtensor(self._mxts[:,self._get_task_index()],
+                                         (n-1.0)/n)
+        else:
+            raise RuntimeError("Unsupported scoring_mode "+scoring_mode)
         self._set_mxts_updated_true()
  
 
-class Dense(SingleInputMixin, FixedDimOutputMixin, Node):
+class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, **kwargs):
         super(Dense, self).__init__(**kwargs)
@@ -291,7 +314,7 @@ class Dense(SingleInputMixin, FixedDimOutputMixin, Node):
         pass #not used
 
 
-class Activation(SingleInputMixin, FixedDimOutputMixin, Node):
+class Activation(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, **kwargs):
         super(Activation, self).__init__(**kwargs)
@@ -364,7 +387,7 @@ class Softmax(Activation):
         return B.softmax_grad(default_activation_vars)
 
 
-class Conv2D(SingleInputMixin, FixedDimOutputMixin, Node):
+class Conv2D(SingleInputMixin, OneDimOutputMixin, Node):
     """
         Note: this is ACTUALLY a convolution, not cross-correlation i.e.
             the weights are 'flipped'
@@ -407,7 +430,7 @@ class Conv2D(SingleInputMixin, FixedDimOutputMixin, Node):
     def _build_gradient_at_default_activation(self):
         pass #not used
 
-class Pool2D(SingleInputMixin, FixedDimOutputMixin, Node):
+class Pool2D(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, pool_size, strides, border_mode,
                  ignore_border, pool_mode, **kwargs):
@@ -443,7 +466,7 @@ class Pool2D(SingleInputMixin, FixedDimOutputMixin, Node):
         pass #not used
 
 
-class Flatten(SingleInputMixin, FixedDimOutputMixin, Node):
+class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     
     def _build_activation_vars(self, input_act_vars):
         return B.flatten_keeping_first(input_act_vars)
