@@ -36,7 +36,7 @@
 % Employ the following version of the ``usepackage'' statement for
 % submitting the draft version of the paper for review.  This will set
 % the note in the first column to ``Under review.  Do not distribute.''
-\usepackage{icml2015} 
+\usepackage[accepted]{icml2015} 
 
 % Employ this version of the ``usepackage'' statement after the paper has
 % been accepted, when creating the final version.  This will set the
@@ -58,23 +58,19 @@
 % submissions: the style file will automatically remove it for you
 % unless you've provided the [accepted] option to the icml2015
 % package.
-\icmlauthor{Your Name}{email@yourdomain.edu}
-\icmladdress{Your Fantastic Institute,
-            314159 Pi St., Palo Alto, CA 94306 USA}
-\icmlauthor{Your CoAuthor's Name}{email@coauthordomain.edu}
-\icmladdress{Their Fantastic Institute,
-            27182 Exp St., Toronto, ON M6H 2T1 CANADA}
+\begin{center}{ {\bf Avanti Shrikumar$^1$} (avanti@stanford.edu), {\bf Peyton Greenside$^2$} (pgreens@stanford.edu)\\{\bf Anna Shcherbina$^2$} (annashch@stanford.edu), {\bf Anshul Kundaje$^{1,3}$} (akundaje@stanford.edu)}\end{center}
+\icmladdress{1. Department of Computer Science, Stanford University, CA, USA\\2. Biomedical Informatics, Stanford University, CA, USA\\3. Department of Genetics, Stanford University, CA, USA}
 
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{DFR, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
+\icmlkeywords{DeepPAD, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
 
 \vskip 0.3in
 ]
 
 \begin{abstract} 
-A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepPAD (Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply DeepPAD to models trained on natural images as well as models trained on genomic sequences. We show that deepPAD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
+A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepPAD (Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply DeepPAD to models trained on natural images as well as models trained on genomic sequences. We show that DeepPAD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
