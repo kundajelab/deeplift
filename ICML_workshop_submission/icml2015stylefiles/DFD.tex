@@ -204,6 +204,28 @@ Thus, when $\delta_x$ is close to zero, $m_{xy}$ is simply the derivative of $\d
 
 \subsubsection{Softmax activation}
 
+Let ${t_1, t_2...t_n}$ represent the output of a softmax transformation on the nodes ${y_1, y_2...y_n}$, such that:
+\begin{equation}
+A_{t_i} = \frac{e^{A_{y_i}}}{\sum_{i' = 1}^n e^{A_{y_i'}}} 
+\end{equation}
+Here, $A_{y_1}...A_{y_n}$ are affine functions of their inputs. Let $x$ represent a neuron that is an input to $A_{y_1}...A_{y_n}$, and let $w_{xy_i}$ represent the coefficient of $A_x$ in $A_{y_i}$. Because $A_{y_1}...A_{y_n}$ are followed by a softmax transformation, if $w_{xy_i}$ is the same for all $y_i$ (that is, $x$ contributes equally to all $y_i$), then $x$ effectively has zero contribution to $A_{t_i}$. This can be observed by substituting $A_{y_i} = w_{xy_i}A_x + r_{y_i}$ in the expression for $A_{t_i}$ and canceling out $e^{w_{xy_i}A_x}$ (here, $r_{y_i}$ is the sum of all the remaining terms in the affine expression for $A_{y_i}$)
+\begin{equation}
+\begin{aligned}
+A_{t_i} &= \frac{e^{A_{y_i}}}{\sum_{i' = 1}^n e^{A_{y_i'}}}\\
+           &= \frac{e^{w_{xy_i}A_x + r_{y_i}}}{\sum_{i' = 1}^n e^{w_{xy_i'}A_x + r_{y_i'}}}\\
+           &= \frac{e^{w_{xy_i}A_x + r_{y_i}}}{\sum_{i' = 1}^n e^{w_{xy_i}A_x + r_{y_i'}}}\\
+           &= \frac{e^{r_{y_i}}}{\sum_{i' = 1}^n e^{r_{y_i'}}} 
+\end{aligned}
+\end{equation}
+One way to ensure that $C_{xt}$ is zero if $w_{xy_i}$ is the same for all $y_i$ is to set:
+\begin{equation}
+\begin{cases}
+C_{y_i' t_i} &= \frac{n-1}{n} \delta_t_i' & \text{for} i' = i
+\end{cases}
+\end{equation}
+
+\subsection{A note on final activation layers}
+
 \subsection{A note on weight normalization for constrained inputs}
 
 \section{Results}
