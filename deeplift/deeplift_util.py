@@ -83,9 +83,3 @@ def mean_normalise_weights_for_sequence_convolution(weights,
     mean_weights_at_positions=mean_weights_at_positions[:,:,None,:]
     renormalised_weights=weights-mean_weights_at_positions
     return renormalised_weights, new_bias
-
-def load_keras_model(weights, yaml):                                              
-    from keras.models import model_from_yaml                                    
-    model = model_from_yaml(open(yaml).read())                                  
-    model.load_weights(weights)                                                 
-    return model 
