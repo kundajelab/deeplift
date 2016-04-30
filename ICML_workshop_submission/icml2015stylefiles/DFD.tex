@@ -19,8 +19,8 @@
 
 % For algorithms
 \usepackage{amsmath}
-\usepackage{algorithm}
-\usepackage{algorithmic}
+%\usepackage{algorithm}
+%\usepackage{algorithmic}
 \usepackage{bm}
 
 % As of 2011, we use the hyperref package to produce hyperlinks in the
@@ -74,15 +74,15 @@
 ]
 
 \begin{abstract} 
-A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepPAD (Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply DeepPAD to models trained on natural images as well as models trained on genomic sequences. We show that  correctly identifies important features in both cases and has significant advantages over gradient-based methods.
+A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepPAD (Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply DeepPAD to models trained on natural images as well as models trained on genomic sequences. We show that deepPAD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
 \label{introduction}
 
-As neural networks become increasingly popular, their reputation as a ``black box" presents a barrier to adoption in fields were interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. A common approach is to leverage the gradients of a particular output with respect to the individual inputs (Simonyan et al. - cite) - however, such approaches are limited because activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, yet a ReLU that does not fire can still carry information - particularly if the associated bias is positive (which means that in the absence of any input, the ReLU does fire). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs (cite), but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
+As neural networks become increasingly popular, their reputation as a ``black box" presents a barrier to adoption in fields where interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. A common approach is to leverage the gradients of a particular output with respect to the individual inputs (Simonyan et al. - cite) - however, such approaches are limited because activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, yet a ReLU that does not fire can still carry information - particularly if the associated bias is positive (which means that in the absence of any input, the ReLU does fire). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs (cite), but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
 
-In this paper, we present a general method for assigning feature importance which focuses on the difference between a neuron's activation and its `reference' activation, where the reference activation is the activation that the neuron has when the network is provided a `reference input'. The reference input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its reference value. In the case of a ReLU that fires when provided the reference input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from reference' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the reference input, our method would assign a positive `difference from reference' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
+In this paper, we present a general method for assigning feature importance that focuses on the difference between a neuron's activation and its `reference' activation, where the reference activation is the activation that the neuron has when the network is provided a `reference input'. The reference input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its reference value. In the case of a ReLU that fires when provided the reference input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from reference' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the reference input, our method would assign a positive `difference from reference' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
 
 \section{DeepPAD Method}
 \label{PAD}
@@ -229,6 +229,19 @@ One way to ensure that $C_{xt}$ is zero if $w_{xy_i}$ is the same for all $y_i$ 
 \subsection{A note on weight normalization for constrained inputs}
 
 \section{Results}
+
+We apply DeepPAD to models that classify genomic sequences. The positive class requires that two particular DNA patterns - 'GATA' and 'CAGATG' - appear in the sequence together. They may appear at any spacing. The negative class has just one of the two patterns appearing either once or twice, also at any spacing. We simulate 20,000 sequences of length 200 for the positive set and 40,000 sequences for the negative set split equally between the two patterns. Outside the core patterns we randomly sample the remaining sequence with equal frequency for the four bases A, C, G and T. We trained a model on our data with 20 convolutional filters of length 15 with a PReLU and a max pool layer of stride 50 followed by two fully connected layers of size 200. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background.  % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. 
+
+We then run deepPAD to assign an importance score to each base in the correctly predicted sequences. We also use a gradient-based method for comparison. In Figure 1 we illustrate that DeepPAD clearly discovers both patterns and assigns them large importance scores as compared to the surrounding sequence. The gradient-based method discovers only one of the two important patterns despite a correct prediction.
+
+\begin{figure}[!htmb]
+\begin{center}
+\includegraphics[scale=0.3]{DeepPADSequence2.png}
+\includegraphics[scale=0.3]{GradientSequence2.png}
+\caption{DeepPAD scores (top) and gradient-based scores (bottom) are plotted for each position in the DNA sequence and colored by the DNA base.}
+\end{center}
+\end{figure}
+ 
 
 \section{Discussion}
 
