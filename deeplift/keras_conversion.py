@@ -121,9 +121,15 @@ def convert_sequential_model(model):
     #string the layers together so that subsequent layers take the previous
     last_layer_processed = converted_layers[0]
     for layer in converted_layers[1:]:
+        if (type(layer)==blobs.Softmax):
+            #mean normalise the inputs to the softmax
+            print("Mean-normalising softmax") 
+            last_layer_processed.W, last_layer_processed.b =\
+             deeplift_util.get_mean_normalised_softmax_weights(
+                last_layer_processed.W, last_layer_processed.b
+             )
         layer.set_inputs(last_layer_processed)
         last_layer_processed = layer
-
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
 
@@ -155,8 +161,17 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust):
                                  normalised_bias])
 
 
+def mean_normalise_softmax_weights(softmax_dense_layer):
+    weights, biases = softmax_dense_layer.get_weights()
+    new_weights, new_biases =\
+     deeplift_util.get_mean_normalised_softmax_weights(weights, biases)
+    softmax_dense_layer.set_weights([new_weights, new_biases])
+
+
 def load_keras_model(weights, yaml,
                      normalise_conv_for_one_hot_encoded_input=False): 
+    #At the time of writing, I don't actually use this because
+    #I do the converion in convert_sequential_model to the deeplift_layer
     from keras.models import model_from_yaml                                    
     model = model_from_yaml(open(yaml).read()) 
     model.load_weights(weights) 

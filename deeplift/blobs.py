@@ -104,7 +104,7 @@ class Blob(object):
             self._output_layers.append(output_layer)
         if (self._built_fwd_pass_vars == False):
             self._build_fwd_pass_vars()
-            self._build_fwd_pass_vars = True
+            self._built_fwd_pass_vars = True
  
     def _build_fwd_pass_vars(self):
         raise NotImplementedError()
@@ -284,17 +284,24 @@ class OneDimOutputMixin(object):
     
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
-        task_index = self._get_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
             self._mxts = B.zeros_like(self.get_activation_vars())
             self._mxts = B.set_subtensor(
                            self._mxts[:,self._get_task_index()],
                            1.0)
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
-            n = self.get_activation_vars().shape[1]
-            self._mxts = B.ones_like(self.get_activation_vars())*(-1.0/n)
-            self._mxts = B.set_subtensor(self._mxts[:,self._get_task_index()],
-                                         (n-1.0)/n)
+            #I was getting some weird NoneType errors when I tried
+            #to compile this piece of the code, hence the shift to
+            #accomplishing this bit via weight normalisation
+
+            #n = self.get_activation_vars().shape[1]
+            #self._mxts = B.ones_like(self.get_activation_vars())*(-1.0/n)
+            #self._mxts = B.set_subtensor(self._mxts[:,self._get_task_index()],
+            #                             (n-1.0)/n)
+            raise NotImplementedError(
+                                "Do via mean-normalisation of weights "
+                                "instead; see what I did in "
+                                "models.Model.set_pre_activation_target_layer")
         else:
             raise RuntimeError("Unsupported scoring_mode "+scoring_mode)
         self._set_mxts_updated_true()
