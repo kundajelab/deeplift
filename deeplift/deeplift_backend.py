@@ -62,7 +62,7 @@ def sigmoid_grad(inp):
 
 def softmax_grad(inp):
     out = softmax(inp)
-    grad = T.nnet.softmax.grad((inp,), (out,))
+    grad = T.nnet.Softmax().grad((inp,), (out,))
     return grad
 
 
@@ -160,8 +160,24 @@ def flatten_keeping_first(x):
     """
     return T.reshape(x, (x.shape[0], T.prod(x.shape[1:]))) 
 
+
 def unflatten_keeping_first(x, like):
     """
         shape x to resemble the shape of 'like'
     """
     return T.reshape(x, like.shape)
+
+
+def zeropad2d(x, padding):
+    output = T.zeros((x.shape[0], #batch
+                      x.shape[1], #channel
+                      x.shape[2] + 2*padding[0], #rows
+                      x.shape[3] + 2*padding[1])) #cols
+    output = set_subtensor(output[:, :, padding[0]:x.shape[2]+padding[0],
+                                        padding[1]:x.shape[3]+padding[1]], x)
+    return output 
+
+
+def discard_pad2d(x, padding):
+    return x[:, :, padding[0]:x.shape[2]+padding[0],
+                   padding[1]:x.shape[3]+padding[0]]

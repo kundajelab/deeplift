@@ -17,7 +17,7 @@ from deeplift_backend import PoolMode, BorderMode
 KerasKeys = deeplift_util.enum(name='name', activation='activation',
                       subsample='subsample', border_mode='border_mode',
                       output_dim='output_dim', pool_size='pool_size',
-                      strides='strides')
+                      strides='strides', padding='padding')
 
 
 ActivationTypes = deeplift_util.enum(relu='relu', prelu='prelu', sigmoid='sigmoid',
@@ -43,6 +43,12 @@ def pool2d_conversion(layer, name, pool_mode):
              border_mode=layer.get_config()[KerasKeys.border_mode],
              ignore_border=True, #Keras implementations always seem to ignore
              pool_mode=pool_mode)]
+
+
+def zeropad2d_conversion(layer, name):
+    return [blobs.ZeroPad2D(
+             name=name,
+             padding=layer.get_config()[KerasKeys.padding])]
 
 
 def flatten_conversion(layer, name):
@@ -92,13 +98,14 @@ layer_name_to_conversion_function = {
                      pool2d_conversion(layer, name, pool_mode=PoolMode.max),
     'AveragePooling2D': lambda layer, name:\
                      pool2d_conversion(layer, name, pool_mode=PoolMode.avg),
+    'ZeroPadding2D': zeropad2d_conversion,
     'Flatten': flatten_conversion,
     'Dense': dense_conversion,
      #in current keras implementation, scaling is done during training
      #and not predict time, so Dropout is a no-op at predict time
     'Dropout': lambda layer, name: [], 
     'Activation': activation_conversion, 
-    'PReLU': prelu_conversion,
+    'PReLU': prelu_conversion
 }
 
 
