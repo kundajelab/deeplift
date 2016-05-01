@@ -318,6 +318,12 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
 
 class Activation(SingleInputMixin, OneDimOutputMixin, Node):
+    #The OneDimOutputMixin is not really appropriate
+    #if the activation is applied to, eg, a 2D conv layer 
+    #output, but it also doesn't hurt anything, so I am
+    #just keeping it this way for now (it would just break
+    #if you tried to call its functions for a layer that was
+    #not actually one dimensional)
 
     def __init__(self, **kwargs):
         super(Activation, self).__init__(**kwargs)
@@ -386,11 +392,11 @@ class Softmax(Activation):
         return B.softmax(input_act_vars)
 
     def _build_gradient_at_default_activation(self):
-        default_activation = self._get_default_activation_vars()
+        default_activation_vars = self._get_default_activation_vars()
         return B.softmax_grad(default_activation_vars)
 
 
-class Conv2D(SingleInputMixin, OneDimOutputMixin, Node):
+class Conv2D(SingleInputMixin, Node):
     """
         Note: this is ACTUALLY a convolution, not cross-correlation i.e.
             the weights are 'flipped'
@@ -433,7 +439,7 @@ class Conv2D(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_gradient_at_default_activation(self):
         pass #not used
 
-class Pool2D(SingleInputMixin, OneDimOutputMixin, Node):
+class Pool2D(SingleInputMixin, Node):
 
     def __init__(self, pool_size, strides, border_mode,
                  ignore_border, pool_mode, **kwargs):
@@ -480,6 +486,23 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
             B.unflatten_keeping_first(
                 x=self.get_mxts(), like=input_act_vars
             ))
+
+    def _build_gradient_at_default_activation(self):
+        pass #not used
+
+
+class ZeroPad2D(SingleInputMixin, Node):
+
+    def __init__(self, padding, **kwargs):
+        super(ZeroPad2D, self).__init__(**kwargs) 
+        self.padding = padding
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.zeropad2d(input_act_vars, padding=self.padding) 
+
+    def _update_mxts_for_inputs(self):
+        self.inputs._increment_mxts(
+            B.discard_pad2d(self.get_mxts(), padding=self.padding))
 
     def _build_gradient_at_default_activation(self):
         pass #not used
