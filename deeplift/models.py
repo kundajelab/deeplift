@@ -55,17 +55,34 @@ class Model(object):
         final_activation_layer = target_layer.get_output_layers()[0]
         deeplift_util.assert_is_type(final_activation_layer, blobs.Activation,
                                      "final_activation_layer")
-
         final_activation_type = type(final_activation_layer).__name__
 
         if (final_activation_type == "Sigmoid"):
             scoring_mode=ScoringMode.OneAndZeros
         elif (final_activation_type == "Softmax"):
-            scoring_mode=ScoringMode.SoftmaxPreActivation
+            new_W, new_b =\
+             deeplift_util.get_mean_normalised_softmax_weights(
+              self.target_layer.W, self.target_layer.b)
+            #The weights need to be mean normalised before they are passed in
+            #because build_fwd_pass_vars() has already been called
+            #before this function is called, because get_output_layers()
+            #(used in this function) is updated during the
+            #build_fwd_pass_vars() call - that is why
+            #I can't simply mean-normalise the weights right here :-(
+            #(It is a pain and a recipe for bugs to rebuild the forward pass
+            #vars after they have already been built - in particular for a
+            #model that branches because where the branches unify you need
+            #really want them to be using the same symbolic variables - no
+            #use having needlessly complicated/redundant graphs and if a node
+            #is common to two outputs, so should its symbolic vars
+            assert np.allclose(self.target_layer.W, new_W),\
+                   "Please mean-normalise weights and biases of softmax layer" 
+            assert np.allclose(self.target_layer.b, new_b),\
+                   "Please mean-normalise weights and biases of softmax layer"
+            scoring_mode=ScoringMode.OneAndZeros
         else:
             raise RuntimeError("Unsupported final_activation_type: "
                                +final_activation_type)
-
         target_layer.set_scoring_mode(scoring_mode)    
         
 
