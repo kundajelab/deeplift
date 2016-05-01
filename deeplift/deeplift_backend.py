@@ -179,5 +179,5 @@ def zeropad2d(x, padding):
 
 
 def discard_pad2d(x, padding):
-    return x[:, :, padding[0]:x.shape[2]+padding[0],
-                   padding[1]:x.shape[3]+padding[0]]
+    return x[:, :, padding[0]:(x.shape[2]-padding[0]),
+                   padding[1]:(x.shape[3]-padding[0])]
