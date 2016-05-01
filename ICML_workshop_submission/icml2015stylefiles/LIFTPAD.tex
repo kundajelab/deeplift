@@ -58,19 +58,19 @@
 % submissions: the style file will automatically remove it for you
 % unless you've provided the [accepted] option to the icml2015
 % package.
-\begin{center}{ {\bf Avanti Shrikumar$^1$} (avanti@stanford.edu), {\bf Peyton Greenside$^2$} (pgreens@stanford.edu)\\{\bf Anna Shcherbina$^2$} (annashch@stanford.edu), {\bf Anshul Kundaje$^{1,3}$} (akundaje@stanford.edu)}\end{center}
+\begin{center}{ {\bf Avanti Shrikumar$^1$} (avanti@stanford.edu), {\bf Peyton Greenside$^2$} (pgreens@stanford.edu)\\{\bf Anna Y. Shcherbina$^2$} (annashch@stanford.edu), {\bf Anshul Kundaje$^{1,3}$} (akundaje@stanford.edu)}\end{center}
 \icmladdress{1. Department of Computer Science, Stanford University, CA, USA\\2. Biomedical Informatics, Stanford University, CA, USA\\3. Department of Genetics, Stanford University, CA, USA}
 
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{DeepPAD, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
+\icmlkeywords{DeepLIFT, DeepLIFT Technologies, LIFTPAD, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
 
 \vskip 0.3in
 ]
 
 \begin{abstract} 
-A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present DeepPAD (Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. DeepPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply DeepPAD to models trained on natural images as well as models trained on genomic sequences. We show that DeepPAD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
+A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present LIFTPAD (Learning Important Features Through Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. LIFTPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply LIFTPAD to models trained on natural images as well as models trained on genomic sequences. We show that LIFTPAD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
@@ -80,8 +80,8 @@ As neural networks become increasingly popular, their reputation as a ``black bo
 
 In this paper, we present a general method for assigning feature importance that focuses on the difference between a neuron's activation and its `reference' activation, where the reference activation is the activation that the neuron has when the network is provided a `reference input'. The reference input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the aforementioned limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its reference value. In the case of a ReLU that fires when provided the reference input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from reference' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the reference input, our method would assign a positive `difference from reference' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
 
-\section{DeepPAD Method}
-\label{PAD}
+\section{LIFTPAD Method}
+\label{LIFTPAD}
 
 We denote the contribution of $x$ to $y$ as $C_{xy}$. Let the activation of a neuron $n$ be denoted as $A_n$. Further, let the \emph{reference} activation of neuron $n$ be denoted $A_n^0$, and let the $A_n - A_n^0$ be denoted as $\delta_n$. We define our contributions $C_{xy}$ to satisfy the following properties.
 
@@ -198,7 +198,11 @@ When $\delta_x$ is small, the term on the right approaches $\frac{0}{0}$. Howeve
 \end{equation}
 Thus, when $\delta_x$ is close to zero, $m_{xy}$ is simply the derivative of $\delta_y$ with respect to $\delta_x$. Because $\delta_n = A_n - A_n^0$ and $A_n^0$ is a constant, this is the same as $\frac{dA_y}{dA_x}$ when $\delta_x$ is near $0$.
 
-\subsubsection{Softmax activation}
+\subsection{A note on final activation layers}
+
+Activation functions such as a softmax or a sigmoid have a maximum $\delta$ of 1.0. Due to the \emph{summation to $\delta$} property, the contribution scores for individual features are lower when there are several redundant features present. As an example, consider $A_t = \sigma(A_y)$ (where $sigma$ is the sigmoid transformation) and $A_y = A_{x_1} + A_{x_2}$. Let the default activations of the inputs be $A_{x_1}^0 = A_{x_2}^0 = 0$. When $x_1 = 100$ and $x_2 = 0$, we have $C_{x_1 t} = 0.5$. However, when both $x_1 = 100$ and $x_2 = 100$, we have $C_{x_1 t} = C_{x_2 t} = 0.25$. To avoid this attenuation of contribution in the presence of redundant inputs, we can use the contributions to $y$ rather than $t$; in both cases, $C_{x_1 y} = 100$.
+
+\subsection{A note on Softmax activation}
 
 Let ${t_1, t_2...t_n}$ represent the output of a softmax transformation on the nodes ${y_1, y_2...y_n}$, such that:
 \begin{equation}
@@ -208,38 +212,57 @@ Here, $A_{y_1}...A_{y_n}$ are affine functions of their inputs. Let $x$ represen
 \begin{equation}
 \begin{aligned}
 A_{t_i} &= \frac{e^{A_{y_i}}}{\sum_{i' = 1}^n e^{A_{y_i'}}}\\
-           &= \frac{e^{w_{xy_i}A_x + r_{y_i}}}{\sum_{i' = 1}^n e^{w_{xy_i'}A_x + r_{y_i'}}}\\
-           &= \frac{e^{w_{xy_i}A_x + r_{y_i}}}{\sum_{i' = 1}^n e^{w_{xy_i}A_x + r_{y_i'}}}\\
-           &= \frac{e^{r_{y_i}}}{\sum_{i' = 1}^n e^{r_{y_i'}}} 
+           &= \frac{e^{w_{xy_i}A_x + r_{y_i}}}{\sum_{i' = 1}^n e^{w_{xy_{i'}}A_x + r_{y_{i'}}}}\\
+           &= \frac{e^{w_{xy_i}A_x + r_{y_i}}}{\sum_{i' = 1}^n e^{w_{xy_i}A_x + r_{y_{i'}}}}\\
+           &= \frac{e^{r_{y_i}}}{\sum_{i' = 1}^n e^{r_{y_{i'}}}} 
 \end{aligned}
 \end{equation}
-One way to ensure that $C_{xt}$ is zero if $w_{xy_i}$ is the same for all $y_i$ is to set:
-%\begin{equation}
-%\begin{cases}
-%C_{y_i' t_i} &= \frac{n-1}{n} \delta_t_i' & \text{for} i' = i
-%\end{cases}
-%\end{equation}
+As mentioned in the previous subsection, in order to avoid attenuation of signal for highly confident predictions, we should compute $C_{xy_i}$ rather than $C_{xt_i}$. One way to ensure that $C_{xy_i}$ is zero if $w_{xy_i}$ is the same for all $y_i$ is to mean-normalized the weights as follows:
+\begin{equation}
+\bar{w}_{xy_i} = w_{xy_i} - \frac{1}{n} \sum_{i' = 1}^n w_{xy_{i'}}  
+\end{equation} 
+This transformation will not affect the output of the softmax, but will ensure that the LIFTPAD scores are zero when a particular node contributes equally to all softmax classes.
 
-\subsection{A note on final activation layers}
+\subsection{Weight normalization for constrained inputs}
 
-\subsection{A note on weight normalization for constrained inputs}
+Let $y$ be a neuron with some subset of inputs $S_y$ that are constrained such that $\sum_{x \in S_y} A_x=c$ (for example, one-hot encoded input satisfies the constraint $\sum_{x \in S_y} A_x = 1$, and a convolutional neuron operating on one-hot encoded rows has one constraint per column that it sees). Let the weights from $x$ to $y$ be denoted $w_{xy}$ and let $b_y$ be the bias of $y$. It is advisable to use normalized weights $\bar{w}_{xy} = w_{xy} - \mu$ and bias $\bar{b}_y = b_y + c\mu$, where $\mu$ is the mean over all $w_{xy}$. We note that this maintains the output of the neural net because, for any constant $\mu$:
+\begin{equation}
+\begin{aligned}
+A_y &= \left(\sum A_x (\bar{w}_{xy} - \mu) \right) + (b_y + c\mu)\\
+	&= \left(\sum A_x w_{xy}\right) - \left(\sum A_x \mu\right) + (b_y + c\mu)\\
+    &= \left(\sum A_x w_{xy}\right) - c\mu + (b_y + c\mu)\\
+    &= \left(\sum A_x w_{xy}\right) + b_y
+\end{aligned}
+\end{equation}
+The normalization is desirable because, for affine functions, the multipliers $m_{xy}$ are equal to the weights $w_{xy}$ and are thus sensitive to $\mu$. To take the example of a convolutional neuron operating on one-hot encoded rows: by mean-normalizing $w_{xy}$ for each column in the filter, one can ensure that the contributions $C_{xy}$ from some columns are not systematically overestimated or underestimated relative to the contributions from other columns.
 
 \section{Results}
 
-We apply DeepPAD to models that classify genomic sequences. The positive class requires that two particular DNA patterns - 'GATA' and 'CAGATG' - appear in the sequence together. They may appear at any spacing. The negative class has just one of the two patterns appearing either once or twice, also at any spacing. We simulate 20,000 sequences of length 200 for the positive set and 40,000 sequences for the negative set split equally between the two patterns. Outside the core patterns we randomly sample the remaining sequence with equal frequency for the four bases A, C, G and T. We trained a model on these sequences with 20 convolutional filters of length 15 with a PReLU and a max pool layer of stride 50 followed by two fully connected layers of size 200. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background.  % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. 
+\subsection{Tiny Imagenet}
 
-We then run DeepPAD to assign an importance score to each base in the correctly predicted sequences. We also use a gradient-based method for comparison. In Figure 1 we illustrate that DeepPAD clearly discovers both patterns and assigns them large importance scores as compared to the surrounding sequence. The gradient-based method discovers only one of the two important patterns despite a correct prediction.
+A model with the VGG16 [cite] architecture was trained on a scaled-down version of the Imagenet dataset, dubbed `Tiny Imagenet'. The images were $64 \times 64$ in dimension and belonged to one of 200 output classes. Pictured are importance scores computed using three different approaches.
+
+\subsection{Genomics}
+
+We apply LIFTPAD to models that classify genomic sequences. The positive class requires that two particular DNA patterns - 'GATA' and 'CAGATG' - appear in the sequence together. They may appear at any spacing. The negative class has just one of the two patterns appearing either once or twice, also at any spacing. We simulate 20,000 sequences of length 200 for the positive set and 40,000 sequences for the negative set split equally between the two patterns. Outside the core patterns we randomly sample the remaining sequence with equal frequency for the four bases A, C, G and T. We trained a model on these sequences with 20 convolutional filters of length 15 with a PReLU and a max pool layer of stride 50 followed by two fully connected layers of size 200. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background.  % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. 
+
+We then run LIFTPAD to assign an importance score to each base in the correctly predicted sequences. We also use a gradient-based method for comparison. In Figure 1 we illustrate that LIFTPAD clearly discovers both patterns and assigns them large importance scores as compared to the surrounding sequence. The gradient-based method discovers only one of the two important patterns despite a correct prediction.
 
 \begin{figure}[!htmb]
 \begin{center}
-\includegraphics[scale=0.3]{DeepPADSequence2.png}
+\includegraphics[scale=0.3]{LIFTPADSequence2.png}
 \includegraphics[scale=0.3]{GradientSequence2.png}
-\caption{DeepPAD scores (top) and gradient-based scores (bottom) are plotted for each position in the DNA sequence and colored by the DNA base.}
+\caption{LIFTPAD scores (top) and gradient-based scores (bottom) are plotted for each position in the DNA sequence and colored by the DNA base.}
 \end{center}
 \end{figure}
  
+\subsection{Extension to Recurrent Neural Networks}
 
-\section{Discussion}
+LIFTPAD is especially appropriate for computing importance scores in Recurrent architectures that involve gated memory units because, unlike with gradients, LIFTPAD contribution scores do not vanish at the extremes of a sigmoid or tanh function. To find importance scores, the computation would have to be done on the unrolled RNN graph.
+
+\subsection{Author contributions}
+
+AS and PG conceived of LIFTPAD. AS implemented LIFTPAD in software. PG led the application to genomics. AYS led the application to Tiny Imagenet. AK provided guidance and feedback. AS, PG, AYS and AK prepared the manuscript.
 
 \section{References}
 
