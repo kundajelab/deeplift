@@ -76,15 +76,22 @@
 ]
 
 \begin{abstract} 
-A common criticism of neural networks is their lack of interpretability or ``black box" nature. This is a major barrier to adoption in application domains such as biology, where interpretability is important. Here we present LIFTPAD (Learning Important Features Through Propagating Activation Differences), an intuitive and effective method for scoring the contributions of inputs to the output of a neural network. LIFTPAD compares the activation of each neuron to its `reference activation', and assigns a contribution score to each of the neuron's inputs proportionally to how the inputs differ from their own `reference activations'. We apply LIFTPAD to models trained on natural images as well as models trained on genomic sequences. We show that LIFTPAD correctly identifies important features in both cases and has significant advantages over gradient-based methods.
+The purported ``black box'' nature of neural networks is a barrier to adoption in applications where interpretability is essential. Here we present LIFTPAD (Learning Important Features Through Propagating Activation Differences), an efficient and effective method for computing importance scores in a neural network. LIFTPAD compares the activation of each neuron to its `reference activation' and assigns contribution scores according to the difference. We apply LIFTPAD to models trained on natural images and genomic data, and show significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
 \label{introduction}
 
-As neural networks become increasingly popular, their reputation as a ``black box" presents a barrier to adoption in fields where interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. Simonyan et al. (2013) proposed using the gradients of a particular output with respect to the individual inputs to generate saliency maps, and showed the superiority of this approach to the deconvolutional nets approach of Zeiler et al. (2013). Guided backpropagation (Springenberg et al. 2014) is another variant which only considers gradients that have positive error signal. As shown in Figure 1, saliency maps can be substantially improved by simply multiplying the gradient with the input signal, which corresponds to a first-order Taylor approximation of how the output would change if the input were set to zero. For piecewise linear networks, the layerwise relevance propagation rules described in Samek et al. (2015) reduce to this approach (which doesn't suffer from the same numerical stability problems), assuming that bias terms are included in the relevance propagation (derivation not shown).
+As neural networks become increasingly popular, their reputation as a ``black box" presents a barrier to adoption in fields where interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. Simonyan et al. (2013) proposed using the gradients of a particular output with respect to the individual inputs to generate saliency maps, and showed the superiority of this approach to the deconvolutional nets approach of Zeiler et al. (2013). Guided backpropagation (Springenberg et al. 2014) is another variant which only considers gradients that have positive error signal. As shown in Figure 2, saliency maps can be substantially improved by simply multiplying the gradient with the input signal, which corresponds to a first-order Taylor approximation of how the output would change if the input were set to zero. For piecewise linear networks, the layerwise relevance propagation rules described in Samek et al. (2015) reduce to this approach (which doesn't suffer from the same numerical stability problems), assuming that bias terms are included in the relevance propagation (derivation not shown).
 
 Gradient-based approaches are problematic because activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, and yet a ReLU that does not fire can still carry information - particularly if the associated bias is positive (which means that in the absence of any input, the ReLU does fire). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs (Chung et al. 2014; Hochreiter and Schmidhuber 1997), but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
+
+\begin{figure}[!ht]
+\begin{center}
+\includegraphics[scale=0.5]{SimpleExample.png}
+\caption{Simple network with inputs $x_1$ and $x_2$ that have reference values of 0. When $x_1 = x_2 = -1$, the output is 0.1 but the gradients w.r.t $x_1$ and $x_2$ are 0 due to the inactive ReLU $y$ (which has an activation of $2$ under the reference input). By comparing activations to their reference values, LIFTPAD assigns contributions of $\left(0.1\frac{1}{3}\right)$ and $\left(0.1\frac{2}{3}\right)$ to $x_1$ and $x_2$ respectively.}
+\end{center}
+\end{figure}
 
 Here we present a general method for assigning feature importance that focuses on the difference between a neuron's activation and its `reference' activation, where the reference activation is the activation that the neuron has when the network is provided a `reference input'. The reference input is defined on a domain-specific basis according to what is appropriate for the task at hand. This circumvents the limitation of gradient-based approaches because, rather than relying on the local gradient at the point of activation, the activation is simply compared to its reference value. In the case of a ReLU that fires when provided the reference input (as is typically the case for ReLUs that have a positive bias), our method assigns a negative `difference from reference' when the ReLU does not fire. Similarly, in the case of a sigmoidal unit which has an output of $0.5$ when provided the reference input, our method would assign a positive `difference from reference' when the sigmoidal unit has an output near $1$, even though the gradient at that output is negligible.
 
@@ -187,7 +194,7 @@ Thus, canceling out $A_y^0$ yields:
 
 \subsubsection{Max operation}
 
-We consider the case of max operation:
+We consider the case of max operation such as a maxpool:
 \begin{equation}
 A_y = \max_{x \in I_y} A_x
 \end{equation}
@@ -204,6 +211,16 @@ Where $\bm{1}\{\}$ is the indicator function. If a symbolic computation package 
 \end{aligned}
 \end{equation}
 
+\subsubsection{Maxout units}
+A maxout function has the form
+\begin{equation}
+A_y = \max_{i = 1}^n \left(\sum_x w_{xy}^i A_x\right) + b^i
+\end{equation}
+i.e. it is the max over $n$ affine functions of the input vector $\vec{x}$. For a given vector of activations $A_{\vec{x}}$ of the inputs, we split $A_{\vec{x}} - A_{\vec{x}}^0$ into segments such that over each segment $s$, a unique affine function dominates the maxout and the coefficient of an individual input $x$ over that segment is $w(s)_{xy}$. Let $l(s)$ denote the fraction of $A_{\vec{x}} - A_{\vec{x}}^0$ in segment $s$. We have:
+\begin{equation}
+m_{xy} = \sum_s l(s)w(s)_{xy}
+\end{equation}
+Intuitively speaking, we simply split the piecewise-linear maxout function into regions where it is linear, and do a weighted sum of the coefficients of $x$ in each region according to how much of $A_{\vec{x}} - A_{\vec{x}}$ falls in that region.
 
 \subsubsection{Other activations}
 The following choice for $m_{xy}$, which is the same for all inputs to $y$, satisfies summation-to-delta:\\
@@ -272,23 +289,23 @@ The normalization is desirable because, for affine functions, the multipliers $m
 
 \subsection{Tiny ImageNet}
 
-A model with the VGG16 (Long et al., 2015) architecture was trained using the Keras framework (Chollet, 2015) on a scaled-down version of the Imagenet dataset, dubbed `Tiny Imagenet'. The images were $64 \times 64$ in dimension and belonged to one of 200 output classes. Results shown in Figure 1; the reference input was an input of all zeros after preprocessing.
+A model with the VGG16 (Long et al., 2015) architecture was trained using the Keras framework (Chollet, 2015) on a scaled-down version of the Imagenet dataset, dubbed `Tiny Imagenet'. The images were $64 \times 64$ in dimension and belonged to one of 200 output classes. Results shown in Figure 2; the reference input was an input of all zeros after preprocessing.
 \begin{figure}[!ht]
 \begin{center}
 \includegraphics[scale=0.4]{TinyImagenetLIFTPAD.png}
-\caption{Comparison of methods to compute importance scores on Tiny ImageNet data. Left-to-right: original image, absolute value of the gradient, positive gradient*input (Taylor approximation), and positive LIFTPAD. LIFTPAD scores are less noisy than gradient*input.}
+\caption{Comparison of methods. Importance scores for RGB channels were summed to get per-pixel importance. Left-to-right: original image, absolute value of the gradient (similar to Simonyan et al. which used the two-norm across RGB rather than sum, and which generalizes Zeiler et al.), positive gradient*input (Taylor approximation, equivalent to Layerwise Relevance Propagation in Samek et al. but masking negative contributions as described in Springenberg et al.), and positive LIFTPAD.}
 \end{center}
 \end{figure}
 \subsection{Genomics}
 We apply LIFTPAD to models that classify genomic sequences. The positive class requires that two particular DNA patterns - 'GATA' and 'CAGATG' - appear anywhere in the length-200 sequence together. The negative class has just one of the two patterns appearing either once or twice. We simulate 20K sequences for the positive set and 40K sequences for the negative set split equally between the two patterns. Outside the core patterns (which were produced from a generative model) we randomly sample the remaining sequence with the four bases A, C, G and T. We trained a model using the Keras framework (Chollet, 2015) on one-hot encoded sequences with 20 convolutional filters of length 15 and stride 1 and a max pool layer of width and stride 50, followed by two fully connected layers of size 200. PReLU nonlinearities were used for the hidden layers. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background. % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. 
 
-We then run LIFTPAD to assign an importance score to each base in the correctly predicted sequences (the reference input for LIFTPAD was an input of all zeros) and compared the results to the gradient*input (Figure 2).
+We then run LIFTPAD to assign an importance score to each base in the correctly predicted sequences (the reference input for LIFTPAD was an input of all zeros) and compared the results to the gradient*input (Figure 3).
 
 \begin{figure}[!ht]
 \begin{center}
 \includegraphics[width=230px,height=30px]{LIFTPADSequence2.png}
 \includegraphics[width=230px,height=30px]{GradientSequence2.png}
-\caption{LIFTPAD scores (top) and gradient-based scores (bottom) using gradient*input are plotted for each position in the DNA sequence and colored by the DNA base (due to one-hot encoding, input is either 1 or 0; gradient*input is equivalent to taking the gradient for the letter that is actually present). LIFTPAD discovers both patterns and assigns them large importance scores. Gradient-based method miss the GATA pattern.}
+\caption{LIFTPAD scores (top) and gradient*input (bottom) are plotted for each position in the DNA sequence and colored by the DNA base (due to one-hot encoding, input is either 1 or 0; gradient*input is equivalent to taking the gradient for the letter that is actually present). LIFTPAD discovers both patterns and assigns them large importance scores. Gradient-based methods miss the GATA pattern.}
 \end{center}
 \end{figure}
 
@@ -296,8 +313,6 @@ We then run LIFTPAD to assign an importance score to each base in the correctly 
 
 AS \& PG conceived of LIFTPAD. AS implemented LIFTPAD in software. PG led application to genomics. AYS led application to Tiny Imagenet. AK provided guidance and feedback. AS, PG, AYS \& AK prepared the manuscript.
 
-%CANNOT SEEM TO GET BIBTEX TO WORK...
-%\bibliographystyle{icml2016}
 \nocite{*}
 \bibliographystyle{icml2016}
 \bibliography{LIFTPAD_references}
