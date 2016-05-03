@@ -109,10 +109,10 @@ layer_name_to_conversion_function = {
 }
 
 
-def convert_sequential_model(model):
+def convert_sequential_model(model,num_dims=4):
     converted_layers = []
     converted_layers.append(
-        blobs.Input_FixedDefault(default=0.0, num_dims=4))
+        blobs.Input_FixedDefault(default=0.0, num_dims=num_dims))
     for layer_idx, layer in enumerate(model.layers):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
