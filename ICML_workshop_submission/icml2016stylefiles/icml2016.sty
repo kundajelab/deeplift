@@ -1,4 +1,4 @@
-% File: icml2015.sty (LaTeX style file for ICML-2015)
+% File: icml2016.sty (LaTeX style file for ICML-2016)
 
 % This file contains the LaTeX formatting parameters for a two-column 
 % conference proceedings that is 8.5 inches wide by 11 inches high.  
@@ -56,13 +56,13 @@
 %% final/accepted version prints an ``Appearing in'' note.  To get the
 %% latter behavior, in the calling file change the ``usepackage'' line
 %% from:
-%%	\usepackage{icml2015}
+%%	\usepackage{icml2016}
 %% to
-%%	\usepackage[accepted]{icml2015}
+%%	\usepackage[accepted]{icml2016}
 %%%%%%%%%%%%%%%%%%%%
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{icml2015}[2015/01/01 v2.0 ICML Conference Style File]
+\ProvidesPackage{icml2016}[2016/01/01 v2.0 ICML Conference Style File]
 
 % Use fancyhdr package
 \RequirePackage{fancyhdr}
@@ -86,7 +86,7 @@
   \hypersetup{ %
     pdftitle={},
     pdfauthor={},
-    pdfsubject={Proceedings of the International Conference on Machine Learning 2015},
+    pdfsubject={Proceedings of the International Conference on Machine Learning 2016},
     pdfkeywords={},
     pdfborder=0 0 0,
     pdfpagemode=UseNone,
@@ -108,9 +108,9 @@
 % change that text.
 %%%%%%%%%%%%%%%%%%%%
 \newcommand{\ICML@appearing}{\textit{Proceedings of the
-$\mathit{32}^{nd}$ International Conference on Machine Learning},
-Lille, France, 2015. JMLR: W\&CP volume 37. 
-Copyright 2015 by the author(s).}
+$\mathit{33}^{rd}$ International Conference on Machine Learning},
+New York, NY, USA, 2016. JMLR: W\&CP volume 48. 
+Copyright 2016 by the author(s).}
 
 %%%%%%%%%%%%%%%%%%%%
 % This string is printed at the bottom of the page for the draft/under
@@ -513,17 +513,17 @@ International Conference on Machine Learning (ICML).  Do not distribute.}
 \def\Huge{\@setsize\Huge{28pt}\xxvpt\@xxvpt} 
 
 % Revised formatting for figure captions and table titles. 
-\newsavebox\captionbox\newdimen\captionboxwid
+\newsavebox\newcaptionbox\newdimen\newcaptionboxwid
 
 \long\def\@makecaption#1#2{
  \vskip 10pt 
         \baselineskip 11pt
         \setbox\@tempboxa\hbox{#1. #2}
         \ifdim \wd\@tempboxa >\hsize
-        \sbox{\captionbox}{\small\sl #1.~}
-        \captionboxwid=\wd\captionbox
-        \usebox\captionbox {\footnotesize #2}
-%        \usebox\captionbox {\small #2}
+        \sbox{\newcaptionbox}{\small\sl #1.~}
+        \newcaptionboxwid=\wd\newcaptionbox
+        \usebox\newcaptionbox {\footnotesize #2}
+%        \usebox\newcaptionbox {\small #2}
         \else 
           \centerline{{\small\sl #1.} {\small #2}} 
         \fi}
