@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  3 MAY 2016 04:32
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  3 MAY 2016 21:22
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -780,63 +780,84 @@ Underfull \hbox (badness 1077) in paragraph at lines 79--80
 <SimpleExample.png, id=7, 448.67625pt x 68.255pt>
 File: SimpleExample.png Graphic file (type png)
  <use SimpleExample.png>
-Package pdftex.def Info: SimpleExample.png used on input line 91.
+Package pdftex.def Info: SimpleExample.png used on input line 92.
 (pdftex.def)             Requested size: 224.33757pt x 34.12741pt.
 
-[1{/usr/local/texlive/2014/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [1{/usr/local/texlive/2014/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
 
 
 
  <./SimpleExample.png>]
-Underfull \hbox (badness 10000) in paragraph at lines 113--114
+Underfull \hbox (badness 10000) in paragraph at lines 117--118
 
  []
 
-[2]
-Underfull \hbox (badness 10000) in paragraph at lines 226--227
+
+Underfull \vbox (badness 3590) has occurred while \output is active []
+
+ [2]
+Underfull \hbox (badness 10000) in paragraph at lines 223--224
 
  []
 
-[3] <TinyImagenetLIFTPAD.png, id=79, 533.995pt x 371.3875pt>
+
+Underfull \hbox (badness 10000) in paragraph at lines 236--238
+
+ []
+
+[3] <TinyImagenetLIFTPAD.png, id=80, 533.995pt x 371.3875pt>
 File: TinyImagenetLIFTPAD.png Graphic file (type png)
 
 <use TinyImagenetLIFTPAD.png>
-Package pdftex.def Info: TinyImagenetLIFTPAD.png used on input line 295.
+Package pdftex.def Info: TinyImagenetLIFTPAD.png used on input line 307.
 (pdftex.def)             Requested size: 213.59421pt x 148.55235pt.
 
-<LIFTPADSequence2.png, id=80, 722.7pt x 140.525pt>
+<LIFTPADSequence2.png, id=81, 722.7pt x 140.525pt>
 File: LIFTPADSequence2.png Graphic file (type png)
  <use LIFTPADSequence2.png>
-Package pdftex.def Info: LIFTPADSequence2.png used on input line 306.
+Package pdftex.def Info: LIFTPADSequence2.png used on input line 320.
 (pdftex.def)             Requested size: 230.8607pt x 30.1115pt.
 
-<GradientSequence2.png, id=81, 722.19812pt x 147.04938pt>
+<GradientSequence2.png, id=82, 722.19812pt x 147.04938pt>
 File: GradientSequence2.png Graphic file (type png)
 
 <use GradientSequence2.png>
-Package pdftex.def Info: GradientSequence2.png used on input line 307.
+Package pdftex.def Info: GradientSequence2.png used on input line 321.
 (pdftex.def)             Requested size: 230.86568pt x 30.11165pt.
 
-No file LIFTPAD.bbl.
+Underfull \hbox (badness 1308) in paragraph at lines 330--331
+[]\OT1/ptm/m/n/10 Layerwise Rel-e-vance Prop-a-ga-tion (LRP), de-scribed in
+ []
+
 [4 <./TinyImagenetLIFTPAD.png> <./LIFTPADSequence2.png> <./GradientSequence2.pn
 g>]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 320.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 320.
+No file LIFTPAD.bbl.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 341.
+[5
+
+]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 341.
  (./LIFTPAD.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 320.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 320.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 341.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 341.
 Package rerunfilecheck Info: File `LIFTPAD.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 320.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 341.
  ) 
 Here is how much of TeX's memory you used:
- 17749 strings out of 493117
- 325985 string characters out of 6135433
- 419124 words of memory out of 5000000
+ 17752 strings out of 493117
+ 326019 string characters out of 6135433
+ 421125 words of memory out of 5000000
  20801 multiletter control sequences out of 15000+600000
  31146 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 62i,12n,56p,1213b,350s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 62i,12n,56p,1099b,354s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2014/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2014/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/te
 xlive/2014/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/tex
@@ -859,10 +880,10 @@ type1/public/amsfonts/cm/cmti9.pfb></usr/local/texlive/2014/texmf-dist/fonts/ty
 pe1/urw/times/utmb8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/ti
 mes/utmr8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/times/utmr8a
 .pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on LIFTPAD.pdf (4 pages, 1230184 bytes).
+Output written on LIFTPAD.pdf (5 pages, 1232448 bytes).
 PDF statistics:
- 177 PDF objects out of 1000 (max. 8388607)
- 140 compressed objects within 2 object streams
- 46 named destinations out of 1000 (max. 500000)
+ 184 PDF objects out of 1000 (max. 8388607)
+ 146 compressed objects within 2 object streams
+ 49 named destinations out of 1000 (max. 500000)
  33 words of extra memory for PDF output out of 10000 (max. 10000000)
 
