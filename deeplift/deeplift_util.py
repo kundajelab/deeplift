@@ -65,8 +65,9 @@ def run_function_in_batches(func,
     to_return = [];
     i = 0;
     while i < len(input_data_list[0]):
-        if (i%progress_update == 0):
-            print("Done",i)
+        if (progress_update is not None):
+            if (i%progress_update == 0):
+                print("Done",i)
         to_return.extend(func(*[x[i:i+batch_size] for x in input_data_list]));
         i += batch_size;
     return to_return
