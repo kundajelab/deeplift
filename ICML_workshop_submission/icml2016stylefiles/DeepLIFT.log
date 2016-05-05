@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  5 MAY 2016 05:40
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  5 MAY 2016 11:29
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -683,7 +683,7 @@ Package hyperref Info: Option `colorlinks' set `true' on input line 98.
 \cv@tmpc@=\count149
 \cv@tmpc=\count150
 )
-No file DeepLIFT.aux.
+(./DeepLIFT.aux)
 \openout1 = `DeepLIFT.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 57.
@@ -701,10 +701,9 @@ LaTeX Font Info:    ... okay on input line 57.
 LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 57.
 LaTeX Font Info:    ... okay on input line 57.
 LaTeX Font Info:    Try loading font information for OT1+ptm on input line 57.
-(/usr/local/texlive/2014/texmf-dist/tex/latex/psnfss/ot1ptm.fd
+ (/usr/local/texlive/2014/texmf-dist/tex/latex/psnfss/ot1ptm.fd
 File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
-)
-(/usr/local/texlive/2014/texmf-dist/tex/latex/ucs/ucsencs.def
+) (/usr/local/texlive/2014/texmf-dist/tex/latex/ucs/ucsencs.def
 File: ucsencs.def 2011/01/21 Fixes to fontencodings LGR, T3
 )
 (/usr/local/texlive/2014/texmf-dist/tex/context/base/supp-pdf.mkii
@@ -750,6 +749,8 @@ Package: gettitlestring 2010/12/03 v1.4 Cleanup title references (HO)
 LaTeX Info: Redefining \ref on input line 57.
 LaTeX Info: Redefining \pageref on input line 57.
 LaTeX Info: Redefining \nameref on input line 57.
+
+(./DeepLIFT.out) (./DeepLIFT.out)
 \@outlinefile=\write4
 \openout4 = `DeepLIFT.out'.
 
@@ -825,44 +826,27 @@ File: GradientSequence2.png Graphic file (type png)
 <use GradientSequence2.png>
 Package pdftex.def Info: GradientSequence2.png used on input line 321.
 (pdftex.def)             Requested size: 230.86568pt x 30.11165pt.
-
-Underfull \hbox (badness 1308) in paragraph at lines 330--331
-[]\OT1/ptm/m/n/10 Layerwise Rel-e-vance Prop-a-ga-tion (LRP), de-scribed in
- []
-
-[4 <./TinyImagenetDeepLIFT.png> <./LIFTPADSequence2.png> <./GradientSequence2.p
-ng>]
-Underfull \hbox (badness 1622) in paragraph at lines 334--335
+ [4 <./TinyImagenetDeepLIFT.png> <./LIFTPADSequence2.png> <./GradientSequence2.
+png>]
+Underfull \hbox (badness 1622) in paragraph at lines 369--370
 []\OT1/ptm/m/n/10 AS & PG con-ceived of DeepLIFT. AS im-ple-mented
  []
 
 No file DeepLIFT.bbl.
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 341.
-[5
-
-]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 341.
+[5]
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 377.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 377.
  (./DeepLIFT.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 341.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 341.
-
-
-Package rerunfilecheck Warning: File `DeepLIFT.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `DeepLIFT.out':
-(rerunfilecheck)             Before: <no file>
-(rerunfilecheck)             After:  D41D8CD98F00B204E9800998ECF8427E;0.
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 341.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 377.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 377.
+Package rerunfilecheck Info: File `DeepLIFT.out' has not changed.
+(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 377.
  ) 
 Here is how much of TeX's memory you used:
- 17746 strings out of 493117
- 325960 string characters out of 6135433
- 420974 words of memory out of 5000000
+ 17758 strings out of 493117
+ 326117 string characters out of 6135433
+ 421134 words of memory out of 5000000
  20801 multiletter control sequences out of 15000+600000
  31146 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -889,10 +873,10 @@ type1/public/amsfonts/cm/cmti9.pfb></usr/local/texlive/2014/texmf-dist/fonts/ty
 pe1/urw/times/utmb8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/ti
 mes/utmr8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/times/utmr8a
 .pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on DeepLIFT.pdf (5 pages, 1753405 bytes).
+Output written on DeepLIFT.pdf (5 pages, 1760438 bytes).
 PDF statistics:
- 184 PDF objects out of 1000 (max. 8388607)
- 146 compressed objects within 2 object streams
- 49 named destinations out of 1000 (max. 500000)
+ 191 PDF objects out of 1000 (max. 8388607)
+ 153 compressed objects within 2 object streams
+ 55 named destinations out of 1000 (max. 500000)
  33 words of extra memory for PDF output out of 10000 (max. 10000000)
 
