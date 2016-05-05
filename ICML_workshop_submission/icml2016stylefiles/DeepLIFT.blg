@@ -1,0 +1,51 @@
+This is BibTeX, Version 0.99d (TeX Live 2015/dev/Debian)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: DeepLIFT.aux
+The style file: icml2016.bst
+Database file #1: DeepLIFT.bib
+Warning--empty journal in Chung2014-uj
+Warning--empty journal in Samek2015-oc
+Warning--empty journal in Simonyan2013-hk
+Warning--empty journal in Springenberg2014-gg
+You've used 10 entries,
+            2773 wiz_defined-function locations,
+            659 strings with 6688 characters,
+and the built_in function-call counts, 5259 in all, are:
+= -- 455
+> -- 334
+< -- 6
++ -- 112
+- -- 102
+* -- 432
+:= -- 785
+add.period$ -- 30
+call.type$ -- 10
+change.case$ -- 64
+chr.to.int$ -- 10
+cite$ -- 24
+duplicate$ -- 239
+empty$ -- 408
+format.name$ -- 116
+if$ -- 1110
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 9
+newline$ -- 57
+num.names$ -- 40
+pop$ -- 144
+preamble$ -- 1
+purify$ -- 54
+quote$ -- 0
+skip$ -- 197
+stack$ -- 0
+substring$ -- 187
+swap$ -- 45
+text.length$ -- 3
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 110
+warning$ -- 4
+while$ -- 42
+width$ -- 0
+write$ -- 127
+(There were 4 warnings)
