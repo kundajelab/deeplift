@@ -70,13 +70,13 @@
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{DeepLIFT, DeepLIFT Technologies, LIFTPAD, deep learning, interpretability, interpretable, neural networks, importance, feature importance, ICML}
+\icmlkeywords{DeepLIFT, DeepLIFT Technologies, LIFTPAD, deep learning, interpretability, interpretable, interpretation, visualization, saliency, importance, pixel-wise, neural networks, feature importance}
 
 \vskip 0.3in
 ]
 
 \begin{abstract} 
-The purported ``black box'' nature of neural networks is a barrier to adoption in applications where interpretability is essential. Here we present LIFTPAD (Learning Important Features Through Propagating Activation Differences), an efficient and effective method for computing importance scores in a neural network. LIFTPAD compares the activation of each neuron to its `reference activation' and assigns contribution scores according to the difference. We apply LIFTPAD to models trained on natural images and genomic data, and show significant advantages over gradient-based methods.
+The purported ``black box'' nature of neural networks is a barrier to adoption in applications where interpretability is essential. Here we present DeepLIFT (Learning Important FeaTures), an efficient and effective method for computing importance scores in a neural network. DeepLIFT compares the activation of each neuron to its `reference activation' and assigns contribution scores according to the difference. We apply DeepLIFT to models trained on natural images and genomic data, and show significant advantages over gradient-based methods.
 \end{abstract} 
 
 \section{Introduction}
@@ -90,16 +90,16 @@ Gradient-based approaches are problematic because activation functions such as R
 \vspace{-5px}
 \begin{center}
 \includegraphics[scale=0.5]{SimpleExample.png}
-\caption{Simple network with inputs $x_1$ and $x_2$ that have reference values of 0. When $x_1 = x_2 = -1$, output is 0.1 but the gradients w.r.t $x_1$ and $x_2$ are 0 due to inactive ReLU $y$ (which has activation of $2$ under reference input). By comparing activations to their reference values, LIFTPAD assigns contributions to the output of $\left((0.1-0.5)\frac{1}{3}\right)$ to $x_1$ and $\left((0.1-0.5)\frac{2}{3}\right)$ to $x_2$.}
+\caption{Simple network with inputs $x_1$ and $x_2$ that have reference values of 0. When $x_1 = x_2 = -1$, output is 0.1 but the gradients w.r.t $x_1$ and $x_2$ are 0 due to inactive ReLU $y$ (which has activation of $2$ under reference input). By comparing activations to their reference values, DeepLIFT assigns contributions to the output of $\left((0.1-0.5)\frac{1}{3}\right)$ to $x_1$ and $\left((0.1-0.5)\frac{2}{3}\right)$ to $x_2$.}
 \end{center}
 \vspace{-10px}
 \end{figure}
 
-We present LIFTPAD, a method for assigning feature importance that compares a neuron's activation to its `reference', where the reference is the activation that the neuron has when the network is provided a `reference input' (the reference input is defined according to what is appropriate for the task at hand). This addresses the limitation of gradient-based approaches because the difference from the reference may be non-zero even when the gradient is zero.
+We present DeepLIFT, a method for assigning feature importance that compares a neuron's activation to its `reference', where the reference is the activation that the neuron has when the network is provided a `reference input' (the reference input is defined according to what is appropriate for the task at hand). This addresses the limitation of gradient-based approaches because the difference from the reference may be non-zero even when the gradient is zero.
 
 \vspace{-10px}
-\section{LIFTPAD Method}
-\label{LIFTPAD}
+\section{DeepLIFT Method}
+\label{DeepLIFT}
 
 We denote the contribution of $x$ to $y$ as $C_{xy}$. Let the activation of a neuron $n$ be denoted as $A_n$. Further, let the \emph{reference} activation of neuron $n$ be denoted $A_n^0$, and let the $A_n - A_n^0$ be denoted as $\delta_n$. We define our contributions $C_{xy}$ to satisfy the following properties.
 
@@ -281,7 +281,7 @@ As mentioned in the previous subsection, in order to avoid attenuation of signal
 \begin{equation}
 \bar{w}_{xy_i} = w_{xy_i} - \frac{1}{n} \sum_{i' = 1}^n w_{xy_{i'}}  
 \end{equation} 
-This transformation will not affect the output of the softmax, but will ensure that the LIFTPAD scores are zero when a particular node contributes equally to all softmax classes.
+This transformation will not affect the output of the softmax, but will ensure that the DeepLIFT scores are zero when a particular node contributes equally to all softmax classes.
 
 \subsection{Weight normalization for constrained inputs}
 
@@ -304,34 +304,34 @@ The normalization is desirable because, for affine functions, the multipliers $m
 A model with the VGG16 (Long et al., 2015) architecture was trained using the Keras framework (Chollet, 2015) on a scaled-down version of the Imagenet dataset, dubbed `Tiny Imagenet'. The images were $64 \times 64$ in dimension and belonged to one of 200 output classes. Results shown in Figure 2; the reference input was an input of all zeros after preprocessing.
 \begin{figure}[!ht]
 \begin{center}
-\includegraphics[scale=0.4]{TinyImagenetLIFTPAD.png}
-\caption{Comparison of methods. Importance scores for RGB channels were summed to get per-pixel importance. Left-to-right: original image, absolute value of the gradient (similar to Simonyan et al. which used the two-norm across RGB rather than sum, and which generalizes Zeiler et al.), positive gradient*input (Taylor approximation, equivalent to Layerwise Relevance Propagation in Samek et al. but masking negative contributions as described in Springenberg et al.), and positive LIFTPAD.}
+\includegraphics[scale=0.3]{TinyImagenetDeepLIFT.png}
+\caption{Comparison of methods. Importance scores for RGB channels were summed to get per-pixel importance. Left-to-right: original image, absolute value of the gradient (similar to Simonyan et al. which used the two-norm across RGB rather than sum, and which generalizes Zeiler et al.), positive gradient*input (Taylor approximation, equivalent to Layerwise Relevance Propagation in Samek et al. but masking negative contributions as described in Springenberg et al.), and positive DeepLIFT.}
 \end{center}
 \vspace{-20px}
 \end{figure}
 \subsection{Genomics}
-We apply LIFTPAD to models trained on genomic sequence. The positive class requires that the DNA patterns 'GATA' and 'CAGATG' appear in the length-200 sequence together. The negative class has only one of the two patterns appearing once or twice. Outside the core patterns (which were sampled from a generative model) we randomly sample the four bases A, C, G and T. A CNN was trained using the Keras framework (Chollet, 2015) on one-hot encoded sequences with 20 convolutional filters of length 15 and stride 1 and a max pool layer of width and stride 50, followed by two fully connected layers of size 200. PReLU nonlinearities were used for the hidden layers. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background. % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. %We simulate 20K sequences for the positive set and 40K sequences for the negative set split equally between the two patterns.
+We apply DeepLIFT to models trained on genomic sequence. The positive class requires that the DNA patterns 'GATA' and 'CAGATG' appear in the length-200 sequence together. The negative class has only one of the two patterns appearing once or twice. Outside the core patterns (which were sampled from a generative model) we randomly sample the four bases A, C, G and T. A CNN was trained using the Keras framework (Chollet, 2015) on one-hot encoded sequences with 20 convolutional filters of length 15 and stride 1 and a max pool layer of width and stride 50, followed by two fully connected layers of size 200. PReLU nonlinearities were used for the hidden layers. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background. % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. %We simulate 20K sequences for the positive set and 40K sequences for the negative set split equally between the two patterns.
 
-We then run LIFTPAD to assign an importance score to each base in the correctly predicted sequences (the reference input for LIFTPAD was an input of all zeros) and compared the results to the gradient*input (Figure 3).
+We then run DeepLIFT to assign an importance score to each base in the correctly predicted sequences (the reference input for DeepLIFT was an input of all zeros post weight-normalization (see 2.6) of the first conv layer) and compared the results to the gradient*input (Figure 3).
 
 \begin{figure}[!ht]
 \vspace{-10px}
 \begin{center}
 \includegraphics[width=230px,height=30px]{LIFTPADSequence2.png}
 \includegraphics[width=230px,height=30px]{GradientSequence2.png}
-\caption{LIFTPAD scores (top) and gradient*input (bottom) are plotted for each position in the DNA sequence and colored by the DNA base (due to one-hot encoding, input is either 1 or 0; gradient*input is equivalent to taking the gradient for the letter that is actually present). LIFTPAD discovers both patterns and assigns them large importance scores. Gradient-based methods miss the GATA pattern.}
+\caption{DeepLIFT scores (top) and gradient*input (bottom) are plotted for each position in the DNA sequence and colored by the DNA base (due to one-hot encoding, input is either 1 or 0; gradient*input is equivalent to taking the gradient for the letter that is actually present). DeepLIFT discovers both patterns and assigns them large importance scores. Gradient-based methods miss the GATA pattern.}
 \end{center}
 \vspace{-20px}
 \end{figure}
 \subsection{Discussion}
 
-Prevailing feature importance methods such as the saliency maps of Simonyan et al. (which generalize the deconvolutional nets of Zeiler et al.) and the guided backpropagation of Springenberg et al. are variants of computing gradients. As shown in Figure 1, this can give misleading results when the local gradient is zero. LIFTPAD instead considers the deviation from a neuron's reference activity. This makes it capable of handling RNN memory units gated by activations that have vanishing gradients (eg: sigmoid, tanh).
+Prevailing feature importance methods such as the saliency maps of Simonyan et al. (which generalize the deconvolutional nets of Zeiler et al.) and the guided backpropagation of Springenberg et al. are variants of computing gradients. As shown in Figure 1, this can give misleading results when the local gradient is zero. DeepLIFT instead considers the deviation from a neuron's reference activity. This makes it capable of handling RNN memory units gated by activations that have vanishing gradients (eg: sigmoid, tanh).
 
-Layerwise Relevance Propagation (LRP), described in Samek et al. and first proposed by Bach et al. (2015), does not obviously rely on gradients; however, it can be shown that if bias terms are included in the relevance propagation and all activations are piecewise linear, LRP reduces to gradient*input, (a first-order Taylor approximation of the change in output if the input is set to zero). If all reference activations are zero (as happens when all bias terms are zero and all reference input values are zero), LIFTPAD and LRP give similar results (except that by computing contributions using multipliers, LIFTPAD circumvents the numerical stability problems that LRP faces). In practice, biases are often non-zero, which is why LIFTPAD produces superior results (Figures 2 \& 3).
+Layerwise Relevance Propagation (LRP), described in Samek et al. and first proposed by Bach et al. (2015), does not obviously rely on gradients; however, it can be shown that if bias terms are included in the relevance propagation and all activations are piecewise linear, LRP reduces to gradient*input (a first-order Taylor approximation of the change in output if the input is set to zero). If all reference activations are zero (as happens when all bias terms are zero and all reference input values are zero), DeepLIFT and LRP give similar results (except that by computing contributions using multipliers, DeepLIFT circumvents the numerical stability problems that LRP faces). In practice, biases are often non-zero, which is why DeepLIFT produces superior results (Figures 2 \& 3).
 
 \section{Author contributions}
 
-AS \& PG conceived of LIFTPAD. AS implemented LIFTPAD in software. PG led application to genomics. AYS led application to Tiny Imagenet. AK provided guidance and feedback. AS, PG, AYS \& AK prepared the manuscript.
+AS \& PG conceived of DeepLIFT. AS implemented DeepLIFT in software. PG led application to genomics. AYS led application to Tiny Imagenet. AK provided guidance and feedback. AS, PG, AYS \& AK prepared the manuscript.
 
 \nocite{*}
 \bibliographystyle{icml2016}
