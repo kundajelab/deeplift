@@ -360,7 +360,7 @@ Thus, we see that denominator $a_j^{(l+1)}$ for the intermediate layer cancelled
 \begin{equation}
 R_{ik}^{(l)} =  \sum_j  a_i^{(l)} w_{ij}^{(l,l+1)}w_{jk}^{(l+1,l+2)}
 \end{equation}
-Which is simply equal to the activation $a_i^{(l)}$ multiplied by the gradient of $a_i^{(l)}$ with respect to $a_k$. In situations where the relevance of the last layer is not the same as its activation (which may happen if there is a nonlinear transformation such as a sigmoid), one can simply compute gradient*input with respect to the linear term before the final nonlinearity (which is what we did; for softmax layers, we apply the normalization described in 2.5).
+Which is simply equal to the activation $a_i^{(l)}$ multiplied by the gradient of $a_k$ with respect to $a_i^{(l)}$. In situations where the relevance of the last layer is not the same as its activation (which may happen if there is a nonlinear transformation such as a sigmoid), one can simply compute gradient*input with respect to the linear term before the final nonlinearity (which is what we did; for softmax layers, we apply the normalization described in 2.5).
 
 {\bf Nonlinearity}: ``The backward signal is simply propagated onto the lower layer, ignoring the rectification operation'': While this is not obviously the same as gradient*input, it should be noted that when a rectified linear unit is inactive, it has an activation of zero and the rule for filtering (described above) would assign it zero importance. Furthermore, when the rectified linear unit is active, its gradient is 1. Thus, when the unit is inactive, gradient*input is 0 and LRP assigns 0 signal; when a unit is active, gradient*input is equal to the output and LRP assigns all signal. The two approaches converge.
 
