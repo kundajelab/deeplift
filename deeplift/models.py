@@ -7,15 +7,9 @@ import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
-import deeplift_util
-import blobs
-from blobs import ScoringMode
-import deeplift_backend as B
+
+from deeplift import deeplift_util, blobs, deeplift_backend as B
+from deeplift.blobs import ScoringMode
 
 
 FuncType = deeplift_util.enum(contribs="contribs", multipliers="multipliers")

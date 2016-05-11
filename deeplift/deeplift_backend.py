@@ -1,12 +1,8 @@
 import sys, os
 import theano
 from theano import tensor as T
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
-import deeplift_util as deeplift_util  
+
+from deeplift import deeplift_util as deeplift_util
 
 PoolMode = deeplift_util.enum(max='max', avg='avg')
 BorderMode = deeplift_util.enum(same='same', half='half', valid='valid')
