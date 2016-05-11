@@ -3,15 +3,9 @@ from __future__ import print_function
 from __future__ import absolute_import
 import sys
 import os
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
-import models
-import blobs
-import deeplift_util as deeplift_util  
-from deeplift_backend import PoolMode, BorderMode
+
+from  deeplift import models, blobs, deeplift_util
+from deeplift.deeplift_backend import PoolMode, BorderMode
 
 
 KerasKeys = deeplift_util.enum(name='name', activation='activation',
