@@ -10,6 +10,7 @@ if (scripts_dir is None):
 sys.path.insert(0, scripts_dir)
 import models
 import blobs
+from blobs import MxtsMode
 import deeplift_util as deeplift_util  
 from deeplift_backend import PoolMode, BorderMode
 
@@ -24,18 +25,21 @@ ActivationTypes = deeplift_util.enum(relu='relu', prelu='prelu', sigmoid='sigmoi
                             softmax='softmax', linear='linear')
 
 
-def conv2d_conversion(layer, name):
+def conv2d_conversion(layer, name, mxts_mode):
+    #mxts_mode not used
     to_return = [blobs.Conv2D(
             name=name,
             W=layer.get_weights()[0],
             b=layer.get_weights()[1],
             strides=layer.get_config()[KerasKeys.subsample],
             border_mode=layer.get_config()[KerasKeys.border_mode])] 
-    to_return.extend(activation_conversion(layer, "activ_"+str(name)))
+    to_return.extend(activation_conversion(layer, "activ_"+str(name),
+                                                mxts_mode=mxts_mode))
     return to_return
 
 
-def pool2d_conversion(layer, name, pool_mode):
+def pool2d_conversion(layer, name, pool_mode, mxts_mode):
+    #mxts_mode not used
     return [blobs.Pool2D(
              name=name,
              pool_size=layer.get_config()[KerasKeys.pool_size],
@@ -45,47 +49,53 @@ def pool2d_conversion(layer, name, pool_mode):
              pool_mode=pool_mode)]
 
 
-def zeropad2d_conversion(layer, name):
+def zeropad2d_conversion(layer, name, mxts_mode):
+    #mxts_mode not used
     return [blobs.ZeroPad2D(
              name=name,
              padding=layer.get_config()[KerasKeys.padding])]
 
 
-def flatten_conversion(layer, name):
+def flatten_conversion(layer, name, mxts_mode):
+    #mxts_mode not used
     return [blobs.Flatten(name=name)]
 
 
-def dense_conversion(layer, name):
+def dense_conversion(layer, name, mxts_mode):
+    #mxts_mode not used
     to_return = [blobs.Dense(name=name, 
                   W=layer.get_weights()[0],
                   b=layer.get_weights()[1])]
-    to_return.extend(activation_conversion(layer, "activ_"+str(name)))
+    to_return.extend(activation_conversion(layer, "activ_"+str(name),
+                                                  mxts_mode=mxts_mode))
     return to_return
 
 
-def prelu_conversion(layer, name):
-   return [blobs.PReLU(alpha=layer.get_weights()[0], name=name)] 
+def prelu_conversion(layer, name, mxts_mode):
+   return [blobs.PReLU(alpha=layer.get_weights()[0],
+                       name=name, mxts_mode=mxts_mode)] 
 
 
-def relu_conversion(layer, name):
-    return [blobs.ReLU(name=name)]
+def relu_conversion(layer, name, mxts_mode):
+    return [blobs.ReLU(name=name, mxts_mode=mxts_mode)]
 
 
-def sigmoid_conversion(layer, name):
-    return [blobs.Sigmoid(name=name)]
+def sigmoid_conversion(layer, name, mxts_mode):
+    return [blobs.Sigmoid(name=name, mxts_mode=mxts_mode)]
 
 
-def softmax_conversion(layer, name):
-    return [blobs.Softmax(name=name)]
+def softmax_conversion(layer, name, mxts_mode):
+    return [blobs.Softmax(name=name, mxts_mode=mxts_mode)]
 
 
-def activation_conversion(layer, name):
+def activation_conversion(layer, name, mxts_mode):
     activation = layer.get_config()[KerasKeys.activation]
-    return activation_to_conversion_function[activation](layer, name) 
+    return activation_to_conversion_function[activation](layer, name,
+                                                         mxts_mode) 
 
 
 activation_to_conversion_function = {
-    ActivationTypes.linear: lambda layer, name: [],
+    ActivationTypes.linear: lambda layer, name, mxts_mode: [],
     ActivationTypes.relu: relu_conversion,
     ActivationTypes.sigmoid: sigmoid_conversion,
     ActivationTypes.softmax: softmax_conversion
@@ -94,22 +104,26 @@ activation_to_conversion_function = {
 
 layer_name_to_conversion_function = {
     'Convolution2D': conv2d_conversion,
-    'MaxPooling2D': lambda layer, name:\
-                     pool2d_conversion(layer, name, pool_mode=PoolMode.max),
-    'AveragePooling2D': lambda layer, name:\
-                     pool2d_conversion(layer, name, pool_mode=PoolMode.avg),
+    'MaxPooling2D': lambda layer, name, mxts_mode:\
+                     pool2d_conversion(layer, name,
+                                       pool_mode=PoolMode.max,
+                                       mxts_mode=mxts_mode),
+    'AveragePooling2D': lambda layer, name, mxts_mode:\
+                     pool2d_conversion(layer, name,
+                                       pool_mode=PoolMode.avg,
+                                       mxts_mode=mxts_mode),
     'ZeroPadding2D': zeropad2d_conversion,
     'Flatten': flatten_conversion,
     'Dense': dense_conversion,
      #in current keras implementation, scaling is done during training
      #and not predict time, so Dropout is a no-op at predict time
-    'Dropout': lambda layer, name: [], 
+    'Dropout': lambda layer, name, mxts_mode: [], 
     'Activation': activation_conversion, 
     'PReLU': prelu_conversion
 }
 
 
-def convert_sequential_model(model,num_dims=4):
+def convert_sequential_model(model, num_dims=4, mxts_mode=MxtsMode.DeepLIFT):
     converted_layers = []
     converted_layers.append(
         blobs.Input_FixedDefault(default=0.0, num_dims=num_dims))
@@ -117,7 +131,8 @@ def convert_sequential_model(model,num_dims=4):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
         converted_layers.extend(conversion_function(
-                                 layer=layer, name=layer_idx)) 
+                                 layer=layer, name=layer_idx,
+                                 mxts_mode=mxts_mode)) 
     #string the layers together so that subsequent layers take the previous
     last_layer_processed = converted_layers[0]
     for layer in converted_layers[1:]:
