@@ -19,7 +19,8 @@ ScoringMode = deeplift_util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
 MxtsMode = deeplift_util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                     DeconvNet="DeconvNet",
-                                    GuidedBackprop="GuidedBackprop")
+                                    GuidedBackprop="GuidedBackprop",
+                                    GuidedBackpropDeepLIFT="GuidedBackpropDeepLIFT")
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
@@ -393,6 +394,9 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         if (self.mxts_mode == MxtsMode.DeepLIFT): 
             mxts = self._deeplift_get_mxts_increment_for_inputs()
+        elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT):
+            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
+            mxts = deeplift_mxts*(self.get_mxts() > 0)
         elif (self.mxts_mode == MxtsMode.Gradient):
             mxts = self.get_mxts()*(self.get_activation_vars() > 0)  
         elif (self.mxts_mode == MxtsMode.GuidedBackprop):
