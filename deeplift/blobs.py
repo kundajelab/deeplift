@@ -394,10 +394,10 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         if (self.mxts_mode == MxtsMode.DeepLIFT): 
             mxts = self._deeplift_get_mxts_increment_for_inputs()
         elif (self.mxts_mode == MxtsMode.Gradient):
-            mxts = self.get_mxts()*(self.get_activation_vars > 0)  
+            mxts = self.get_mxts()*(self.get_activation_vars() > 0)  
         elif (self.mxts_mode == MxtsMode.GuidedBackprop):
             mxts = self.get_mxts()*(self.get_mxts() > 0)\
-                                  *(self.get_activation_vars > 0) 
+                                  *(self.get_activation_vars() > 0) 
         elif (self.mxts_mode == MxtsMode.DeconvNet):
             #use the given nonlinearity, but in reverse
             mxts = self._build_activation_vars(self.get_mxts())
