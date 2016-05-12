@@ -14,8 +14,12 @@ if (scripts_dir is None):
 sys.path.insert(0, scripts_dir)
 import deeplift_util as deeplift_util  
 import deeplift_backend as B
+
 ScoringMode = deeplift_util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
+MxtsMode = deeplift_util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
+                                    DeconvNet="DeconvNet",
+                                    GuidedBackprop="GuidedBackprop")
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
@@ -244,7 +248,21 @@ class Node(Blob):
         """
             call _increment_mxts() on the inputs to update them appropriately
         """
+        mxts_increments_for_inputs = self._get_mxts_increments_for_inputs()
+        self._add_given_increments_to_input_mxts(mxts_increments_for_inputs)
+
+    def _get_mxts_increments_for_inputs(self):
+        """
+            get what the increments should be for each input
+        """
         raise NotImplementedError()
+
+    def _add_given_increments_to_input_mxts(self, mxts_increments_for_inputs):
+        """
+            given the increments for each input, add
+        """
+        raise NotImplementedError()
+    
 
 
 class SingleInputMixin(object):
@@ -269,6 +287,12 @@ class SingleInputMixin(object):
             call function_name on self.inputs
         """ 
         return eval("self.inputs."+function_name+'()');
+
+    def _add_given_increments_to_input_mxts(self, mxts_increments_for_inputs):
+        """
+            given the increments for each input, add
+        """
+        self.inputs._increment_mxts(mxts_increments_for_inputs)
 
 
 class OneDimOutputMixin(object):
@@ -317,8 +341,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return B.dot(input_act_vars, self.W) + self.b
 
-    def _update_mxts_for_inputs(self):
-        self.inputs._increment_mxts(B.dot(self.get_mxts(),self.W.T))
+    def _get_mxts_increments_for_inputs(self):
+        return B.dot(self.get_mxts(),self.W.T)
 
     def _build_gradient_at_default_activation(self):
         pass #not used
@@ -332,13 +356,14 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     #if you tried to call its functions for a layer that was
     #not actually one dimensional)
 
-    def __init__(self, **kwargs):
+    def __init__(self, mxts_mode, **kwargs):
+        self.mxts_mode = mxts_mode
         super(Activation, self).__init__(**kwargs)
 
     def _build_activation_vars(self, input_act_vars):
         raise NotImplementedError()
 
-    def _update_mxts_for_inputs(self):
+    def _deeplift_get_mxts_increment_for_inputs(self):
         unscaled_mxts = self.get_mxts()
         input_diff_from_default = self._get_input_diff_from_default_vars()
         near_zero_contrib_mask = (B.abs(input_diff_from_default)\
@@ -358,8 +383,28 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                        (far_from_zero_contrib_mask*\
                         (self._get_diff_from_default_vars()/
                           pc_diff_from_default))
-        mxts = unscaled_mxts*scale_factor
-        self.inputs._increment_mxts(mxts) 
+        return unscaled_mxts*scale_factor
+        
+    def _gradients_get_mxts_increment_for_inputs(self):
+        mxts = self.get_mxts()*(self.get_activation_vars > 0)  
+        return mxts
+        
+
+    def _get_mxts_increments_for_inputs(self):
+        if (self.mxts_mode == MxtsMode.DeepLIFT): 
+            mxts = self._deeplift_get_mxts_increment_for_inputs()
+        elif (self.mxts_mode == MxtsMode.Gradient):
+            mxts = self.get_mxts()*(self.get_activation_vars > 0)  
+        elif (self.mxts_mode == MxtsMode.GuidedBackprop):
+            mxts = self.get_mxts()*(self.get_mxts() > 0)\
+                                  *(self.get_activation_vars > 0) 
+        elif (self.mxts_mode == MxtsMode.DeconvNet):
+            #use the given nonlinearity, but in reverse
+            mxts = self._build_activation_vars(self.get_mxts())
+        else: 
+            raise RuntimeError("Unsupported mxts_mode: "+str(self.mxts_mode))
+        return mxts
+
 
 class PReLU(Activation):
 
@@ -435,13 +480,12 @@ class Conv2D(SingleInputMixin, Node):
                                   subsample=self.strides)
         return conv_without_bias
 
-    def _update_mxts_for_inputs(self): 
-        self.inputs._increment_mxts(
-            B.conv2d_grad(
+    def _get_mxts_increments_for_inputs(self): 
+        return B.conv2d_grad(
                 inp=self.get_mxts(),
                 filters=self.W,
                 border_mode=self.border_mode,
-                subsample=self.strides))
+                subsample=self.strides)
 
     def _build_gradient_at_default_activation(self):
         pass #not used
@@ -465,10 +509,9 @@ class Pool2D(SingleInputMixin, Node):
                       ignore_border=self.ignore_border,
                       pool_mode=self.pool_mode)
 
-    def _update_mxts_for_inputs(self):
+    def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
-        self.inputs._increment_mxts(
-            B.pool2d_grad(
+        return B.pool2d_grad(
                 pool_out=self.get_mxts(),
                 pool_in=input_act_vars,
                 pool_size=self.pool_size,
@@ -476,7 +519,7 @@ class Pool2D(SingleInputMixin, Node):
                 border_mode=self.border_mode,
                 ignore_border=self.ignore_border,
                 pool_mode=self.pool_mode
-            ))
+            )
 
     def _build_gradient_at_default_activation(self):
         pass #not used
@@ -487,12 +530,11 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return B.flatten_keeping_first(input_act_vars)
 
-    def _update_mxts_for_inputs(self):
+    def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
-        self.inputs._increment_mxts(
-            B.unflatten_keeping_first(
+        return B.unflatten_keeping_first(
                 x=self.get_mxts(), like=input_act_vars
-            ))
+            )
 
     def _build_gradient_at_default_activation(self):
         pass #not used
@@ -507,9 +549,8 @@ class ZeroPad2D(SingleInputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return B.zeropad2d(input_act_vars, padding=self.padding) 
 
-    def _update_mxts_for_inputs(self):
-        self.inputs._increment_mxts(
-            B.discard_pad2d(self.get_mxts(), padding=self.padding))
+    def _get_mxts_increments_for_inputs(self):
+        return B.discard_pad2d(self.get_mxts(), padding=self.padding)
 
     def _build_gradient_at_default_activation(self):
         pass #not used
