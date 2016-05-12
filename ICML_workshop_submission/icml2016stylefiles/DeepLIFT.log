@@ -1,7 +1,6 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  5 MAY 2016 21:06
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  8 MAY 2016 14:28
 entering extended mode
  restricted \write18 enabled.
- file:line:error style messages enabled.
  %&-line parsing enabled.
 **DeepLIFT.tex
 (./DeepLIFT.tex
@@ -777,7 +776,7 @@ Underfull \hbox (badness 1377) in paragraph at lines 79--80
 []\OT1/ptm/m/n/10 The pur-ported ``black box'' na-ture of neu-ral
  []
 
-<SimpleExample.png, id=7, 448.67625pt x 68.255pt>
+<SimpleExample.png, id=19, 448.67625pt x 68.255pt>
 File: SimpleExample.png Graphic file (type png)
  <use SimpleExample.png>
 Package pdftex.def Info: SimpleExample.png used on input line 92.
@@ -807,20 +806,20 @@ Underfull \hbox (badness 10000) in paragraph at lines 236--238
 
  []
 
-[3] <TinyImagenetDeepLIFT.png, id=80, 691.58376pt x 477.785pt>
+[3] <TinyImagenetDeepLIFT.png, id=101, 691.58376pt x 477.785pt>
 File: TinyImagenetDeepLIFT.png Graphic file (type png)
 
 <use TinyImagenetDeepLIFT.png>
 Package pdftex.def Info: TinyImagenetDeepLIFT.png used on input line 307.
 (pdftex.def)             Requested size: 207.47672pt x 143.3366pt.
 
-<LIFTPADSequence2.png, id=81, 722.7pt x 140.525pt>
+<LIFTPADSequence2.png, id=104, 722.7pt x 140.525pt>
 File: LIFTPADSequence2.png Graphic file (type png)
  <use LIFTPADSequence2.png>
 Package pdftex.def Info: LIFTPADSequence2.png used on input line 320.
 (pdftex.def)             Requested size: 230.8607pt x 30.1115pt.
 
-<GradientSequence2.png, id=82, 722.19812pt x 147.04938pt>
+<GradientSequence2.png, id=105, 722.19812pt x 147.04938pt>
 File: GradientSequence2.png Graphic file (type png)
 
 <use GradientSequence2.png>
@@ -828,7 +827,7 @@ Package pdftex.def Info: GradientSequence2.png used on input line 321.
 (pdftex.def)             Requested size: 230.86568pt x 30.11165pt.
  [4 <./TinyImagenetDeepLIFT.png> <./LIFTPADSequence2.png> <./GradientSequence2.
 png>]
-Underfull \hbox (badness 1622) in paragraph at lines 369--370
+Underfull \hbox (badness 1622) in paragraph at lines 370--371
 []\OT1/ptm/m/n/10 AS & PG con-ceived of DeepLIFT. AS im-ple-mented
  []
 
@@ -838,7 +837,7 @@ Underfull \hbox (badness 5893) in paragraph at lines 10--15
  []
 
 
-Underfull \vbox (badness 6428) has occurred while \output is active []
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [5])
 Package atveryend Info: Empty hook `BeforeClearDocument' on input line 375.
@@ -855,13 +854,13 @@ Package rerunfilecheck Info: File `DeepLIFT.out' has not changed.
 Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 375.
  ) 
 Here is how much of TeX's memory you used:
- 17804 strings out of 493117
- 327008 string characters out of 6135433
- 421785 words of memory out of 5000000
- 20833 multiletter control sequences out of 15000+600000
+ 17792 strings out of 493117
+ 326772 string characters out of 6135433
+ 421581 words of memory out of 5000000
+ 20824 multiletter control sequences out of 15000+600000
  31146 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 62i,12n,56p,1101b,444s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 62i,12n,56p,1126b,444s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2014/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2014/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/te
 xlive/2014/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/tex
@@ -884,10 +883,10 @@ type1/public/amsfonts/cm/cmti9.pfb></usr/local/texlive/2014/texmf-dist/fonts/ty
 pe1/urw/times/utmb8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/ti
 mes/utmr8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/times/utmr8a
 .pfb></usr/local/texlive/2014/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on DeepLIFT.pdf (6 pages, 1765037 bytes).
+Output written on DeepLIFT.pdf (6 pages, 1764837 bytes).
 PDF statistics:
- 208 PDF objects out of 1000 (max. 8388607)
- 169 compressed objects within 2 object streams
- 67 named destinations out of 1000 (max. 500000)
+ 221 PDF objects out of 1000 (max. 8388607)
+ 182 compressed objects within 2 object streams
+ 64 named destinations out of 1000 (max. 500000)
  33 words of extra memory for PDF output out of 10000 (max. 10000000)
 
