@@ -58,7 +58,7 @@
 
 \twocolumn[
 \icmltitle{Not Just A Black Box: \\ 
-           Interpretable Deep Learning by Propagating Activation Differences}
+           Learning Important Features Through Propagating Activation Differences}
 
 % It is OKAY to include author information, even for blind
 % submissions: the style file will automatically remove it for you
@@ -70,7 +70,7 @@
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{DeepLIFT, DeepLIFT Technologies, LIFTPAD, deep learning, interpretability, interpretable, interpretation, visualization, saliency, importance, pixel-wise, neural networks, feature importance}
+\icmlkeywords{DeepLIFT, DeepLIFT Technologies, LIFTPAD, deep learning, interpretable deep learning, interpretability, interpretable, interpretation, visualization, visualizing, saliency, saliency map, importance, pixel-wise, neural networks, feature importance}
 
 \vskip 0.3in
 ]
@@ -82,9 +82,9 @@ The purported ``black box'' nature of neural networks is a barrier to adoption i
 \section{Introduction}
 \label{introduction}
 
-As neural networks become increasingly popular, their ``black box" reputation is a barrier to adoption when interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. Simonyan et al. (2013) proposed using gradients to generate saliency maps and showed that this is a generalization of the deconvolutional nets of Zeiler et al. (2013). Guided backpropagation (Springenberg et al. 2014) is another variant which only considers gradients that have positive error signal. As shown in Figure 2, saliency maps can be substantially improved by simply multiplying the gradient with the input signal, which corresponds to a first-order Taylor approximation of how the output would change if the input were set to zero; the layer-wise relevance propagation rules described in Samek et al. (2015) reduce to this approach, assuming bias terms are included in the denominators.
+As neural networks become increasingly popular, their ``black box" reputation is a barrier to adoption when interpretability is paramount. Understanding the features that lead to a particular output builds trust with users and can lead to novel scientific discoveries. \citet{Simonyan2013-hk} proposed using gradients to generate saliency maps and showed that this is closely related to the deconvolutional nets of \citet{Zeiler2014-sk}. Guided backpropagation \citep{Springenberg2014-gg} is another variant which only considers gradients that have positive error signal. As shown in Figure 2, saliency maps can be substantially improved by simply multiplying the gradient with the input signal, which corresponds to a first-order Taylor approximation of how the output would change if the input were set to zero; as we show, the layer-wise relevance propagation rules described in \citet{Bach2015-pq} reduce to this approach, assuming bias terms are included in the denominators.
 
-Gradient-based approaches are problematic because activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, and yet a ReLU that does not fire can still carry information (Figure 1). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs (Chung et al. 2014; Hochreiter and Schmidhuber 1997), but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
+Gradient-based approaches are problematic because activation functions such as Rectified Linear Units (ReLUs) have a gradient of zero when they are not firing, and yet a ReLU that does not fire can still carry information (Figure 1). Similarly, sigmoid or tanh activations are popular choices for the activation functions of gates in memory units of recurrent neural networks such as GRUs and LSTMs \citep{Chung2014-uj, Hochreiter1997-yn}, but these activations have a near-zero gradient at high or low inputs even though such inputs can be very significant.
 
 \begin{figure}[!ht]
 \vspace{-5px}
@@ -301,18 +301,18 @@ The normalization is desirable because, for affine functions, the multipliers $m
 
 \subsection{Tiny ImageNet}
 
-A model with the VGG16 (Long et al., 2015) architecture was trained using the Keras framework (Chollet, 2015) on a scaled-down version of the Imagenet dataset, dubbed `Tiny Imagenet'. The images were $64 \times 64$ in dimension and belonged to one of 200 output classes. Results shown in Figure 2; the reference input was an input of all zeros after preprocessing.
+A model with the VGG16 (Long et al., 2015) architecture was trained using the Keras framework \citep{Chollet2015-ya} on a scaled-down version of the Imagenet dataset, dubbed `Tiny Imagenet'. The images were $64 \times 64$ in dimension and belonged to one of 200 output classes. Results shown in Figure 2; the reference input was an input of all zeros after preprocessing.
 \begin{figure}[!ht]
 \begin{center}
 \includegraphics[scale=0.3]{TinyImagenetDeepLIFT.png}
-\caption{Comparison of methods. Importance scores for RGB channels were summed to get per-pixel importance. Left-to-right: original image, absolute value of the gradient (similar to Simonyan et al. which used the two-norm across RGB rather than sum, and which generalizes Zeiler et al.), positive gradient*input (Taylor approximation, equivalent to Layer-wise Relevance Propagation in Samek et al. but masking negative contributions as described in Springenberg et al.), and positive DeepLIFT.}
+\caption{Comparison of methods. Importance scores for RGB channels were summed to get per-pixel importance. Left-to-right: original image, absolute value of the gradient (similar to Simonyan et al. which used the two-norm across RGB rather than the sum, and which is related to both Zeiler et al. and Springenberg et al.), positive gradient*input (Taylor approximation, equivalent to Layer-wise Relevance Propagation in Samek et al. but masking negative contributions), and positive DeepLIFT.}
 \end{center}
 \vspace{-20px}
 \end{figure}
 \subsection{Genomics}
-We apply DeepLIFT to models trained on genomic sequence. The positive class requires that the DNA patterns 'GATA' and 'CAGATG' appear in the length-200 sequence together. The negative class has only one of the two patterns appearing once or twice. Outside the core patterns (which were sampled from a generative model) we randomly sample the four bases A, C, G and T. A CNN was trained using the Keras framework (Chollet, 2015) on one-hot encoded sequences with 20 convolutional filters of length 15 and stride 1 and a max pool layer of width and stride 50, followed by two fully connected layers of size 200. PReLU nonlinearities were used for the hidden layers. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background. % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. %We simulate 20K sequences for the positive set and 40K sequences for the negative set split equally between the two patterns.
+We apply DeepLIFT to models trained on genomic sequence. The positive class requires that the DNA patterns 'GATA' and 'CAGATG' appear in the length-200 sequence together. The negative class has only one of the two patterns appearing once or twice. Outside the core patterns (which were sampled from a generative model) we randomly sample the four bases A, C, G and T. A CNN was trained using the Keras framework \citep{Chollet2015-ya} on one-hot encoded sequences with 20 convolutional filters of length 15 and stride 1 and a max pool layer of width and stride 50, followed by two fully connected layers of size 200. PReLU nonlinearities were used for the hidden layers. This model performs well with auROC of 0.907. The misclassified examples primarily occur when one of the patterns erroneously arises in the randomly sampled background. % We use dropout with probability 0.3, l1 activity regularization (1e-7) and a weight norm of 7 on the fully connected layers. %We simulate 20K sequences for the positive set and 40K sequences for the negative set split equally between the two patterns.
 
-We then run DeepLIFT to assign an importance score to each base in the correctly predicted sequences (the reference input for DeepLIFT was an input of all zeros post weight-normalization (see 2.6) of the first conv layer) and compared the results to the gradient*input (Figure 3).
+We then run DeepLIFT to assign an importance score to each base in the correctly predicted sequences. The reference input is an input of all zeros post weight-normalization (see 2.6) of the first convolutional layer (after weight normalization, the linear activation of a convolutional neuron for an input of all zeros is the bias, which is the same as the average activation across all four bases at each position). We compared the results to the gradient*input (Figure 3).
 
 \begin{figure}[!ht]
 \vspace{-10px}
@@ -323,13 +323,8 @@ We then run DeepLIFT to assign an importance score to each base in the correctly
 \end{center}
 \vspace{-20px}
 \end{figure}
-\subsection{Discussion}
 
-Prevailing feature importance methods such as the saliency maps of Simonyan et al. (which generalize the deconvolutional nets of Zeiler et al.) and the guided backpropagation of Springenberg et al. are variants of computing gradients. As shown in Figure 1, this can give misleading results when the local gradient is zero. DeepLIFT instead considers the deviation from a neuron's reference activity. This makes it capable of handling RNN memory units gated by activations that have vanishing gradients (eg: sigmoid, tanh).
-
-Layer-wise Relevance Propagation (LRP), described in Samek et al. and first proposed by Bach et al. (2015), does not obviously rely on gradients; however, it can be shown that if bias terms are included in the relevance propagation and all activations are piecewise linear, LRP reduces to gradient*input (a first-order Taylor approximation of the change in output if the input is set to zero). If all reference activations are zero (as happens when all bias terms are zero and all reference input values are zero), DeepLIFT and LRP give similar results (except that by computing contributions using multipliers, DeepLIFT circumvents the numerical stability problems that LRP faces). In practice, biases are often non-zero, which is why DeepLIFT produces superior results (Figures 2 \& 3).
-
-\subsection{Equivalence of grad*input to Layer-wise Relevance Propagation}
+\subsection{Equivalence of gradient*input to Layer-wise Relevance Propagation}
 We show when all activations are piecewise linear and bias terms are included in the calculation, the Layer-wise Relevance Propagation (LRP) of Bach et al., reduces to gradient*input. We refer to Samek et al. (2015) for the concise description of LRP:
 
 {\bf Unpooling}: ``The backwards signal is redirected proportionally onto the location for which the activation was recorded in the forward pass'': This is trivially the same as gradient*input, because the gradient*input will be zero for all locations which do not activation the pooling layer, and equal to the output for the location that does.
@@ -339,7 +334,7 @@ We show when all activations are piecewise linear and bias terms are included in
 R_i^{(l)} = \sum_j \frac{z_{ij}}{\sum_i' z_{i'j} + \epsilon \text{ sign}(\sum_{i'} z_{i'j})}R_j^{(l+1)}
 \end{equation}
 
-The term involving $\epsilon$ is included to avoid issues of numerical instability when $\sum_i' z_{i'j}$ is near zero. The second rule described Samek et al. is another variant designed to address the problem of numerical instability. We show that gradient*input gives the exact result as $\epsilon \rightarrow 0$ (i.e. it solves the issue of numerical instability altogether).
+The term involving $\epsilon$ is included to avoid issues of numerical instability when $\sum_i' z_{i'j}$ is near zero. The second rule described in Samek et al. is another variant designed to address the problem of numerical instability. We show that gradient*input gives the exact result as $\epsilon \rightarrow 0$ (i.e. it solves the issue of numerical instability altogether).
 
 Dropping the term for $\epsilon$ and substituting $z_{ij} = a_i^{(l)} w_{ij}^{(l,l+1)}$, we have:
 \begin{equation}
@@ -360,15 +355,20 @@ Thus, we see that denominator $a_j^{(l+1)}$ for the intermediate layer cancelled
 \begin{equation}
 R_{ik}^{(l)} =  \sum_j  a_i^{(l)} w_{ij}^{(l,l+1)}w_{jk}^{(l+1,l+2)}
 \end{equation}
-Which is simply equal to the activation $a_i^{(l)}$ multiplied by the gradient of $a_k$ with respect to $a_i^{(l)}$. In situations where the relevance of the last layer is not the same as its activation (which may happen if there is a nonlinear transformation such as a sigmoid), one can simply compute gradient*input with respect to the linear term before the final nonlinearity (which is what we did; for softmax layers, we apply the normalization described in 2.5).
+Which is simply equal to the activation $a_i^{(l)}$ multiplied by the gradient of $a_k$ with respect to $a_i^{(l)}$. In situations where the relevance of the last layer is not the same as its activation (which may happen if there is a nonlinear transformation such as a sigmoid, as a sigmoid output of 0.5 occurs when the input is 0), one can simply compute gradient*input with respect to the linear term before the final nonlinearity (which is what we did; for softmax layers, we apply the normalization described in 2.5).
 
 {\bf Nonlinearity}: ``The backward signal is simply propagated onto the lower layer, ignoring the rectification operation'': While this is not obviously the same as gradient*input, it should be noted that when a rectified linear unit is inactive, it has an activation of zero and the rule for filtering (described above) would assign it zero importance. Furthermore, when the rectified linear unit is active, its gradient is 1. Thus, when the unit is inactive, gradient*input is 0 and LRP assigns 0 signal; when a unit is active, gradient*input is equal to the output and LRP assigns all signal. The two approaches converge.
+
+\section{Discussion}
+
+Prevailing feature importance methods such as the saliency maps of Simonyan et al., the deconvolutional nets of Zeiler et al. and the guided backpropagation of Springenberg et al. are variants of computing gradients. As shown in Figure 1, this can give misleading results when the local gradient is zero. DeepLIFT instead considers the deviation from a neuron's reference activity. This makes it capable of handling RNN memory units gated by activations that have vanishing gradients (eg: sigmoid, tanh).
+
+Layer-wise Relevance Propagation (LRP), proposed by Bach et al., does not obviously rely on gradients; however, as we show, if all activations are piecewise linear, LRP reduces to gradient*input (a first-order Taylor approximation of the change in output if the input is set to zero). If all reference activations are zero (as happens when all bias terms are zero and all reference input values are zero), DeepLIFT and LRP give similar results (except that by computing contributions using multipliers, DeepLIFT circumvents the numerical stability problems that LRP faces). In practice, biases are often non-zero, which is why DeepLIFT produces superior results (Figures 2 \& 3).
 
 \section{Author contributions}
 
 AS \& PG conceived of DeepLIFT. AS implemented DeepLIFT in software. PG led application to genomics. AYS led application to Tiny Imagenet. AK provided guidance and feedback. AS, PG, AYS \& AK prepared the manuscript.
 
-\nocite{*}
 \bibliographystyle{icml2016}
 \bibliography{DeepLIFT}
 
