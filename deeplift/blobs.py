@@ -558,3 +558,13 @@ class ZeroPad2D(SingleInputMixin, Node):
 
     def _build_gradient_at_default_activation(self):
         pass #not used
+
+
+class RNN(SingleInputMixin, Node):                                              
+                                                                                
+   def __init__(self, weights=None, expose_all_hidden=False,                    
+                    reverse_input=None, **kwargs):                              
+        self.weights = weights                                                  
+        self.expose_all_hidden = expose_all_hidden                              
+        self.reverse_input = reverse_input                                      
+        super(RNN, self).__init__(**kwargs) 

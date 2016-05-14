@@ -21,8 +21,11 @@ KerasKeys = deeplift_util.enum(name='name', activation='activation',
                       strides='strides', padding='padding')
 
 
-ActivationTypes = deeplift_util.enum(relu='relu', prelu='prelu', sigmoid='sigmoid',
-                            softmax='softmax', linear='linear')
+ActivationTypes = deeplift_util.enum(relu='relu',
+                                     prelu='prelu',
+                                     sigmoid='sigmoid',
+                                     softmax='softmax',
+                                     linear='linear')
 
 
 def conv2d_conversion(layer, name, mxts_mode):
