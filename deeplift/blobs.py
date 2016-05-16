@@ -601,6 +601,7 @@ class Maxout(SingleInputMixin, Node):
             B.max(separate_feature_activations, axis=1)
         return self._max_activations 
 
+    #Not used right now...delete later...
     def _get_actual_active_gradients():
         #get the gradients ("features") that were active for each
         #batch x output combination at actual input value
@@ -725,16 +726,14 @@ class Maxout(SingleInputMixin, Node):
                       *self.W[None,:,:,:], axis=2)
 
     def _get_mxts_increments_for_inputs(self):
-        #get the vector for the diff from default
-        #inp_diff_from_default has dims:
+        #self._get_mxts() has dims: batch x num_outputs
+        #_get_weighted_active_gradients has dims:
+        # batch x num_inputs x num_outputs
+        #result has dims:
         # batch x num_inputs
-        inp_diff_from_default = self._get_input_diff_from_default_vars()
-        sum_squares_diff_from_default =\
-         B.sum(B.square(inp_diff_from_default), axis=1)
-        
-
-        else:
-            return B.dot(self.get_mxts(),weighted_ws.T)
+        return B.sum(
+                self._get_mxts()[:,None,:]\
+                *self._get_weighted_active_gradients(), axis=2)
              
 
     def _build_gradient_at_default_activation(self):
