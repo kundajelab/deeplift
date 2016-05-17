@@ -16,7 +16,7 @@ import theano
 
 class TestMaxout(unittest.TestCase):
 
-    def __init__(self):
+    def setUp(self):
         self.input_layer = blobs.Input_FixedDefault(default=-2, num_dims=2)
         W = np.array([[[-1.0, 0.0],
                        [-1.0, 0.0],
@@ -38,7 +38,7 @@ class TestMaxout(unittest.TestCase):
                        [-1.0, 0.0]]])
         b = np.array([[0.0,0.0,-1.0,1.0,1.0,0.0,0.0,0.0,0.0],
                       [0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0,-1.0]])
-        self.maxout_layer = Maxout(W=W, b=b)
+        self.maxout_layer = blobs.Maxout(W=W, b=b)
         self.maxout_layer.set_inputs(self.input_layer)
         self.maxout_layer.build_fwd_pass_vars()
         self.input_layer.update_mxts()
