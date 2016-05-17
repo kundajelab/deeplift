@@ -560,7 +560,7 @@ class ZeroPad2D(SingleInputMixin, Node):
         pass #not used
 
 
-class Maxout(SingleInputMixin, Node):
+class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, **kwargs):
         """
@@ -642,6 +642,7 @@ class Maxout(SingleInputMixin, Node):
             B.dot(self._get_input_default_activation_vars()
                   , self.W_differences)\
             + self.b_differences
+        self._debug_feature_diff_at_default = feature_diff_at_default
 
         #dot product with unit vector in the difference-from-default dir
         #change_vec_projection has dim batch x 
@@ -652,43 +653,49 @@ class Maxout(SingleInputMixin, Node):
         # batch x num_features x num_features x num_outputs
         change_vec_projection =\
             B.dot(inp_diff_from_default, self.W_differences) 
-
-        #add a pseudocount to all the positions that are near zero
-        #so division is not sad
-        change_vec_projection += NEAR_ZERO_THRESHOLD\
-                                 *(B.abs(change_vec_projection)\
-                                   < NEAR_ZERO_THRESHOLD)
-        positive_change_vec_mask = change_vec_projection > 0
-        negative_change_vec_mask = change_vec_projection < 0
-
-        #find the theta that indicates how far along the diff-from-default 
-        #vector the planes of the features intersect
-        #'thetas' has dimensions:
-        # batch x num_features x num_features x num_outputs
-        thetas = feature_diff_at_default/change_vec_projection
-        
-        #matrix of thetas for transitioning in or transitioning out
-        #when two features are exactly equal, will set the values
-        #for transition_in_thetas or transition_out_thetas to be either
-        #+inf or -inf, with lower indices dominating over higher indices
-        #these all have dimensions num_features x num_features
-        upper_triangular_inf = np.triu(np.inf*
-                                np.ones((self.W.shape[0],
-                                         self.W.shape[0])))
-        lower_triangular_inf = np.tril(np.inf*(
-                                np.ones((self.W.shape[0], self.W.shape[0]))
-                                -np.eye(self.W.shape[0])))
-        transition_in_equality_vals = -1*(upper_triangular_inf)\
-                                      + lower_triangular_inf
-        transition_out_equality_vals = -1*transition_in_equality_vals
+        self._debug_change_vec_projection = change_vec_projection
 
         #equal pairs masks
         #W_differences has dims:
         # num_features x num_features x num_inputs x num_outputs
         #equal_pairs_mask and unequal_pairs_mask therefore have dims:
         # num_features x num_features x num_outputs
-        equal_pairs_mask = (np.sum(np.abs(self.W_differences), axis=2)==0)*1
+        equal_Ws_mask = (np.sum(np.abs(self.W_differences), axis=2)==0)*1
+        equal_pairs_mask = equal_Ws_mask*((self.b_differences==0)*1)
         unequal_pairs_mask = 1-equal_pairs_mask 
+
+        positive_change_vec_mask = (change_vec_projection > 0)*1 +\
+                                   equal_Ws_mask*(feature_diff_at_default>0)
+        negative_change_vec_mask = (change_vec_projection < 0)*1 +\
+                                   equal_Ws_mask*(feature_diff_at_default<0)
+        ##add a pseudocount to all the positions that are near zero
+        ##so division is not sad
+        #adding -epsilon so thetas have the right sign
+        change_vec_projection += -NEAR_ZERO_THRESHOLD\
+                                 *(B.abs(change_vec_projection)\
+                                   < NEAR_ZERO_THRESHOLD)
+
+        #find the theta that indicates how far along the diff-from-default 
+        #vector the planes of the features intersect
+        #'thetas' has dimensions:
+        # batch x num_features x num_features x num_outputs
+        thetas = -1*feature_diff_at_default/change_vec_projection
+        self._debug_thetas = thetas
+        
+        #matrix of thetas for transitioning in or transitioning out
+        #when two features are exactly equal, will set the values
+        #for transition_in_thetas or transition_out_thetas to be either
+        #+inf or -inf, with lower indices dominating over higher indices
+        #these all have dimensions num_features x num_features
+        upper_triangular_inf = np.triu(1.0E300*
+                                np.ones((self.W.shape[0],
+                                         self.W.shape[0])))
+        lower_triangular_inf = np.tril(1.0E300*(
+                                np.ones((self.W.shape[0], self.W.shape[0]))
+                                -np.eye(self.W.shape[0])))
+        transition_in_equality_vals = -1*(upper_triangular_inf)\
+                                      + lower_triangular_inf
+        transition_out_equality_vals = -1*transition_in_equality_vals
 
         #the pos/neg change_vec masks have dimensions:
         # batch x num_features x num_features x num_outputs
@@ -700,22 +707,30 @@ class Maxout(SingleInputMixin, Node):
         # num_features x num_features
         #transition_in/out_thetas therefore has dims:
         # batch x num_features x num_features x num_outputs
+        #'When do you transition into feature on first axis FROM
+        #feature on second axis
         transition_in_thetas =\
          ((equal_pairs_mask\
            *transition_in_equality_vals[:,:,None])[None,:,:,:])\
-         + (unequal_pairs_mask[None,:,:,:]
-             *(positive_change_vec_mask*thetas))
+         + positive_change_vec_mask*thetas\
+         + negative_change_vec_mask*(1.0E300)
+        #When do you transition FROM feature on first axis
+        #TO feature on second axis
         transition_out_thetas =\
          ((equal_pairs_mask\
            *transition_out_equality_vals[:,:,None])[None,:,:,:])\
-         + (unequal_pairs_mask[None,:,:,:]
-             *(negative_change_vec_mask*thetas))
+         + negative_change_vec_mask*thetas\
+         + positive_change_vec_mask*(-1.0E300)
+
+        self._debug_transition_in_thetas = transition_in_thetas
+        self._debug_transition_out_thetas = transition_out_thetas
 
         #time_spent_per_feature has dims:
         # batch x num_features x num_outputs 
         time_spent_per_feature = B.maximum(0,
              B.minimum(1, B.min(transition_out_thetas, axis=2))
              - B.maximum(0, B.max(transition_in_thetas, axis=2))) 
+        self._debug_time_spent_per_feature = B.maximum(0, B.max(transition_in_thetas, axis=2))
 
         #time_spent_per_feature has dims:
         # batch x num_features x num_outputs
