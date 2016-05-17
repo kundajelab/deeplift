@@ -12,12 +12,25 @@ PoolMode = deeplift_util.enum(max='max', avg='avg')
 BorderMode = deeplift_util.enum(same='same', half='half', valid='valid')
 
 
+
+def maximum(x, y):
+    return T.maximum(x, y)
+
+
+def minimum(x, y):
+    return T.minimum(x, y)
+
+
 def as_tensor_variable(x):
     raise NotImplementedError()
 
 
 def max(x, axis):
     return T.max(x, axis=axis)
+
+
+def min(x, axis):
+    return T.min(x, axis=axis)
 
 
 def argmax(x, axis):

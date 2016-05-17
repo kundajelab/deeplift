@@ -602,7 +602,7 @@ class Maxout(SingleInputMixin, Node):
         return self._max_activations 
 
     #Not used right now...delete later...
-    def _get_actual_active_gradients():
+    def _get_actual_active_gradients(self):
         #get the gradients ("features") that were active for each
         #batch x output combination at actual input value
         #self._max_activations has dims: batch x num_outputs
@@ -625,7 +625,7 @@ class Maxout(SingleInputMixin, Node):
                                  axis=1)
         return active_gradients
 
-    def _get_weighted_active_gradients():
+    def _get_weighted_active_gradients(self):
         #get gradients ("features") weighted by how much they
         #'dominate' on a vector
         #from the default value of the input to the actual input value
@@ -680,14 +680,14 @@ class Maxout(SingleInputMixin, Node):
                                 -np.eye(self.W.shape[0])))
         transition_in_equality_vals = -1*(upper_triangular_inf)\
                                       + lower_triangular_inf
-        transition_out_equality_vals= -1*transition_in_equality_mask
+        transition_out_equality_vals = -1*transition_in_equality_vals
 
         #equal pairs masks
         #W_differences has dims:
         # num_features x num_features x num_inputs x num_outputs
         #equal_pairs_mask and unequal_pairs_mask therefore have dims:
         # num_features x num_features x num_outputs
-        equal_pairs_mask = (T.sum(T.abs(self.W_differences), axis=2)==0)*1
+        equal_pairs_mask = (np.sum(np.abs(self.W_differences), axis=2)==0)*1
         unequal_pairs_mask = 1-equal_pairs_mask 
 
         #the pos/neg change_vec masks have dimensions:
@@ -702,13 +702,13 @@ class Maxout(SingleInputMixin, Node):
         # batch x num_features x num_features x num_outputs
         transition_in_thetas =\
          ((equal_pairs_mask\
-           *transition_in_equality_vals[:,:,None])[None,:,:,:]) + 
-         (unequal_pairs_mask[None,:,:,:]\
+           *transition_in_equality_vals[:,:,None])[None,:,:,:])\
+         + (unequal_pairs_mask[None,:,:,:]
              *(positive_change_vec_mask*thetas))
         transition_out_thetas =\
          ((equal_pairs_mask\
-           *transition_out_equality_vals[:,:,None])[None,:,:,:]) + 
-         (unequal_pairs_mask[None,:,:,:]\
+           *transition_out_equality_vals[:,:,None])[None,:,:,:])\
+         + (unequal_pairs_mask[None,:,:,:]
              *(negative_change_vec_mask*thetas))
 
         #time_spent_per_feature has dims:
@@ -724,15 +724,16 @@ class Maxout(SingleInputMixin, Node):
         weighted_ws = B.sum(
                       time_spent_per_feature[:,:,None,:]\
                       *self.W[None,:,:,:], axis=2)
+        return weighted_ws
 
     def _get_mxts_increments_for_inputs(self):
-        #self._get_mxts() has dims: batch x num_outputs
+        #self.get_mxts() has dims: batch x num_outputs
         #_get_weighted_active_gradients has dims:
         # batch x num_inputs x num_outputs
         #result has dims:
         # batch x num_inputs
         return B.sum(
-                self._get_mxts()[:,None,:]\
+                self.get_mxts()[:,None,:]\
                 *self._get_weighted_active_gradients(), axis=2)
              
 
