@@ -8,6 +8,9 @@ from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
 
+from deeplift import deeplift_backend as B
+from deeplift import deeplift_util
+
 ScoringMode = deeplift_util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
 MxtsMode = deeplift_util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
