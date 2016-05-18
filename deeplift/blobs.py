@@ -601,7 +601,6 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
             B.max(separate_feature_activations, axis=1)
         return self._max_activations 
 
-    #Not used right now...delete later...
     def _get_actual_active_gradients(self):
         #get the gradients ("features") that were active for each
         #batch x output combination at actual input value
@@ -629,7 +628,9 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #get gradients ("features") weighted by how much they
         #'dominate' on a vector
         #from the default value of the input to the actual input value
-        inp_diff_from_default = self._get_input_diff_from_default_vars()
+        #input_diff_from_default has dimensions: batch x num_inputs
+        inp_diff_from_default = self._get_input_diff_from_default_vars() 
+
         #compute differences in each feature activation at default
         #_get_input_default_activation_vars() has dims: batch x num_inputs
         #W_differences has dims:
@@ -655,31 +656,37 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
             B.dot(inp_diff_from_default, self.W_differences) 
         self._debug_change_vec_projection = change_vec_projection
 
-        #equal pairs masks
-        #W_differences has dims:
-        # num_features x num_features x num_inputs x num_outputs
-        #equal_pairs_mask and unequal_pairs_mask therefore have dims:
-        # num_features x num_features x num_outputs
-        equal_Ws_mask = (np.sum(np.abs(self.W_differences), axis=2)==0)*1
-        equal_pairs_mask = equal_Ws_mask*((self.b_differences==0)*1)
+        equal_pairs_mask = (B.abs(change_vec_projection)<NEAR_ZERO_THRESHOLD)*\
+                           (B.abs(feature_diff_at_default)<NEAR_ZERO_THRESHOLD)
         unequal_pairs_mask = 1-equal_pairs_mask 
+        #self._debug_equal_pairs_mask = B.abs(feature_diff_at_default)<NEAR_ZERO_THRESHOLD
 
+        #if two planes are parallel in the direction of change, we consider
+        #the one that is below to be "tilted up towards" the one above,
+        #intercepting it at positive infinity along the dir of change
         positive_change_vec_mask = (change_vec_projection > 0)*1 +\
-                                   equal_Ws_mask*(feature_diff_at_default>0)
+                                   1*((B.abs(change_vec_projection)
+                                    <NEAR_ZERO_THRESHOLD)\
+                                   *(feature_diff_at_default<0))
         negative_change_vec_mask = (change_vec_projection < 0)*1 +\
-                                   equal_Ws_mask*(feature_diff_at_default<0)
+                                   1*((B.abs(change_vec_projection)<
+                                     NEAR_ZERO_THRESHOLD)\
+                                   *(feature_diff_at_default>0))
+
         ##add a pseudocount to all the positions that are near zero
         ##so division is not sad
-        #adding -epsilon so thetas have the right sign
-        change_vec_projection += -NEAR_ZERO_THRESHOLD\
-                                 *(B.abs(change_vec_projection)\
-                                   < NEAR_ZERO_THRESHOLD)
+       # change_vec_projection += -NEAR_ZERO_THRESHOLD\
+       #                          *(B.abs(change_vec_projection)\
+       #                            < NEAR_ZERO_THRESHOLD)
 
         #find the theta that indicates how far along the diff-from-default 
         #vector the planes of the features intersect
         #'thetas' has dimensions:
         # batch x num_features x num_features x num_outputs
-        thetas = -1*feature_diff_at_default/change_vec_projection
+        thetas = -1*feature_diff_at_default/(
+                    change_vec_projection - (NEAR_ZERO_THRESHOLD\
+                                             *(B.abs(change_vec_projection)\
+                                              < NEAR_ZERO_THRESHOLD)))
         self._debug_thetas = thetas
         
         #matrix of thetas for transitioning in or transitioning out
@@ -702,7 +709,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #thetas have dimensions:
         # batch x num_features x num_features x num_outputs
         # eq/uneq pairs masks have dims:
-        # num_features x num_features x num_outputs
+        # batch x num_features x num_features x num_outputs
         # transition in/out equality vals have dims:
         # num_features x num_features
         #transition_in/out_thetas therefore has dims:
@@ -710,19 +717,18 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #'When do you transition into feature on first axis FROM
         #feature on second axis
         transition_in_thetas =\
-         ((equal_pairs_mask\
-           *transition_in_equality_vals[:,:,None])[None,:,:,:])\
+         (equal_pairs_mask\
+           *transition_in_equality_vals[None,:,:,None])\
          + positive_change_vec_mask*thetas\
-         + negative_change_vec_mask*(1.0E300)
+         + negative_change_vec_mask*(-1.0E300)
+        self._debug_transition_in_thetas = transition_in_thetas
         #When do you transition FROM feature on first axis
         #TO feature on second axis
         transition_out_thetas =\
-         ((equal_pairs_mask\
-           *transition_out_equality_vals[:,:,None])[None,:,:,:])\
+         (equal_pairs_mask\
+           *transition_out_equality_vals[None,:,:,None])\
          + negative_change_vec_mask*thetas\
-         + positive_change_vec_mask*(-1.0E300)
-
-        self._debug_transition_in_thetas = transition_in_thetas
+         + positive_change_vec_mask*(1.0E300)
         self._debug_transition_out_thetas = transition_out_thetas
 
         #time_spent_per_feature has dims:
@@ -730,7 +736,9 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         time_spent_per_feature = B.maximum(0,
              B.minimum(1, B.min(transition_out_thetas, axis=2))
              - B.maximum(0, B.max(transition_in_thetas, axis=2))) 
-        self._debug_time_spent_per_feature = B.maximum(0, B.max(transition_in_thetas, axis=2))
+        #self._debug_time_spent_per_feature =\
+        #B.maximum(0, B.max(transition_in_thetas, axis=2))
+        self._debug_time_spent_per_feature = time_spent_per_feature#B.minimum(1, B.min(transition_out_thetas, axis=2))# B.maximum(0, B.max(transition_in_thetas, axis=2))
 
         #time_spent_per_feature has dims:
         # batch x num_features x num_outputs
