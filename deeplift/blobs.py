@@ -652,8 +652,13 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         # num_features x num_features x num_inputs x num_outputs
         #change_vec_projection therefore has dims:
         # batch x num_features x num_features x num_outputs
+        inp_diff_from_default_pc = inp_diff_from_default +\
+                                   (NEAR_ZERO_THRESHOLD*
+                                    (B.sum(B.abs(inp_diff_from_default)
+                                         ,axis=1)<NEAR_ZERO_THRESHOLD))[:,None]
         change_vec_projection =\
-            B.dot(inp_diff_from_default, self.W_differences) 
+            B.dot(inp_diff_from_default_pc,
+                  self.W_differences)
         self._debug_change_vec_projection = change_vec_projection
 
         equal_pairs_mask = (B.abs(change_vec_projection)<NEAR_ZERO_THRESHOLD)*\
