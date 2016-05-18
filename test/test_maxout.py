@@ -67,10 +67,11 @@ class TestMaxout(unittest.TestCase):
                                                      [ 2.0, 2.0]])],
                              [[0.0,0.0], [1.0,1.0], [2.5,2.5], [4.0,4.0]])
 
-    def test_debug_print(self):
+    def test_time_spent_per_feature(self):
         func = theano.function([self.input_layer.get_activation_vars()],
                                 self.maxout_layer\
-                                ._debug_time_spent_per_feature)
+                                ._debug_time_spent_per_feature
+                               )
         
         print(func([[-2.0,-2.0],[-1.0,-1.0],[ 0.5, 0.5],[ 2.0, 2.0]]))
         assert False
