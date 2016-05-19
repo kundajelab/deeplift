@@ -625,6 +625,34 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         return active_gradients
 
     def _get_weighted_active_gradients(self):
+        """
+         intuition for calculation: take the vector in the direction
+         of change ('input_diff_from_default') and find the 'theta'
+         representing where along this vector two planes intersect.
+         Also find pairs of planes where the former is
+         increasing faster than the latter along the direction of
+         change ('positive_change_vec_mask') and planes where the latter
+         is increasing faster than the former along the direction of
+         change ('negative_change_vec_mask'). Use this to find the thetas
+         where a plane starts to dominate over another plane
+         ('transition_in_thetas') as well as the thetas where a plane
+         drops below another plan ('transition_out_thetas'). Combine
+         with logic to find out the total duration for which a particular
+         plane dominates. Specifically, the logic is:
+         time_spent_per_feature = B.maximum(0,
+             B.minimum(1, B.min(transition_out_thetas, axis=2))
+             - B.maximum(0, B.max(transition_in_thetas, axis=2))) 
+         (there, the 'thetas' matrices have dimensions of:
+         batch x num_features x num_features x num_outputs
+         the first axis represents the feature being "transitioned into"
+         (i.e. dominating) or the feature being "transitioned out of"
+         (i.e. falling below)
+        
+         There is a lot of extra code to deal with edge cases like planes
+         that are equal to each other or which do not change in the direction
+         of the change vector.
+        """
+
         #get gradients ("features") weighted by how much they
         #'dominate' on a vector
         #from the default value of the input to the actual input value
@@ -666,7 +694,6 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         equal_pairs_mask = (B.abs(change_vec_projection)<NEAR_ZERO_THRESHOLD)*\
                            (B.abs(feature_diff_at_default)<NEAR_ZERO_THRESHOLD)
         unequal_pairs_mask = 1-equal_pairs_mask 
-        #self._debug_equal_pairs_mask = B.abs(feature_diff_at_default)<NEAR_ZERO_THRESHOLD
 
         #if two planes are parallel in the direction of change, we consider
         #the one that is below to be "tilted up towards" the one above,
@@ -680,16 +707,12 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
                                      NEAR_ZERO_THRESHOLD)\
                                    *(feature_diff_at_default>0))
 
-        ##add a pseudocount to all the positions that are near zero
-        ##so division is not sad
-       # change_vec_projection += -NEAR_ZERO_THRESHOLD\
-       #                          *(B.abs(change_vec_projection)\
-       #                            < NEAR_ZERO_THRESHOLD)
-
         #find the theta that indicates how far along the diff-from-default 
         #vector the planes of the features intersect
         #'thetas' has dimensions:
         # batch x num_features x num_features x num_outputs
+        # added a pseudocount to prevent sadness when change_vec_projection
+        # is near zero
         thetas = -1*feature_diff_at_default/(
                     change_vec_projection - (NEAR_ZERO_THRESHOLD\
                                              *(B.abs(change_vec_projection)\
@@ -743,9 +766,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         time_spent_per_feature = B.maximum(0,
              B.minimum(1, B.min(transition_out_thetas, axis=2))
              - B.maximum(0, B.max(transition_in_thetas, axis=2))) 
-        #self._debug_time_spent_per_feature =\
-        #B.maximum(0, B.max(transition_in_thetas, axis=2))
-        self._debug_time_spent_per_feature = time_spent_per_feature#B.minimum(1, B.min(transition_out_thetas, axis=2))# B.maximum(0, B.max(transition_in_thetas, axis=2))
+        self._debug_time_spent_per_feature = time_spent_per_feature
 
         #time_spent_per_feature has dims:
         # batch x num_features x num_outputs
@@ -753,7 +774,10 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #weighted ws therefore has dims: batch x num_inputs x num_outputs
         weighted_ws = B.sum(
                       time_spent_per_feature[:,:,None,:]\
-                      *self.W[None,:,:,:], axis=2)
+                      *self.W[None,:,:,:], axis=1)
+        self._debug_weighted_ws = time_spent_per_feature[:,:,None,:]\
+                                  *self.W[None,:,:,:]
+        #self._debug_weighted_ws = weighted_ws
         return weighted_ws
 
     def _get_mxts_increments_for_inputs(self):
