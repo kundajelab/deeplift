@@ -22,9 +22,9 @@ class TestMaxout(unittest.TestCase):
         W = np.array([[[-1.0, 0.0],
                        [-1.0, 0.0],
                        [-1.0, 0.0],
-                       [ 0.0, 0.0],
-                       [ 0.0, 0.0],
-                       [ 0.0, 0.0],
+                       [-1.0, 1.0],
+                       [-2.0, 2.0],
+                       [-3.0, 3.0],
                        [ 0.0, 2.0],
                        [ 0.0, 1.0],
                        [ 0.0, 0.5]],
@@ -70,11 +70,36 @@ class TestMaxout(unittest.TestCase):
     def test_time_spent_per_feature(self):
         func = theano.function([self.input_layer.get_activation_vars()],
                                 self.maxout_layer\
-                                ._debug_time_spent_per_feature
-                               )
-        
-        print(func([[-2.0,-2.0],[-1.0,-1.0],[ 0.5, 0.5],[ 2.0, 2.0]]))
-        assert False
+                                ._debug_time_spent_per_feature)
+        time_spent_per_feature = func([[-2.0,-2.0],[-1.0,-1.0],
+                                       [ 0.5, 0.5],[ 2.0, 2.0]])
+        #assert time spent sums to 1 for all cases
+        self.assertListEqual(
+            [list(x) for x in np.sum(time_spent_per_feature, axis=1)],
+            [list(x) for x in np.ones((time_spent_per_feature.shape[0],
+                                       time_spent_per_feature.shape[2]))])
+        #assert correct values in each case
+        self.assertEqual(time_spent_per_feature[0,0,0],1.0)
+
+        self.assertEqual(time_spent_per_feature[0,6,1],1.0)
+
+        self.assertEqual(time_spent_per_feature[1,0,0],1.0)
+
+        self.assertEqual(time_spent_per_feature[1,6,1],1.0)
+
+        self.assertEqual(time_spent_per_feature[2,0,0],0.4)
+        self.assertEqual(time_spent_per_feature[2,3,0],0.6)
+
+        self.assertEqual(time_spent_per_feature[2,6,1],0.4)
+        self.assertEqual(time_spent_per_feature[2,3,1],0.6)
+
+        self.assertEqual(time_spent_per_feature[3,0,0],0.25)
+        self.assertEqual(time_spent_per_feature[3,3,0],0.375)
+        self.assertEqual(time_spent_per_feature[3,6,0],0.375)
+
+        self.assertEqual(time_spent_per_feature[3,6,1],0.25)
+        self.assertEqual(time_spent_per_feature[3,3,1],0.375)
+        self.assertEqual(time_spent_per_feature[3,0,1],0.375)
         
     @skip
     def test_maxout_backprop(self):
