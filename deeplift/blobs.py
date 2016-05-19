@@ -661,6 +661,8 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
                   self.W_differences)
         self._debug_change_vec_projection = change_vec_projection
 
+        #if things are equal at the default val and there is almost no
+        #difference in the direction of change, consider them "equal"
         equal_pairs_mask = (B.abs(change_vec_projection)<NEAR_ZERO_THRESHOLD)*\
                            (B.abs(feature_diff_at_default)<NEAR_ZERO_THRESHOLD)
         unequal_pairs_mask = 1-equal_pairs_mask 
