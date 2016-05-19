@@ -28,15 +28,15 @@ class TestMaxout(unittest.TestCase):
                        [ 0.0, 2.0],
                        [ 0.0, 1.0],
                        [ 0.0, 0.5]],
-                      [[ 0.0, 2.0],
-                       [ 0.0, 1.0],
-                       [ 0.0, 0.5],
+                      [[ 2.0, 0.0],
+                       [ 1.0, 0.0],
+                       [ 0.5, 0.0],
                        [ 0.0, 0.0],
                        [ 0.0, 0.0],
                        [ 0.0, 0.0],
-                       [-1.0, 0.0],
-                       [-1.0, 0.0],
-                       [-1.0, 0.0]]]).transpose((1,2,0))
+                       [ 0.0, -1.0],
+                       [ 0.0, -1.0],
+                       [ 0.0, -1.0]]]).transpose((1,2,0))
         b = np.array([[0.0,0.0,-1.0,1.0,1.0,0.0,0.0,0.0,0.0],
                       [0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0,-1.0]])\
                     .transpose((1,0))
@@ -102,6 +102,15 @@ class TestMaxout(unittest.TestCase):
         self.assertEqual(time_spent_per_feature[3,0,1],0.375)
         
     @skip
+    def test_weighted_ws(self):
+        func = theano.function([self.input_layer.get_activation_vars()],
+                                self.maxout_layer\
+                                ._debug_weighted_ws)
+        weighted_ws = func([[-2.0,-2.0],[-1.0,-1.0],
+                            [ 0.5, 0.5],[ 2.0, 2.0]])
+        print(weighted_ws)
+        assert False
+ 
     def test_maxout_backprop(self):
         func = theano.function([self.input_layer.get_activation_vars()],
                                 self.input_layer.get_mxts(),
@@ -111,6 +120,12 @@ class TestMaxout(unittest.TestCase):
                                                      [-1.0,-1.0],
                                                      [ 0.5, 0.5],
                                                      [ 2.0, 2.0]])],
-                             [[-1.0,0.0], [-1.0,0.0], [ -0.4,0.0],
-                                                      [-0.25,0.75]])
+                             [[-1.0,0.0], [-1.0,0.0], [ -1.0,0.6],
+                                                      [-0.625,1.125]])
+        self.maxout_layer.update_task_index(task_index=1)
+        self.assertListEqual([list(x) for x in func([[-2.0,-2.0],
+                                                     [-1.0,-1.0],
+                                                     [ 0.5, 0.5],
+                                                     [ 2.0, 2.0]])],
+                             [[0.0,-1.0], [0.0,-1.0], [0,-0.4], [0.75,-0.25]])
         
