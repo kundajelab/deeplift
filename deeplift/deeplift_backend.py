@@ -109,7 +109,7 @@ def conv2d(inp, filters, border_mode, subsample):
         #'half' kernel width padding results in outputs of the same
         #dimensions as input
         border_mode=BorderMode.half
-        assert filters.shape[2]%2 == 1 and filter_shape[3]%2 == 1,\
+        assert filters.shape[2]%2 == 1 and filters.shape[3]%2 == 1,\
             "haven't handled even filter shapes for border mode 'half'"
     return T.nnet.conv2d(input=inp,
                          filters=theano.shared(value=filters),
