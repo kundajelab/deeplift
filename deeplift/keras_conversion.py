@@ -126,7 +126,7 @@ layer_name_to_conversion_function = {
     'Dense': dense_conversion,
      #in current keras implementation, scaling is done during training
      #and not predict time, so Dropout is a no-op at predict time
-    'Dropout': lambda layer, name, mxts_mode: [], 
+    'Dropout': lambda layer, name, mxts_mode: [blobs.NoOp(name=name)], 
     'Activation': activation_conversion, 
     'PReLU': prelu_conversion
 }
@@ -157,12 +157,14 @@ def apply_softmax_normalization_if_needed(layer, previous_layer):
 
 
 def connect_list_of_layers(deeplift_layers):
-    #string the layers together so that subsequent layers take the previous
-    #layer as input
-    last_layer_processed = deeplift_layers[0] 
-    for layer in deeplift_layers:
-        apply_softmax_normalization_if_needed(layer, last_layer_processed)
-        layer.set_inputs(last_layer_processed)
+    if (len(deeplift_layers) > 1):
+        #string the layers together so that subsequent layers take the previous
+        #layer as input
+        last_layer_processed = deeplift_layers[0] 
+        for layer in deeplift_layers[1:]:
+            apply_softmax_normalization_if_needed(layer, last_layer_processed)
+            layer.set_inputs(last_layer_processed)
+            last_layer_processed = layer
 
 def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
     name_to_blob = OrderedDict()
@@ -178,7 +180,7 @@ def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
           num_dims=(len(keras_input_layer.get_config()['input_shape'])+1),
           name=keras_input_layer_name)
         name_to_blob[keras_input_layer_name] = deeplift_input_layer
-        keras_layer_to_deeplift_blob[id(keras_input_layer)] =\
+        keras_layer_to_deeplift_blobs[id(keras_input_layer)] =\
                                                          [deeplift_input_layer]
     
     #convert the nodes/outputs 
@@ -189,20 +191,20 @@ def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
                                  mxts_mode=mxts_mode)
-        connect_list_of_layers(deeplift_layer)
-        keras_layer_to_deeplift_blob[id(layer_to_adjust)] = deeplift_layers
+        connect_list_of_layers(deeplift_layers)
+        keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
         for deeplift_layer in deeplift_layers:
             name_to_blob[deeplift_layer.get_name()] = deeplift_layer
         keras_non_input_layers.append(layer)
 
     #connect any remaining things not connected to their inputs 
     for keras_non_input_layer in keras_non_input_layers:
-        deeplift_layer =\
-         keras_layer_to_deeplift_blobs[id(keras_non_input_layer)][0]
+        deeplift_layers =\
+         keras_layer_to_deeplift_blobs[id(keras_non_input_layer)]
         previous_keras_layer = keras_non_input_layer.previous 
         previous_deeplift_layer =\
          keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
-        apply_softmax_normalization_if_needed(deeplift_layer,
+        apply_softmax_normalization_if_needed(deeplift_layers[0],
                                               previous_deeplift_layer)
         deeplift_layer.set_inputs(previous_deeplift_layer) 
     return models.GraphModel(name_to_blob)
