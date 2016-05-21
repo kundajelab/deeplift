@@ -115,7 +115,7 @@ class GraphModel(Model):
         self._name_to_blob = name_to_blob
     
     def get_name_to_blob(self):
-        return self._name_to_blob = name_to_blob
+        return self._name_to_blob
 
     def get_target_contribs_func(self,
                                  input_layer_name,
