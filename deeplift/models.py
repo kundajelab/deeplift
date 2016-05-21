@@ -93,7 +93,7 @@ class SequentialModel(Model):
         self._set_target_to_pre_activation_layer()
 
     def _set_target_to_pre_activation_layer(self):
-        super(SequentialModel, self).set_pre_activation_target_layer(
+        self.set_pre_activation_target_layer(
                                       self.get_layers()[-2])
 
     def get_layers(self):
@@ -108,3 +108,22 @@ class SequentialModel(Model):
         return super(SequentialModel, self).get_target_multipliers_func(
                     input_layer=self.get_layers()[input_layer_idx],
                     **kwargs)
+
+
+class GraphModel(Model):
+    def __init__(self, name_to_blob):
+        self._name_to_blob = name_to_blob
+    
+    def get_name_to_blob(self):
+        return self._name_to_blob = name_to_blob
+
+    def get_target_contribs_func(self,
+                                 input_layer_name,
+                                 pre_activation_target_layer_name,
+                                 **kwargs):
+        self.set_pre_activation_target_layer(
+         self.get_name_to_blob()[pre_activation_target_layer_name])
+        return super(GraphModel, self).get_target_contribs_func(
+                input_layer=self.get_name_to_blob()[input_layer_name],
+                **kwargs)
+        
