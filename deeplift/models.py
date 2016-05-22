@@ -23,16 +23,17 @@ FuncType = deeplift_util.enum(contribs="contribs", multipliers="multipliers")
 
 class Model(object):
     
-    def _get_func(self, input_layer, func_type):
+    def _get_func(self, find_scores_layer, input_layers, func_type):
         assert hasattr(self, "target_layer"), "Please set the target layer"
-        input_layer.update_mxts()
+        find_scores_layer.update_mxts()
         if (func_type == FuncType.contribs):
-            output_symbolic_vars = input_layer.get_target_contrib_vars()
+            output_symbolic_vars = find_scores_layer.get_target_contrib_vars()
         elif (func_type == FuncType.multipliers):
-            output_symbolic_vars = input_layer.get_mxts()
+            output_symbolic_vars = find_scores_layer.get_mxts()
         else:
             raise RuntimeError("Unsupported func_type: "+func_type)
-        core_function = B.function([input_layer.get_activation_vars()],
+        core_function = B.function([input_layer.get_activation_vars()
+                                    for input_layer in input_layers],
                           output_symbolic_vars)
         def func(task_idx, input_data_list, batch_size, progress_update):
             self.target_layer.update_task_index(task_idx)
@@ -99,41 +100,53 @@ class SequentialModel(Model):
     def get_layers(self):
         return self._layers
 
-    def get_target_contribs_func(self, input_layer_idx, **kwargs):
+    def get_target_contribs_func(self, find_scores_layer_idx, **kwargs):
         return super(SequentialModel, self).get_target_contribs_func(
-                    input_layer=self.get_layers()[input_layer_idx],
+                    find_scores_layer=self.get_layers()[find_scores_layer_idx],
+                    input_layers=[self.get_layers()[0]],
                     **kwargs)
 
-    def get_target_multipliers_func(self, input_layer_idx, **kwargs):
+    def get_target_multipliers_func(self, find_scores_layer_idx, **kwargs):
         return super(SequentialModel, self).get_target_multipliers_func(
-                    input_layer=self.get_layers()[input_layer_idx],
+                    find_scores_layer=self.get_layers()[find_scores_layer_idx],
+                    input_layers=[self.get_layers()[0]],
                     **kwargs)
 
 
 class GraphModel(Model):
-    def __init__(self, name_to_blob):
+    def __init__(self, name_to_blob, input_layer_names):
         self._name_to_blob = name_to_blob
+        self._input_layer_names = input_layer_names
     
     def get_name_to_blob(self):
         return self._name_to_blob
 
+    def get_input_layer_names(self):
+        return self._input_layer_names
+
     def get_target_contribs_func(self,
-                                 input_layer_name,
+                                 find_scores_layer_name,
                                  pre_activation_target_layer_name,
                                  **kwargs):
         self.set_pre_activation_target_layer(
          self.get_name_to_blob()[pre_activation_target_layer_name])
         return super(GraphModel, self).get_target_contribs_func(
-                input_layer=self.get_name_to_blob()[input_layer_name],
+                find_scores_layer=self.get_name_to_blob()\
+                                  [find_scores_layer_name],
+                input_layers=[self.get_name_to_blob()[input_layer]
+                              for input_layer in self.get_input_layer_names()],
                 **kwargs)
 
     def get_target_multipliers_func(self,
-                                 input_layer_name,
+                                 find_scores_layer_name,
                                  pre_activation_target_layer_name,
                                  **kwargs):
         self.set_pre_activation_target_layer(
          self.get_name_to_blob()[pre_activation_target_layer_name])
         return super(GraphModel, self).get_target_multipliers_func(
-                input_layer=self.get_name_to_blob()[input_layer_name],
+                find_scores_layer=self.get_name_to_blob()\
+                                  [find_scores_layer_name],
+                input_layers=[self.get_name_to_blob()[input_layer]
+                              for input_layer in self.get_input_layer_names()],
                 **kwargs)
         
