@@ -4,6 +4,7 @@ from __future__ import absolute_import
 import sys
 import os
 from  deeplift import models, blobs, deeplift_util
+from collections import OrderedDict
 from blobs import MxtsMode
 from deeplift.deeplift_backend import PoolMode, BorderMode
 
@@ -23,14 +24,16 @@ ActivationTypes = deeplift_util.enum(relu='relu',
 
 def conv2d_conversion(layer, name, mxts_mode):
     #mxts_mode not used
+    converted_activation = activation_conversion(
+                            layer, name, mxts_mode=mxts_mode)
     to_return = [blobs.Conv2D(
-            name=name,
+            name=("preact_" if len(converted_activation) > 0
+                        else "")+name,
             W=layer.get_weights()[0],
             b=layer.get_weights()[1],
             strides=layer.get_config()[KerasKeys.subsample],
             border_mode=layer.get_config()[KerasKeys.border_mode])] 
-    to_return.extend(activation_conversion(layer, "activ_"+str(name),
-                                                mxts_mode=mxts_mode))
+    to_return.extend(converted_activation)
     return to_return
 
 
@@ -59,11 +62,14 @@ def flatten_conversion(layer, name, mxts_mode):
 
 def dense_conversion(layer, name, mxts_mode):
     #mxts_mode not used
-    to_return = [blobs.Dense(name=name, 
+    converted_activation = activation_conversion(layer, name,
+                                                  mxts_mode=mxts_mode) 
+    to_return = [blobs.Dense(
+                  name=("preact_" if len(converted_activation) > 0
+                        else "")+name, 
                   W=layer.get_weights()[0],
                   b=layer.get_weights()[1])]
-    to_return.extend(activation_conversion(layer, "activ_"+str(name),
-                                                  mxts_mode=mxts_mode))
+    to_return.extend(converted_activation)
     return to_return
 
 
@@ -113,7 +119,7 @@ layer_name_to_conversion_function = {
     'Dense': dense_conversion,
      #in current keras implementation, scaling is done during training
      #and not predict time, so Dropout is a no-op at predict time
-    'Dropout': lambda layer, name, mxts_mode: [], 
+    'Dropout': lambda layer, name, mxts_mode: [blobs.NoOp(name=name)], 
     'Activation': activation_conversion, 
     'PReLU': prelu_conversion
 }
@@ -122,31 +128,100 @@ layer_name_to_conversion_function = {
 def convert_sequential_model(model, num_dims=4, mxts_mode=MxtsMode.DeepLIFT):
     converted_layers = []
     converted_layers.append(
-        blobs.Input_FixedDefault(default=0.0, num_dims=num_dims))
+        blobs.Input_FixedDefault(default=0.0, num_dims=num_dims, name="input"))
     for layer_idx, layer in enumerate(model.layers):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
         converted_layers.extend(conversion_function(
                                  layer=layer, name=layer_idx,
                                  mxts_mode=mxts_mode)) 
-    #string the layers together so that subsequent layers take the previous
-    last_layer_processed = converted_layers[0]
-    for layer in converted_layers[1:]:
-        if (type(layer)==blobs.Softmax):
-            #mean normalise the inputs to the softmax
-            print("Mean-normalising softmax") 
-            last_layer_processed.W, last_layer_processed.b =\
-             deeplift_util.get_mean_normalised_softmax_weights(
-                last_layer_processed.W, last_layer_processed.b
-             )
-        layer.set_inputs(last_layer_processed)
-        last_layer_processed = layer
+    connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
 
 
-def mean_normalise_first_conv_layer_weights(model):
-    layer_to_adjust = model.layers[0];
+def apply_softmax_normalization_if_needed(layer, previous_layer):
+    if (type(layer)==blobs.Softmax):
+        #mean normalise the inputs to the softmax
+        print("Mean-normalising softmax") 
+        previous_layer.W, previous_layer.b =\
+         deeplift_util.get_mean_normalised_softmax_weights(
+            previous_layer.W, previous_layer.b)
+
+
+def connect_list_of_layers(deeplift_layers):
+    if (len(deeplift_layers) > 1):
+        #string the layers together so that subsequent layers take the previous
+        #layer as input
+        last_layer_processed = deeplift_layers[0] 
+        for layer in deeplift_layers[1:]:
+            apply_softmax_normalization_if_needed(layer, last_layer_processed)
+            layer.set_inputs(last_layer_processed)
+            last_layer_processed = layer
+
+def convert_graph_model(model,
+                        mxts_mode=MxtsMode.DeepLIFT,
+                        auto_build_outputs=True):
+    name_to_blob = OrderedDict()
+    keras_layer_to_deeplift_blobs = OrderedDict() 
+    keras_non_input_layers = []
+
+    #convert the inputs
+    for keras_input_layer_name in model.inputs:
+        keras_input_layer = model.inputs[keras_input_layer_name]
+        deeplift_input_layer =\
+         blobs.Input_FixedDefault(
+          default=0.0,
+          num_dims=(len(keras_input_layer.get_config()['input_shape'])+1),
+          name=keras_input_layer_name)
+        name_to_blob[keras_input_layer_name] = deeplift_input_layer
+        keras_layer_to_deeplift_blobs[id(keras_input_layer)] =\
+                                                         [deeplift_input_layer]
+    
+    #convert the nodes/outputs 
+    for layer_name, layer in list(model.nodes.items()):
+        conversion_function = layer_name_to_conversion_function[
+                               layer.get_config()[KerasKeys.name]]
+        deeplift_layers = conversion_function(
+                                 layer=layer, name=layer_name,
+                                 mxts_mode=mxts_mode)
+        connect_list_of_layers(deeplift_layers)
+        keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
+        for deeplift_layer in deeplift_layers:
+            name_to_blob[deeplift_layer.get_name()] = deeplift_layer
+        keras_non_input_layers.append(layer)
+
+    #connect any remaining things not connected to their inputs 
+    for keras_non_input_layer in keras_non_input_layers:
+        print("setting inp for",keras_non_input_layer.name)
+        deeplift_layers =\
+         keras_layer_to_deeplift_blobs[id(keras_non_input_layer)]
+        previous_keras_layer = keras_non_input_layer.previous 
+        previous_deeplift_layer =\
+         keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
+        apply_softmax_normalization_if_needed(deeplift_layers[0],
+                                              previous_deeplift_layer)
+        deeplift_layers[0].set_inputs(previous_deeplift_layer) 
+
+    if (auto_build_outputs):
+        for layer in model.outputs.values():
+            layer_to_build = keras_layer_to_deeplift_blobs[id(layer)][-1]
+            print("building", layer_to_build.get_name())
+            layer_to_build.build_fwd_pass_vars() 
+    return models.GraphModel(name_to_blob)
+
+
+def mean_normalise_first_conv_layer_weights(model,
+                                            name_of_conv_layer_to_normalise):
+    if (type(model).__name__ == "Sequential"):
+        layer_to_adjust = model.layers[0];
+    elif (type(model).__name__ == "Graph"):
+        assert name_of_conv_layer_to_normalise is not None,\
+               "Please provide name of conv layer for graph model"
+        assert name_of_conv_layer_to_normalise in model.nodes,\
+               name_of_conv_layer_to_normalise+" not found; node names are: "\
+               " "+str(mode.nodes.keys())
+        layer_to_adjust = model.nodes[name_of_conv_layer_to_normalise]
     mean_normalise_columns_in_conv_layer(layer_to_adjust)
 
 
@@ -180,12 +255,15 @@ def mean_normalise_softmax_weights(softmax_dense_layer):
 
 
 def load_keras_model(weights, yaml,
-                     normalise_conv_for_one_hot_encoded_input=False): 
+                     normalise_conv_for_one_hot_encoded_input=False,
+                     name_of_conv_layer_to_normalise=None): 
     #At the time of writing, I don't actually use this because
     #I do the converion in convert_sequential_model to the deeplift_layer
     from keras.models import model_from_yaml                                    
     model = model_from_yaml(open(yaml).read()) 
     model.load_weights(weights) 
     if (normalise_conv_for_one_hot_encoded_input):
-        mean_normalise_first_conv_layer_weights(model)
+        mean_normalise_first_conv_layer_weights(
+         model,
+         name_of_conv_layer_to_normalise=name_of_conv_layer_to_normalise)
     return model 
