@@ -140,7 +140,7 @@ def convert_sequential_model(model, num_dims=4, mxts_mode=MxtsMode.DeepLIFT):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
         converted_layers.extend(conversion_function(
-                                 layer=layer, name=layer_idx,
+                                 layer=layer, name=str(layer_idx),
                                  mxts_mode=mxts_mode)) 
     connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
