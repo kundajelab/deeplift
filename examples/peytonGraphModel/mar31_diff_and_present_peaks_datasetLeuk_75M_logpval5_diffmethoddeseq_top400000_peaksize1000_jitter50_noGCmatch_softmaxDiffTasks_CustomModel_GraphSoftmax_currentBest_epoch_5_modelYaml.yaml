@@ -1,0 +1,1647 @@
+input_config:
+- dtype: float
+  input_shape: !!python/tuple [1, 4, 1000]
+  name: input
+input_order: [input]
+loss: {binary_peaks: binary_crossentropy, softmax_for_col_CLPvBcell: categorical_crossentropy,
+  softmax_for_col_CLPvCD4: categorical_crossentropy, softmax_for_col_CLPvCD8: categorical_crossentropy,
+  softmax_for_col_CLPvNKcell: categorical_crossentropy, softmax_for_col_CMPvErythroid: categorical_crossentropy,
+  softmax_for_col_CMPvGMP: categorical_crossentropy, softmax_for_col_CMPvLSC: categorical_crossentropy,
+  softmax_for_col_CMPvLeuk: categorical_crossentropy, softmax_for_col_CMPvMEP: categorical_crossentropy,
+  softmax_for_col_CMPvMonocyte: categorical_crossentropy, softmax_for_col_GMPvLSC: categorical_crossentropy,
+  softmax_for_col_GMPvLeuk: categorical_crossentropy, softmax_for_col_GMPvMonocyte: categorical_crossentropy,
+  softmax_for_col_HSCvBcell: categorical_crossentropy, softmax_for_col_HSCvCD4: categorical_crossentropy,
+  softmax_for_col_HSCvCD8: categorical_crossentropy, softmax_for_col_HSCvCLP: categorical_crossentropy,
+  softmax_for_col_HSCvCMP: categorical_crossentropy, softmax_for_col_HSCvErythroid: categorical_crossentropy,
+  softmax_for_col_HSCvGMP: categorical_crossentropy, softmax_for_col_HSCvLMPP: categorical_crossentropy,
+  softmax_for_col_HSCvMEP: categorical_crossentropy, softmax_for_col_HSCvMPP: categorical_crossentropy,
+  softmax_for_col_HSCvMonocyte: categorical_crossentropy, softmax_for_col_HSCvNKcell: categorical_crossentropy,
+  softmax_for_col_HSC|MPPvLSC: categorical_crossentropy, softmax_for_col_HSC|MPPvLeuk: categorical_crossentropy,
+  softmax_for_col_HSC|MPPvpHSC: categorical_crossentropy, softmax_for_col_LMPPvBcell: categorical_crossentropy,
+  softmax_for_col_LMPPvCD4: categorical_crossentropy, softmax_for_col_LMPPvCD8: categorical_crossentropy,
+  softmax_for_col_LMPPvCLP: categorical_crossentropy, softmax_for_col_LMPPvGMP: categorical_crossentropy,
+  softmax_for_col_LMPPvLSC: categorical_crossentropy, softmax_for_col_LMPPvLeuk: categorical_crossentropy,
+  softmax_for_col_LMPPvMonocyte: categorical_crossentropy, softmax_for_col_LMPPvNKcell: categorical_crossentropy,
+  softmax_for_col_LSCvLeuk: categorical_crossentropy, softmax_for_col_MEPvErythroid: categorical_crossentropy,
+  softmax_for_col_MPPvBcell: categorical_crossentropy, softmax_for_col_MPPvCD4: categorical_crossentropy,
+  softmax_for_col_MPPvCD8: categorical_crossentropy, softmax_for_col_MPPvCLP: categorical_crossentropy,
+  softmax_for_col_MPPvCMP: categorical_crossentropy, softmax_for_col_MPPvErythroid: categorical_crossentropy,
+  softmax_for_col_MPPvGMP: categorical_crossentropy, softmax_for_col_MPPvLMPP: categorical_crossentropy,
+  softmax_for_col_MPPvMEP: categorical_crossentropy, softmax_for_col_MPPvMonocyte: categorical_crossentropy,
+  softmax_for_col_MPPvNKcell: categorical_crossentropy, softmax_for_col_MonocytevLeuk: categorical_crossentropy,
+  softmax_for_col_pHSCvLSC: categorical_crossentropy, softmax_for_col_pHSCvLeuk: categorical_crossentropy}
+name: Graph
+node_config:
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: input
+  inputs: &id001 []
+  merge_mode: concat
+  name: conv1
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: conv1
+  inputs: *id001
+  merge_mode: concat
+  name: activ1
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ1
+  inputs: *id001
+  merge_mode: concat
+  name: pool1
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: pool1
+  inputs: *id001
+  merge_mode: concat
+  name: conv2
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: conv2
+  inputs: *id001
+  merge_mode: concat
+  name: activ2
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ2
+  inputs: *id001
+  merge_mode: concat
+  name: pool2
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: pool2
+  inputs: *id001
+  merge_mode: concat
+  name: flatten1
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: flatten1
+  inputs: *id001
+  merge_mode: concat
+  name: fc1
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: fc1
+  inputs: *id001
+  merge_mode: concat
+  name: activ3
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ3
+  inputs: *id001
+  merge_mode: concat
+  name: drop1
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: drop1
+  inputs: *id001
+  merge_mode: concat
+  name: fc2
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: fc2
+  inputs: *id001
+  merge_mode: concat
+  name: activ4
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: drop2
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: binary_peaks_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: binary_peaks_dense
+  inputs: *id001
+  merge_mode: concat
+  name: binary_peaks_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvLSC_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvLSC_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvLSC_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvGMP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvGMP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvGMP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvMonocyte_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvMonocyte_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvMonocyte_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LSCvLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LSCvLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LSCvLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvNKcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CLPvNKcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvNKcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvBcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvBcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvBcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvCD4_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CLPvCD4_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvCD4_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_GMPvLSC_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_GMPvLSC_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_GMPvLSC_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvMEP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvMEP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvMEP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvGMP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvGMP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvGMP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_GMPvMonocyte_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_GMPvMonocyte_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_GMPvMonocyte_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvCD8_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CLPvCD8_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvCD8_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCLP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvCLP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCLP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCLP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvCLP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCLP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvNKcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvNKcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvNKcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvMEP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CMPvMEP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvMEP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvLMPP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvLMPP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvLMPP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvMonocyte_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CMPvMonocyte_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvMonocyte_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvErythroid_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CMPvErythroid_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvErythroid_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvMonocyte_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvMonocyte_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvMonocyte_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvLMPP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvLMPP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvLMPP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCD4_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvCD4_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCD4_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvNKcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvNKcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvNKcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvLSC_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CMPvLSC_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvLSC_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCD8_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvCD8_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCD8_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_pHSCvLSC_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_pHSCvLSC_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_pHSCvLSC_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCLP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvCLP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCLP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSC|MPPvLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CMPvLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCD8_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvCD8_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCD8_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCD4_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvCD4_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCD4_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvLSC_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSC|MPPvLSC_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvLSC_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCMP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvCMP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCMP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvErythroid_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvErythroid_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvErythroid_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_GMPvLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_GMPvLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_GMPvLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MEPvErythroid_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MEPvErythroid_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MEPvErythroid_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCD4_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvCD4_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCD4_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_pHSCvLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_pHSCvLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_pHSCvLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCMP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvCMP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvCMP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvGMP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CMPvGMP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CMPvGMP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvGMP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvGMP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvGMP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvBcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_CLPvBcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_CLPvBcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCD8_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvCD8_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvCD8_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvErythroid_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MPPvErythroid_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MPPvErythroid_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvNKcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvNKcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvNKcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvMonocyte_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvMonocyte_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvMonocyte_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MonocytevLeuk_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_MonocytevLeuk_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_MonocytevLeuk_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvBcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvBcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvBcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvpHSC_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSC|MPPvpHSC_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvpHSC_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvBcell_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_LMPPvBcell_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_LMPPvBcell_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvMPP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvMPP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvMPP_activ
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: activ4
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvMEP_dense
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: softmax_for_col_HSCvMEP_dense
+  inputs: *id001
+  merge_mode: concat
+  name: softmax_for_col_HSCvMEP_activ
+nodes:
+  activ1: {cache_enabled: true, custom_name: activ1, init: zero, name: PReLU, trainable: true}
+  activ2: {cache_enabled: true, custom_name: activ2, init: zero, name: PReLU, trainable: true}
+  activ3: {cache_enabled: true, custom_name: activ3, init: zero, name: PReLU, trainable: true}
+  activ4: {cache_enabled: true, custom_name: activ4, init: zero, name: PReLU, trainable: true}
+  binary_peaks_activ: {activation: sigmoid, cache_enabled: true, custom_name: binary_peaks_activ,
+    name: Activation, trainable: true}
+  binary_peaks_dense: {W_constraint: null, W_learning_rate_multiplier: null, W_regularizer: null,
+    activation: linear, activity_regularizer: null, b_constraint: null, b_learning_rate_multiplier: null,
+    b_regularizer: null, cache_enabled: true, custom_name: binary_peaks_dense, init: glorot_uniform,
+    input_dim: null, name: Dense, output_dim: 16, trainable: true}
+  conv1:
+    W_constraint: null
+    W_learning_rate_multiplier: 5.0
+    W_regularizer: null
+    activation: linear
+    activity_regularizer: null
+    b_constraint: null
+    b_learning_rate_multiplier: null
+    b_regularizer: null
+    border_mode: valid
+    cache_enabled: true
+    custom_name: conv1
+    dim_ordering: th
+    init: glorot_uniform
+    name: Convolution2D
+    nb_col: 15
+    nb_filter: 600
+    nb_row: 4
+    subsample: &id002 !!python/tuple [1, 1]
+    trainable: true
+  conv2:
+    W_constraint: {axis: 0, m: 7, name: MaxNorm}
+    W_learning_rate_multiplier: null
+    W_regularizer: null
+    activation: linear
+    activity_regularizer: null
+    b_constraint: null
+    b_learning_rate_multiplier: null
+    b_regularizer: null
+    border_mode: valid
+    cache_enabled: true
+    custom_name: conv2
+    dim_ordering: th
+    init: glorot_uniform
+    name: Convolution2D
+    nb_col: 7
+    nb_filter: 600
+    nb_row: 1
+    subsample: *id002
+    trainable: true
+  drop1: {cache_enabled: true, custom_name: drop1, name: Dropout, p: 0.3, trainable: true}
+  drop2: {cache_enabled: true, custom_name: drop2, name: Dropout, p: 0.3, trainable: true}
+  fc1:
+    W_constraint: {axis: 0, m: 7, name: MaxNorm}
+    W_learning_rate_multiplier: null
+    W_regularizer: null
+    activation: linear
+    activity_regularizer: {l1: 1.0e-07, l2: 0.0, name: ActivityRegularizer}
+    b_constraint: null
+    b_learning_rate_multiplier: null
+    b_regularizer: null
+    cache_enabled: true
+    custom_name: fc1
+    init: glorot_uniform
+    input_dim: null
+    name: Dense
+    output_dim: 1000
+    trainable: true
+  fc2:
+    W_constraint: {axis: 0, m: 7, name: MaxNorm}
+    W_learning_rate_multiplier: null
+    W_regularizer: null
+    activation: linear
+    activity_regularizer: {l1: 1.0e-07, l2: 0.0, name: ActivityRegularizer}
+    b_constraint: null
+    b_learning_rate_multiplier: null
+    b_regularizer: null
+    cache_enabled: true
+    custom_name: fc2
+    init: glorot_uniform
+    input_dim: null
+    name: Dense
+    output_dim: 1000
+    trainable: true
+  flatten1: {cache_enabled: true, custom_name: flatten1, name: Flatten, trainable: true}
+  pool1:
+    border_mode: valid
+    cache_enabled: true
+    custom_name: pool1
+    dim_ordering: th
+    name: MaxPooling2D
+    pool_size: &id003 !!python/tuple [1, 3]
+    strides: *id003
+    trainable: true
+  pool2:
+    border_mode: valid
+    cache_enabled: true
+    custom_name: pool2
+    dim_ordering: th
+    name: MaxPooling2D
+    pool_size: &id004 !!python/tuple [1, 7]
+    strides: *id004
+    trainable: true
+  softmax_for_col_CLPvBcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CLPvBcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CLPvBcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CLPvBcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CLPvCD4_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CLPvCD4_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CLPvCD4_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CLPvCD4_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CLPvCD8_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CLPvCD8_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CLPvCD8_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CLPvCD8_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CLPvNKcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CLPvNKcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CLPvNKcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CLPvNKcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CMPvErythroid_activ: {activation: softmax, cache_enabled: true,
+    custom_name: softmax_for_col_CMPvErythroid_activ, name: Activation, trainable: true}
+  softmax_for_col_CMPvErythroid_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CMPvErythroid_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CMPvGMP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CMPvGMP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CMPvGMP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CMPvGMP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CMPvLSC_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CMPvLSC_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CMPvLSC_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CMPvLSC_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CMPvLeuk_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CMPvLeuk_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CMPvLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CMPvLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CMPvMEP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CMPvMEP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CMPvMEP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CMPvMEP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_CMPvMonocyte_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_CMPvMonocyte_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_CMPvMonocyte_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_CMPvMonocyte_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_GMPvLSC_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_GMPvLSC_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_GMPvLSC_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_GMPvLSC_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_GMPvLeuk_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_GMPvLeuk_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_GMPvLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_GMPvLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_GMPvMonocyte_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_GMPvMonocyte_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_GMPvMonocyte_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_GMPvMonocyte_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvBcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvBcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvBcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvBcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvCD4_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvCD4_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvCD4_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvCD4_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvCD8_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvCD8_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvCD8_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvCD8_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvCLP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvCLP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvCLP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvCLP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvCMP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvCMP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvCMP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvCMP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvErythroid_activ: {activation: softmax, cache_enabled: true,
+    custom_name: softmax_for_col_HSCvErythroid_activ, name: Activation, trainable: true}
+  softmax_for_col_HSCvErythroid_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvErythroid_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvGMP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvGMP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvGMP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvGMP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvLMPP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvLMPP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvLMPP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvLMPP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvMEP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvMEP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvMEP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvMEP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvMPP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvMPP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvMPP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvMPP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvMonocyte_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvMonocyte_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvMonocyte_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvMonocyte_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSCvNKcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSCvNKcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSCvNKcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSCvNKcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSC|MPPvLSC_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSC|MPPvLSC_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSC|MPPvLSC_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSC|MPPvLSC_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSC|MPPvLeuk_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSC|MPPvLeuk_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSC|MPPvLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSC|MPPvLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_HSC|MPPvpHSC_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_HSC|MPPvpHSC_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_HSC|MPPvpHSC_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_HSC|MPPvpHSC_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvBcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvBcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvBcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvBcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvCD4_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvCD4_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvCD4_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvCD4_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvCD8_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvCD8_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvCD8_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvCD8_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvCLP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvCLP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvCLP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvCLP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvGMP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvGMP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvGMP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvGMP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvLSC_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvLSC_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvLSC_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvLSC_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvLeuk_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvLeuk_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvMonocyte_activ: {activation: softmax, cache_enabled: true,
+    custom_name: softmax_for_col_LMPPvMonocyte_activ, name: Activation, trainable: true}
+  softmax_for_col_LMPPvMonocyte_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvMonocyte_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LMPPvNKcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LMPPvNKcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LMPPvNKcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LMPPvNKcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_LSCvLeuk_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_LSCvLeuk_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_LSCvLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_LSCvLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MEPvErythroid_activ: {activation: softmax, cache_enabled: true,
+    custom_name: softmax_for_col_MEPvErythroid_activ, name: Activation, trainable: true}
+  softmax_for_col_MEPvErythroid_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MEPvErythroid_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvBcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvBcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvBcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvBcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvCD4_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvCD4_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvCD4_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvCD4_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvCD8_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvCD8_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvCD8_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvCD8_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvCLP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvCLP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvCLP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvCLP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvCMP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvCMP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvCMP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvCMP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvErythroid_activ: {activation: softmax, cache_enabled: true,
+    custom_name: softmax_for_col_MPPvErythroid_activ, name: Activation, trainable: true}
+  softmax_for_col_MPPvErythroid_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvErythroid_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvGMP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvGMP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvGMP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvGMP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvLMPP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvLMPP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvLMPP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvLMPP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvMEP_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvMEP_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvMEP_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvMEP_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvMonocyte_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvMonocyte_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvMonocyte_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvMonocyte_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MPPvNKcell_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_MPPvNKcell_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_MPPvNKcell_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MPPvNKcell_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_MonocytevLeuk_activ: {activation: softmax, cache_enabled: true,
+    custom_name: softmax_for_col_MonocytevLeuk_activ, name: Activation, trainable: true}
+  softmax_for_col_MonocytevLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_MonocytevLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_pHSCvLSC_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_pHSCvLSC_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_pHSCvLSC_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_pHSCvLSC_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+  softmax_for_col_pHSCvLeuk_activ: {activation: softmax, cache_enabled: true, custom_name: softmax_for_col_pHSCvLeuk_activ,
+    name: Activation, trainable: true}
+  softmax_for_col_pHSCvLeuk_dense: {W_constraint: null, W_learning_rate_multiplier: null,
+    W_regularizer: null, activation: linear, activity_regularizer: null, b_constraint: null,
+    b_learning_rate_multiplier: null, b_regularizer: null, cache_enabled: true, custom_name: softmax_for_col_pHSCvLeuk_dense,
+    init: glorot_uniform, input_dim: null, name: Dense, output_dim: 3, trainable: true}
+optimizer: {beta_1: 0.8999999761581421, beta_2: 0.9990000128746033, epsilon: 1.0e-08,
+  lr: 0.0010000000474974513, name: Adam}
+output_config:
+- concat_axis: -1
+  dot_axes: -1
+  input: binary_peaks_activ
+  inputs: &id005 []
+  merge_mode: concat
+  name: binary_peaks
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvLSC_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvLSC
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvGMP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvGMP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvMonocyte_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvMonocyte
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LSCvLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LSCvLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CLPvNKcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CLPvNKcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvBcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvBcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CLPvCD4_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CLPvCD4
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_GMPvLSC_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_GMPvLSC
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvMEP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvMEP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvGMP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvGMP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_GMPvMonocyte_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_GMPvMonocyte
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CLPvCD8_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CLPvCD8
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvCLP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvCLP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvCLP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvCLP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvNKcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvNKcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CMPvMEP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CMPvMEP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvLMPP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvLMPP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CMPvMonocyte_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CMPvMonocyte
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CMPvErythroid_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CMPvErythroid
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvMonocyte_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvMonocyte
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvLMPP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvLMPP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvCD4_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCD4
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvNKcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvNKcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CMPvLSC_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CMPvLSC
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvCD8_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCD8
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_pHSCvLSC_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_pHSCvLSC
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvCLP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvCLP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSC|MPPvLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CMPvLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CMPvLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvCD8_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvCD8
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvCD4_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvCD4
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSC|MPPvLSC_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvLSC
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvCMP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvCMP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvErythroid_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvErythroid
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_GMPvLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_GMPvLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MEPvErythroid_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MEPvErythroid
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvCD4_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvCD4
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_pHSCvLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_pHSCvLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvCMP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvCMP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CMPvGMP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CMPvGMP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvGMP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvGMP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_CLPvBcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_CLPvBcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvCD8_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvCD8
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MPPvErythroid_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MPPvErythroid
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvNKcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvNKcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvMonocyte_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvMonocyte
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_MonocytevLeuk_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_MonocytevLeuk
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvBcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvBcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSC|MPPvpHSC_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSC|MPPvpHSC
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_LMPPvBcell_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_LMPPvBcell
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvMPP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvMPP
+- concat_axis: -1
+  dot_axes: -1
+  input: softmax_for_col_HSCvMEP_activ
+  inputs: *id005
+  merge_mode: concat
+  name: softmax_for_col_HSCvMEP
+output_order: [binary_peaks, softmax_for_col_LMPPvLSC, softmax_for_col_HSCvGMP, softmax_for_col_LMPPvLeuk,
+  softmax_for_col_MPPvMonocyte, softmax_for_col_LSCvLeuk, softmax_for_col_CLPvNKcell,
+  softmax_for_col_MPPvBcell, softmax_for_col_CLPvCD4, softmax_for_col_GMPvLSC, softmax_for_col_MPPvMEP,
+  softmax_for_col_MPPvGMP, softmax_for_col_GMPvMonocyte, softmax_for_col_CLPvCD8,
+  softmax_for_col_MPPvCLP, softmax_for_col_HSCvCLP, softmax_for_col_MPPvNKcell, softmax_for_col_CMPvMEP,
+  softmax_for_col_HSCvLMPP, softmax_for_col_CMPvMonocyte, softmax_for_col_CMPvErythroid,
+  softmax_for_col_LMPPvMonocyte, softmax_for_col_MPPvLMPP, softmax_for_col_LMPPvCD4,
+  softmax_for_col_LMPPvNKcell, softmax_for_col_CMPvLSC, softmax_for_col_LMPPvCD8,
+  softmax_for_col_pHSCvLSC, softmax_for_col_LMPPvCLP, softmax_for_col_HSC|MPPvLeuk,
+  softmax_for_col_CMPvLeuk, softmax_for_col_HSCvCD8, softmax_for_col_HSCvCD4, softmax_for_col_HSC|MPPvLSC,
+  softmax_for_col_MPPvCMP, softmax_for_col_HSCvErythroid, softmax_for_col_GMPvLeuk,
+  softmax_for_col_MEPvErythroid, softmax_for_col_MPPvCD4, softmax_for_col_pHSCvLeuk,
+  softmax_for_col_HSCvCMP, softmax_for_col_CMPvGMP, softmax_for_col_LMPPvGMP, softmax_for_col_CLPvBcell,
+  softmax_for_col_MPPvCD8, softmax_for_col_MPPvErythroid, softmax_for_col_HSCvNKcell,
+  softmax_for_col_HSCvMonocyte, softmax_for_col_MonocytevLeuk, softmax_for_col_HSCvBcell,
+  softmax_for_col_HSC|MPPvpHSC, softmax_for_col_LMPPvBcell, softmax_for_col_HSCvMPP,
+  softmax_for_col_HSCvMEP]

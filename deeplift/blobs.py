@@ -328,6 +328,24 @@ class OneDimOutputMixin(object):
         self._set_mxts_updated_true()
  
 
+class NoOp(SingleInputMixin, Node):
+    """
+        Layers like Dropout get converted to NoOp layers
+    """
+
+    def __init__(self,  **kwargs):
+        super(NoOp, self).__init__(**kwargs)
+
+    def _build_activation_vars(self, input_act_vars):
+        return input_act_vars
+
+    def _get_mxts_increments_for_inputs(self):
+        return self.get_mxts()
+
+    def _build_gradient_at_default_activation(self):
+        pass #not used
+
+
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, **kwargs):
