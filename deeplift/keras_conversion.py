@@ -212,7 +212,8 @@ def convert_graph_model(model,
         for layer in model.outputs.values():
             layer_to_build = keras_layer_to_deeplift_blobs[id(layer)][-1]
             layer_to_build.build_fwd_pass_vars() 
-    return models.GraphModel(name_to_blob)
+    return models.GraphModel(name_to_blob=name_to_blob,
+                             input_layer_names=model.inputs.keys())
 
 
 def mean_normalise_first_conv_layer_weights(model,
