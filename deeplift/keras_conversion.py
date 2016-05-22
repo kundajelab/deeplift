@@ -150,7 +150,6 @@ def convert_sequential_model(model, num_dims=4, mxts_mode=MxtsMode.DeepLIFT):
 def apply_softmax_normalization_if_needed(layer, previous_layer):
     if (type(layer)==blobs.Softmax):
         #mean normalise the inputs to the softmax
-        print("Mean-normalising softmax") 
         previous_layer.W, previous_layer.b =\
          deeplift_util.get_mean_normalised_softmax_weights(
             previous_layer.W, previous_layer.b)
@@ -200,7 +199,6 @@ def convert_graph_model(model,
 
     #connect any remaining things not connected to their inputs 
     for keras_non_input_layer in keras_non_input_layers:
-        print("setting inp for",keras_non_input_layer.name)
         deeplift_layers =\
          keras_layer_to_deeplift_blobs[id(keras_non_input_layer)]
         previous_keras_layer = keras_non_input_layer.previous 
@@ -213,7 +211,6 @@ def convert_graph_model(model,
     if (auto_build_outputs):
         for layer in model.outputs.values():
             layer_to_build = keras_layer_to_deeplift_blobs[id(layer)][-1]
-            print("building", layer_to_build.get_name())
             layer_to_build.build_fwd_pass_vars() 
     return models.GraphModel(name_to_blob)
 
