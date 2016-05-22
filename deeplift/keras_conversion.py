@@ -166,7 +166,9 @@ def connect_list_of_layers(deeplift_layers):
             layer.set_inputs(last_layer_processed)
             last_layer_processed = layer
 
-def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
+def convert_graph_model(model,
+                        mxts_mode=MxtsMode.DeepLIFT,
+                        auto_build_outputs=True):
     name_to_blob = OrderedDict()
     keras_layer_to_deeplift_blobs = OrderedDict() 
     keras_non_input_layers = []
@@ -184,8 +186,7 @@ def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
                                                          [deeplift_input_layer]
     
     #convert the nodes/outputs 
-    for layer_name, layer in\
-        list(model.nodes.items())+list(model.outputs.items()):
+    for layer_name, layer in list(model.nodes.items()):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
         deeplift_layers = conversion_function(
@@ -199,6 +200,7 @@ def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
 
     #connect any remaining things not connected to their inputs 
     for keras_non_input_layer in keras_non_input_layers:
+        print("setting inp for",keras_non_input_layer.name)
         deeplift_layers =\
          keras_layer_to_deeplift_blobs[id(keras_non_input_layer)]
         previous_keras_layer = keras_non_input_layer.previous 
@@ -206,7 +208,13 @@ def convert_graph_model(model, mxts_mode=MxtsMode.DeepLIFT):
          keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
         apply_softmax_normalization_if_needed(deeplift_layers[0],
                                               previous_deeplift_layer)
-        deeplift_layer.set_inputs(previous_deeplift_layer) 
+        deeplift_layers[0].set_inputs(previous_deeplift_layer) 
+
+    if (auto_build_outputs):
+        for layer in model.outputs.values():
+            layer_to_build = keras_layer_to_deeplift_blobs[id(layer)][-1]
+            print("building", layer_to_build.get_name())
+            layer_to_build.build_fwd_pass_vars() 
     return models.GraphModel(name_to_blob)
 
 
