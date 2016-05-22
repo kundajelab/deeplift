@@ -126,4 +126,14 @@ class GraphModel(Model):
         return super(GraphModel, self).get_target_contribs_func(
                 input_layer=self.get_name_to_blob()[input_layer_name],
                 **kwargs)
+
+    def get_target_multipliers_func(self,
+                                 input_layer_name,
+                                 pre_activation_target_layer_name,
+                                 **kwargs):
+        self.set_pre_activation_target_layer(
+         self.get_name_to_blob()[pre_activation_target_layer_name])
+        return super(GraphModel, self).get_target_multipliers_func(
+                input_layer=self.get_name_to_blob()[input_layer_name],
+                **kwargs)
         
