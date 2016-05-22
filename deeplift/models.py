@@ -94,18 +94,11 @@ class SequentialModel(Model):
     def get_layers(self):
         return self._layers
 
-    def get_target_contribs_func(self, find_scores_layer_idx, **kwargs):
-        return super(SequentialModel, self).get_target_contribs_func(
+    def _get_func(self, find_scores_layer_idx, **kwargs):
+        return super(SequentialModel, self)._get_func(
                     find_scores_layer=self.get_layers()[find_scores_layer_idx],
                     input_layers=[self.get_layers()[0]],
-                    **kwargs)
-
-    def get_target_multipliers_func(self, find_scores_layer_idx, **kwargs):
-        return super(SequentialModel, self).get_target_multipliers_func(
-                    find_scores_layer=self.get_layers()[find_scores_layer_idx],
-                    input_layers=[self.get_layers()[0]],
-                    **kwargs)
-
+                    **kwargs) 
 
 class GraphModel(Model):
     def __init__(self, name_to_blob, input_layer_names):
@@ -118,26 +111,12 @@ class GraphModel(Model):
     def get_input_layer_names(self):
         return self._input_layer_names
 
-    def get_target_contribs_func(self,
-                                 find_scores_layer_name,
-                                 pre_activation_target_layer_name,
-                                 **kwargs):
+    def _get_func(self, find_scores_layer_name,
+                        pre_activation_target_layer_name,
+                        **kwargs):
         self.set_pre_activation_target_layer(
          self.get_name_to_blob()[pre_activation_target_layer_name])
-        return super(GraphModel, self).get_target_contribs_func(
-                find_scores_layer=self.get_name_to_blob()\
-                                  [find_scores_layer_name],
-                input_layers=[self.get_name_to_blob()[input_layer]
-                              for input_layer in self.get_input_layer_names()],
-                **kwargs)
-
-    def get_target_multipliers_func(self,
-                                 find_scores_layer_name,
-                                 pre_activation_target_layer_name,
-                                 **kwargs):
-        self.set_pre_activation_target_layer(
-         self.get_name_to_blob()[pre_activation_target_layer_name])
-        return super(GraphModel, self).get_target_multipliers_func(
+        return super(GraphModel, self)._get_func(
                 find_scores_layer=self.get_name_to_blob()\
                                   [find_scores_layer_name],
                 input_layers=[self.get_name_to_blob()[input_layer]
