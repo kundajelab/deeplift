@@ -404,7 +404,6 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         mxts = self.get_mxts()*(self.get_activation_vars > 0)  
         return mxts
         
-
     def _get_mxts_increments_for_inputs(self):
         if (self.mxts_mode == MxtsMode.DeepLIFT): 
             mxts = self._deeplift_get_mxts_increment_for_inputs()
@@ -423,6 +422,16 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             raise RuntimeError("Unsupported mxts_mode: "+str(self.mxts_mode))
         return mxts
 
+    def _get_gradient_at_activation(self, activation_vars):
+        """
+            Return the gradients at a specific supplied activation
+        """
+        raise NotImplementedError()
+
+    def _build_gradient_at_default_activation(self):
+        return self._get_gradient_at_activation(
+                    self._get_default_activation_vars())
+
 
 class PReLU(Activation):
 
@@ -436,8 +445,9 @@ class PReLU(Activation):
         to_return = to_return + negative_mask*input_act_vars*self.alpha
         return to_return
 
-    def _build_gradient_at_default_activation(self):
-        return 1.0
+    def _get_gradients_at_activation(self, activation_vars):
+        to_return = (input_act_vars <= 0)*self.alpha +\
+                    (input_act_vars > 0)*1.0
 
 
 class ReLU(PReLU):
@@ -451,9 +461,8 @@ class Sigmoid(Activation):
     def _build_activation_vars(self, input_act_vars):
         return B.sigmoid(input_act_vars) 
 
-    def _build_gradient_at_default_activation(self):
-        default_activation_vars = self._get_default_activation_vars()
-        return B.sigmoid_grad(default_activation_vars)
+    def _get_gradients_at_activation(self, activation_vars):
+        return B.sigmoid_grad(activation_vars)
 
 
 class Softmax(Activation):
@@ -461,9 +470,8 @@ class Softmax(Activation):
     def _build_activation_vars(self, input_act_vars):
         return B.softmax(input_act_vars)
 
-    def _build_gradient_at_default_activation(self):
-        default_activation_vars = self._get_default_activation_vars()
-        return B.softmax_grad(default_activation_vars)
+    def _get_gradients_at_activation(self, activation_vars):
+        return B.softmax_grad(activation_vars)
 
 
 class Conv2D(SingleInputMixin, Node):
