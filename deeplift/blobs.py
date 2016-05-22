@@ -401,7 +401,9 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         return unscaled_mxts*scale_factor
         
     def _gradients_get_mxts_increment_for_inputs(self):
-        mxts = self.get_mxts()*(self.get_activation_vars > 0)  
+        mxts = self.get_mxts()*\
+               self._get_gradient_at_activation(
+                    self._get_input_activation_vars())  
         return mxts
         
     def _get_mxts_increments_for_inputs(self):
@@ -411,10 +413,11 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
             mxts = deeplift_mxts*(self.get_mxts() > 0)
         elif (self.mxts_mode == MxtsMode.Gradient):
-            mxts = self.get_mxts()*(self.get_activation_vars() > 0)  
+            mxts = self._gradients_get_mxts_increment_for_inputs() 
         elif (self.mxts_mode == MxtsMode.GuidedBackprop):
-            mxts = self.get_mxts()*(self.get_mxts() > 0)\
-                                  *(self.get_activation_vars() > 0) 
+            mxts = self.get_mxts()\
+                    *(self.get_mxts() > 0)\
+                    *(self._gradients_get_mxts_increment_for_inputs()) 
         elif (self.mxts_mode == MxtsMode.DeconvNet):
             #use the given nonlinearity, but in reverse
             mxts = self._build_activation_vars(self.get_mxts())
@@ -445,9 +448,10 @@ class PReLU(Activation):
         to_return = to_return + negative_mask*input_act_vars*self.alpha
         return to_return
 
-    def _get_gradients_at_activation(self, activation_vars):
-        to_return = (input_act_vars <= 0)*self.alpha +\
-                    (input_act_vars > 0)*1.0
+    def _get_gradient_at_activation(self, activation_vars):
+        to_return = (activation_vars <= 0)*self.alpha +\
+                    (activation_vars > 0)*1.0
+        return to_return
 
 
 class ReLU(PReLU):
@@ -461,7 +465,7 @@ class Sigmoid(Activation):
     def _build_activation_vars(self, input_act_vars):
         return B.sigmoid(input_act_vars) 
 
-    def _get_gradients_at_activation(self, activation_vars):
+    def _get_gradient_at_activation(self, activation_vars):
         return B.sigmoid_grad(activation_vars)
 
 
@@ -470,7 +474,7 @@ class Softmax(Activation):
     def _build_activation_vars(self, input_act_vars):
         return B.softmax(input_act_vars)
 
-    def _get_gradients_at_activation(self, activation_vars):
+    def _get_gradient_at_activation(self, activation_vars):
         return B.softmax_grad(activation_vars)
 
 
