@@ -12,6 +12,9 @@ PoolMode = deeplift_util.enum(max='max', avg='avg')
 BorderMode = deeplift_util.enum(same='same', half='half', valid='valid')
 
 
+def reshape(tensor, shape):
+    return T.reshape(tensor, shape)
+
 
 def maximum(x, y):
     return T.maximum(x, y)
