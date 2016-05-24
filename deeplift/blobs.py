@@ -516,7 +516,8 @@ class Conv2D(SingleInputMixin, Node):
 
     def _get_mxts_increments_for_inputs(self): 
         return B.conv2d_grad(
-                inp=self.get_mxts(),
+                out_grad=self.get_mxts(),
+                conv_in=self._get_input_activation_vars(),
                 filters=self.W,
                 border_mode=self.border_mode,
                 subsample=self.strides)
