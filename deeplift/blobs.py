@@ -35,6 +35,9 @@ class Blob(object):
         self._output_layers = []
         self._mxts_updated = False
 
+    def get_shape(self):
+        return self._shape
+
     def get_output_layers(self):
         return self._output_layers
 
@@ -132,11 +135,13 @@ class Input(Blob):
         Input layer
     """
 
-    def __init__(self, num_dims, **kwargs):
+    def __init__(self, num_dims, shape=None, **kwargs):
         super(Input, self).__init__(**kwargs)
         self._activation_vars = B.tensor_with_dims(
                                   num_dims,
                                   name="inp_"+str(self.get_name()))
+        self._num_dims = num_dims
+        self._shape = shape
 
     def get_activation_vars(self):
         return self._activation_vars
@@ -199,6 +204,9 @@ class Node(Blob):
         return self._call_function_on_blobs_within_inputs(
                     '_get_diff_from_default_vars')
 
+    def _get_input_shape(self):
+        return self._call_function_on_blobs_within_inputs('get_shape')
+
     def _build_fwd_pass_vars_for_all_inputs(self):
         raise NotImplementedError() 
 
@@ -216,6 +224,7 @@ class Node(Blob):
             mxts will not be correct 
         """
         self._build_fwd_pass_vars_for_all_inputs()
+        self._shape = self._compute_shape(self._get_input_shape())
         self._activation_vars =\
             self._build_activation_vars(
                 self._get_input_activation_vars())
@@ -226,6 +235,12 @@ class Node(Blob):
         self._diff_from_default_vars =\
          self._build_diff_from_default_vars()
         self._mxts = B.zeros_like(self._get_default_activation_vars())
+
+    def _compute_shape(self, input_shape):
+        """
+            compute the shape of this layer given the shape of the inputs
+        """
+        pass #I am going to punt on this for now as it's not essential
 
     def _build_activation_vars(self, input_act_vars):
         """
@@ -340,6 +355,9 @@ class NoOp(SingleInputMixin, Node):
     def __init__(self,  **kwargs):
         super(NoOp, self).__init__(**kwargs)
 
+    def _compute_shape(self, input_shape):
+        return input_shape
+
     def _build_activation_vars(self, input_act_vars):
         return input_act_vars
 
@@ -356,6 +374,11 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         super(Dense, self).__init__(**kwargs)
         self.W = W
         self.b = b
+
+    def _compute_shape(self, input_shape):
+        assert len(input_shape)==1
+        assert self.W.shape[0] == input_shape[0]
+        return (self.W.shape[1],)
 
     def _build_activation_vars(self, input_act_vars):
         return B.dot(input_act_vars, self.W) + self.b
@@ -378,6 +401,9 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     def __init__(self, mxts_mode, **kwargs):
         self.mxts_mode = mxts_mode
         super(Activation, self).__init__(**kwargs)
+
+    def _compute_shape(self, input_shape):
+        return input_shape
 
     def _build_activation_vars(self, input_act_vars):
         raise NotImplementedError()
@@ -824,7 +850,61 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _build_gradient_at_default_activation(self):
         pass #not used
-    
+
+
+class BatchNormalization(SingleInputMixin, Node):
+
+    def __init__(self, gamma, beta, axis,
+                 mean, std, epsilon,
+                 input_shape):
+        """
+            'axis' is the axis along which the normalization is conducted
+             for dense layers, this should be -1 (which works for dense layers
+             where the input looks like: (batch, node index)
+            for things like batch normalization over channels (where the input
+             looks like: batch, channel, rows, columns), an axis=1 will
+             normalize over channels
+
+            num_dims: I am requiring the user to pass this in for now
+             because I don't want to sink time into implementing shape
+             inference right now, but eventually this argument won't be
+             necessary due to shape inference
+        """
+        #in principle they could be more than one-dimensional, but
+        #the current code I have written, consistent with the Keras
+        #implementation, seems to support these only being one dimensional
+        assert len(mean.shape)==1
+        assert len(std.shape)==1
+        self.gamma = gamma
+        self.beta = beta
+        self.axis = axis
+        self.mean = mean
+        self.std = std
+        self.epsilon = epsilon
+        self.supplied_shape = input_shape
+        self.reshaped_mean = self.mean.reshape(new_shape)
+        self.reshaped_std = self.std.reshape(new_shape)
+        self.reshaped_gamma = self.gamma.reshape(new_shape)
+        self.reshaped_beta = self.beta.reshape(new_shape)
+
+    def _compute_shape(self, input_shape):
+        #this is used to set _shape, and I haven't gotten around to
+        #implementing it for most layers at the time of writing
+        return self.supplied_shape
+
+    def _build_activation_vars(self, input_act_vars):
+        new_shape = [(1 if i != self.axis else self.supplied_shape[i])
+                       for i in range(num_dims)] 
+        return self.reshaped_gamma*\
+               ((input_act_vars - self.reshaped_mean)/self.reshaped_std)\
+               + self.reshaped_beta
+
+    def _get_mxts_increments_for_inputs(self):
+        return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
+                    
+    def _build_gradient_at_default_activation(self):
+        pass #not used
+
 
 class RNN(SingleInputMixin, Node):                                              
                                                                                 
