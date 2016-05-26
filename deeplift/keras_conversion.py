@@ -5,7 +5,7 @@ import sys
 import os
 from  deeplift import models, blobs, deeplift_util
 from collections import OrderedDict
-from blobs import MxtsMode
+from deeplift.blobs import MxtsMode
 from deeplift.deeplift_backend import PoolMode, BorderMode
 
 
