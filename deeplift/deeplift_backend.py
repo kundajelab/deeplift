@@ -8,6 +8,9 @@ PoolMode = deeplift_util.enum(max='max', avg='avg')
 BorderMode = deeplift_util.enum(same='same', half='half', valid='valid')
 
 
+def reshape(tensor, shape):
+    return T.reshape(tensor, shape)
+
 
 def maximum(x, y):
     return T.maximum(x, y)
@@ -118,14 +121,14 @@ def conv2d(inp, filters, border_mode, subsample):
                          filter_shape=filters.shape)
 
 
-def conv2d_grad(inp, filters, border_mode, subsample):
+def conv2d_grad(out_grad, conv_in, filters, border_mode, subsample):
     conv_op = T.nnet.conv.ConvOp(output_mode=border_mode,
                                  dx=subsample[0],
                                  dy=subsample[1]) 
     inverse_conv2d = conv_op.grad(
-                       (T.tensor4(), #input doesn't affect grad, so dummy var
+                       (conv_in,
                        T.as_tensor_variable(filters)),
-                       (inp,))
+                       (out_grad,))
     #grad returns d_input and d_filters; we just care about
     #the first
     return inverse_conv2d[0]
