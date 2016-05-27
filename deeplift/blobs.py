@@ -137,9 +137,15 @@ class Input(Blob):
 
     def __init__(self, num_dims, shape=None, **kwargs):
         super(Input, self).__init__(**kwargs)
+        #if (shape is None):
         self._activation_vars = B.tensor_with_dims(
                                   num_dims,
                                   name="inp_"+str(self.get_name()))
+        #else:
+        #    self._activation_vars = B.as_tensor_variable(
+        #                              np.zeros([1]+list(shape)),
+        #                              name="inp_"+str(self.get_name()),
+        #                              ndim=num_dims)
         self._num_dims = num_dims
         self._shape = shape
 
@@ -376,8 +382,6 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         self.b = b
 
     def _compute_shape(self, input_shape):
-        assert len(input_shape)==1
-        assert self.W.shape[0] == input_shape[0]
         return (self.W.shape[1],)
 
     def _build_activation_vars(self, input_act_vars):
@@ -856,7 +860,7 @@ class BatchNormalization(SingleInputMixin, Node):
 
     def __init__(self, gamma, beta, axis,
                  mean, std, epsilon,
-                 input_shape):
+                 input_shape, **kwargs):
         """
             'axis' is the axis along which the normalization is conducted
              for dense layers, this should be -1 (which works for dense layers
@@ -870,6 +874,7 @@ class BatchNormalization(SingleInputMixin, Node):
              inference right now, but eventually this argument won't be
              necessary due to shape inference
         """
+        super(BatchNormalization, self).__init__(**kwargs)
         #in principle they could be more than one-dimensional, but
         #the current code I have written, consistent with the Keras
         #implementation, seems to support these only being one dimensional
@@ -882,24 +887,27 @@ class BatchNormalization(SingleInputMixin, Node):
         self.std = std
         self.epsilon = epsilon
         self.supplied_shape = input_shape
-        self.reshaped_mean = self.mean.reshape(new_shape)
-        self.reshaped_std = self.std.reshape(new_shape)
-        self.reshaped_gamma = self.gamma.reshape(new_shape)
-        self.reshaped_beta = self.beta.reshape(new_shape)
-
+    
     def _compute_shape(self, input_shape):
         #this is used to set _shape, and I haven't gotten around to
         #implementing it for most layers at the time of writing
         return self.supplied_shape
 
     def _build_activation_vars(self, input_act_vars):
-        new_shape = [(1 if i != self.axis else self.supplied_shape[i])
-                       for i in range(num_dims)] 
+        #the i+1 and i-1 are because we want a batch axis here
+        new_shape = [(1 if i != self.axis else self.supplied_shape[i-1])
+                       for i in range(len(self._shape)+1)] 
+        self.reshaped_mean = self.mean.reshape(new_shape)
+        self.reshaped_std = self.std.reshape(new_shape)
+        self.reshaped_gamma = self.gamma.reshape(new_shape)
+        self.reshaped_beta = self.beta.reshape(new_shape)
         return self.reshaped_gamma*\
                ((input_act_vars - self.reshaped_mean)/self.reshaped_std)\
                + self.reshaped_beta
 
     def _get_mxts_increments_for_inputs(self):
+        #self.reshaped_gamma and reshaped_std are created during
+        #the call to _build_activation_vars in _built_fwd_pass_vars
         return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
                     
     def _build_gradient_at_default_activation(self):
