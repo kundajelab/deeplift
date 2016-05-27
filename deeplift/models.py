@@ -23,8 +23,15 @@ FuncType = deeplift_util.enum(contribs="contribs", multipliers="multipliers")
 
 class Model(object):
     
-    def _get_func(self, find_scores_layer, input_layers, func_type):
-        assert hasattr(self, "target_layer"), "Please set the target layer"
+    def __init__(self):
+        pass #at some point, I want to put in locking so that only
+        #one function can be running at a time
+
+    def _get_func(self, find_scores_layer, 
+                        target_layer,
+                        input_layers, func_type):
+        self._reset_mxts_updated()
+        self._set_scoring_mode_for_pre_activation_target_layer(target_layer)
         find_scores_layer.update_mxts()
         if (func_type == FuncType.contribs):
             output_symbolic_vars = find_scores_layer.get_target_contrib_vars()
@@ -36,12 +43,17 @@ class Model(object):
                                     for input_layer in input_layers],
                           output_symbolic_vars)
         def func(task_idx, input_data_list, batch_size, progress_update):
-            self.target_layer.update_task_index(task_idx)
+            #WARNING: this is not thread-safe. Do not try to
+            #parallelize or you can end up with multiple target_layers
+            #active at once
+            target_layer.set_active()
+            target_layer.update_task_index(task_idx)
             return deeplift_util.run_function_in_batches(
                     func = core_function,
                     input_data_list = input_data_list,
                     batch_size = batch_size,
                     progress_update = progress_update)
+            target_layer.set_inactive()
         return func
 
     def get_target_contribs_func(self, *args, **kwargs):
@@ -50,8 +62,7 @@ class Model(object):
     def get_target_multipliers_func(self, *args, **kwargs):
         return self._get_func(*args, func_type=FuncType.multipliers, **kwargs)
 
-    def set_pre_activation_target_layer(self, target_layer):
-        self.target_layer = target_layer
+    def _set_scoring_mode_for_pre_activation_target_layer(self, target_layer):
         assert len(target_layer.get_output_layers())==1
         final_activation_layer = target_layer.get_output_layers()[0]
         deeplift_util.assert_is_type(final_activation_layer, blobs.Activation,
@@ -63,7 +74,7 @@ class Model(object):
         elif (final_activation_type == "Softmax"):
             new_W, new_b =\
              deeplift_util.get_mean_normalised_softmax_weights(
-              self.target_layer.W, self.target_layer.b)
+              target_layer.W, target_layer.b)
             #The weights need to be mean normalised before they are passed in
             #because build_fwd_pass_vars() has already been called
             #before this function is called, because get_output_layers()
@@ -76,38 +87,47 @@ class Model(object):
             #really want them to be using the same symbolic variables - no
             #use having needlessly complicated/redundant graphs and if a node
             #is common to two outputs, so should its symbolic vars
-            assert np.allclose(self.target_layer.W, new_W),\
+            #TODO: I should put in a 'reset_fwd_pass' function and use
+            #it to invalidate the _built_fwd_pass_vars cache and recompile
+            assert np.allclose(target_layer.W, new_W),\
                    "Please mean-normalise weights and biases of softmax layer" 
-            assert np.allclose(self.target_layer.b, new_b),\
+            assert np.allclose(target_layer.b, new_b),\
                    "Please mean-normalise weights and biases of softmax layer"
             scoring_mode=ScoringMode.OneAndZeros
         else:
             raise RuntimeError("Unsupported final_activation_type: "
                                +final_activation_type)
         target_layer.set_scoring_mode(scoring_mode)    
+
+    def _reset_mxts_updated(self):
+        raise NotImplementedError()
         
 
 class SequentialModel(Model):
     
-    def __init__(self, layers, auto_set_target_to_pre_activation_layer=True):
+    def __init__(self, layers):
+        super(SequentialModel, self).__init__()
         self._layers = layers
-        self._set_target_to_pre_activation_layer()
-
-    def _set_target_to_pre_activation_layer(self):
-        self.set_pre_activation_target_layer(
-                                      self.get_layers()[-2])
 
     def get_layers(self):
         return self._layers
 
-    def _get_func(self, find_scores_layer_idx, **kwargs):
+    def _get_func(self, find_scores_layer_idx,
+                        target_layer_idx=-2, **kwargs):
         return super(SequentialModel, self)._get_func(
                     find_scores_layer=self.get_layers()[find_scores_layer_idx],
+                    target_layer=self.get_layers()[target_layer_idx],
                     input_layers=[self.get_layers()[0]],
                     **kwargs) 
 
+    def _reset_mxts_updated(self):
+        for layer in self._layers():
+            layer.reset_mxts_updated() 
+
+
 class GraphModel(Model):
     def __init__(self, name_to_blob, input_layer_names):
+        super(GraphModel, self).__init__()
         self._name_to_blob = name_to_blob
         self._input_layer_names = input_layer_names
     
@@ -120,12 +140,15 @@ class GraphModel(Model):
     def _get_func(self, find_scores_layer_name,
                         pre_activation_target_layer_name,
                         **kwargs):
-        self.set_pre_activation_target_layer(
-         self.get_name_to_blob()[pre_activation_target_layer_name])
         return super(GraphModel, self)._get_func(
                 find_scores_layer=self.get_name_to_blob()\
                                   [find_scores_layer_name],
+                target_layer=self.get_name_to_blob()\
+                             [pre_activation_target_layer_name],
                 input_layers=[self.get_name_to_blob()[input_layer]
                               for input_layer in self.get_input_layer_names()],
                 **kwargs)
-        
+    
+    def _reset_mxts_updated(self):
+        for blob in self._name_to_blob.values():
+            blob.reset_mxts_updated() 
