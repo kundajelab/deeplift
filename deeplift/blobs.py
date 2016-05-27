@@ -35,6 +35,9 @@ class Blob(object):
         self._output_layers = []
         self._mxts_updated = False
 
+    def reset_mxts_updated(self):
+        self._mxts_updated = False
+
     def get_shape(self):
         return self._shape
 
@@ -320,10 +323,17 @@ class SingleInputMixin(object):
 class OneDimOutputMixin(object):
    
     def _init_task_index(self):
+        self._active = B.shared(0)
         self._task_index = B.shared(0)
 
     def update_task_index(self, task_index):
         self._task_index.set_value(task_index)
+
+    def set_active(self):
+        self._active.set_value(1)
+
+    def set_inactive(self):
+        self._active.set_value(0)
 
     def _get_task_index(self):
         return self._task_index
@@ -331,10 +341,10 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            self._mxts = B.zeros_like(self.get_activation_vars())
-            self._mxts = B.set_subtensor(
-                           self._mxts[:,self._get_task_index()],
-                           1.0)
+            if (self._active == 1):
+                self._mxts = B.set_subtensor(
+                               self._mxts[:,self._get_task_index()],
+                               1.0)
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
             #I was getting some weird NoneType errors when I tried
             #to compile this piece of the code, hence the shift to
@@ -509,7 +519,9 @@ class Softmax(Activation):
         return B.softmax(input_act_vars)
 
     def _get_gradient_at_activation(self, activation_vars):
-        return B.softmax_grad(activation_vars)
+        return 0#punting; this needs to have
+                #same dims as activation_vars
+                #B.softmax_grad(activation_vars)
 
 
 class Conv2D(SingleInputMixin, Node):
