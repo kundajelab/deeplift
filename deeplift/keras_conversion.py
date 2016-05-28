@@ -14,6 +14,7 @@ import blobs
 from blobs import MxtsMode
 import deeplift_util as deeplift_util  
 from deeplift_backend import PoolMode, BorderMode
+import numpy as np
 
 
 KerasKeys = deeplift_util.enum(name='name', activation='activation',
@@ -27,6 +28,19 @@ ActivationTypes = deeplift_util.enum(relu='relu',
                                      sigmoid='sigmoid',
                                      softmax='softmax',
                                      linear='linear')
+
+
+def batchnorm_conversion(layer, name, mxts_mode):
+   return [blobs.BatchNormalization(
+        name=name,
+        gamma=np.array(layer.gamma.get_value()),
+        beta=np.array(layer.beta.get_value()),
+        axis=layer.axis,
+        mean=np.array(layer.running_mean.get_value()),
+        std=np.array(layer.running_std.get_value()),
+        epsilon=layer.epsilon,
+        input_shape=layer.input_shape[1:] 
+    )] 
 
 
 def conv2d_conversion(layer, name, mxts_mode):
@@ -121,6 +135,7 @@ layer_name_to_conversion_function = {
                      pool2d_conversion(layer, name,
                                        pool_mode=PoolMode.avg,
                                        mxts_mode=mxts_mode),
+    'BatchNormalization': batchnorm_conversion,
     'ZeroPadding2D': zeropad2d_conversion,
     'Flatten': flatten_conversion,
     'Dense': dense_conversion,
@@ -132,10 +147,23 @@ layer_name_to_conversion_function = {
 }
 
 
-def convert_sequential_model(model, num_dims=4, mxts_mode=MxtsMode.DeepLIFT):
+def convert_sequential_model(model, num_dims=None, mxts_mode=MxtsMode.DeepLIFT):
     converted_layers = []
+    if (model.layers[0].input_shape is not None):
+        input_shape = model.layers[0].input_shape[1:]
+        num_dims_input = len(input_shape)+1 #+1 for the batch axis
+        assert num_dims is None or num_dims_input==num_dims,\
+        "num_dims argument of "+str(num_dims)+" is incompatible with"\
+        +" the number of dims in layers[0].input_shape which is: "\
+        +str(model.layers[0].input_shape)
+        num_dims = num_dims_input
+    else:
+        input_shape = None
     converted_layers.append(
-        blobs.Input_FixedDefault(default=0.0, num_dims=num_dims, name="input"))
+        blobs.Input_FixedDefault(default=0.0,
+                                 num_dims=num_dims,
+                                 shape = input_shape,
+                                 name="input"))
     for layer_idx, layer in enumerate(model.layers):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
