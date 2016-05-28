@@ -376,8 +376,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         self.b = b
 
     def _compute_shape(self, input_shape):
-        assert len(input_shape)==1
-        assert self.W.shape[0] == input_shape[0]
+        #assert len(input_shape)==1
+        #assert self.W.shape[0] == input_shape[0]
         return (self.W.shape[1],)
 
     def _build_activation_vars(self, input_act_vars):
