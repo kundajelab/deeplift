@@ -36,6 +36,9 @@ class Blob(object):
         self._mxts_updated = False
 
     def reset_mxts_updated(self):
+        for output_layer in self._output_layers:
+            output_layer.reset_mxts_updated()
+        self._mxts = B.zeros_like(self.get_activation_vars())
         self._mxts_updated = False
 
     def get_shape(self):
@@ -330,7 +333,7 @@ class OneDimOutputMixin(object):
         self._task_index.set_value(task_index)
 
     def set_active(self):
-        self._active.set_value(1)
+        self._active.set_value(1.0)
 
     def set_inactive(self):
         self._active.set_value(0)
@@ -341,10 +344,9 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            if (self._active == 1):
-                self._mxts = B.set_subtensor(
-                               self._mxts[:,self._get_task_index()],
-                               1.0)
+            self._mxts = B.set_subtensor(
+                           self._mxts[:,self._get_task_index()],
+                           self._active)
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
             #I was getting some weird NoneType errors when I tried
             #to compile this piece of the code, hence the shift to

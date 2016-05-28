@@ -30,7 +30,7 @@ class Model(object):
     def _get_func(self, find_scores_layer, 
                         target_layer,
                         input_layers, func_type):
-        self._reset_mxts_updated()
+        find_scores_layer.reset_mxts_updated()
         self._set_scoring_mode_for_pre_activation_target_layer(target_layer)
         find_scores_layer.update_mxts()
         if (func_type == FuncType.contribs):
@@ -48,12 +48,13 @@ class Model(object):
             #active at once
             target_layer.set_active()
             target_layer.update_task_index(task_idx)
-            return deeplift_util.run_function_in_batches(
+            to_return = deeplift_util.run_function_in_batches(
                     func = core_function,
                     input_data_list = input_data_list,
                     batch_size = batch_size,
                     progress_update = progress_update)
             target_layer.set_inactive()
+            return to_return
         return func
 
     def get_target_contribs_func(self, *args, **kwargs):
@@ -63,7 +64,10 @@ class Model(object):
         return self._get_func(*args, func_type=FuncType.multipliers, **kwargs)
 
     def _set_scoring_mode_for_pre_activation_target_layer(self, target_layer):
-        assert len(target_layer.get_output_layers())==1
+        assert len(target_layer.get_output_layers())==1,\
+               "there should be exactly one output layer for"\
+               +str(target_layer.get_name())+" but got: "+\
+               str(target_layer.get_output_layers())
         final_activation_layer = target_layer.get_output_layers()[0]
         deeplift_util.assert_is_type(final_activation_layer, blobs.Activation,
                                      "final_activation_layer")
@@ -98,9 +102,6 @@ class Model(object):
             raise RuntimeError("Unsupported final_activation_type: "
                                +final_activation_type)
         target_layer.set_scoring_mode(scoring_mode)    
-
-    def _reset_mxts_updated(self):
-        raise NotImplementedError()
         
 
 class SequentialModel(Model):
@@ -119,10 +120,6 @@ class SequentialModel(Model):
                     target_layer=self.get_layers()[target_layer_idx],
                     input_layers=[self.get_layers()[0]],
                     **kwargs) 
-
-    def _reset_mxts_updated(self):
-        for layer in self._layers():
-            layer.reset_mxts_updated() 
 
 
 class GraphModel(Model):
@@ -148,7 +145,3 @@ class GraphModel(Model):
                 input_layers=[self.get_name_to_blob()[input_layer]
                               for input_layer in self.get_input_layer_names()],
                 **kwargs)
-    
-    def _reset_mxts_updated(self):
-        for blob in self._name_to_blob.values():
-            blob.reset_mxts_updated() 
