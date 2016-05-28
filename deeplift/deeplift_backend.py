@@ -24,8 +24,8 @@ def minimum(x, y):
     return T.minimum(x, y)
 
 
-def as_tensor_variable(x):
-    raise NotImplementedError()
+def as_tensor_variable(x, name, ndim):
+   return T.as_tensor_variable(x, name=name, ndim=ndim) 
 
 
 def max(x, axis):
