@@ -35,6 +35,12 @@ class Blob(object):
         self._output_layers = []
         self._mxts_updated = False
 
+    def reset_mxts_updated(self):
+        for output_layer in self._output_layers:
+            output_layer.reset_mxts_updated()
+        self._mxts = B.zeros_like(self.get_activation_vars())
+        self._mxts_updated = False
+
     def get_shape(self):
         return self._shape
 
@@ -137,9 +143,15 @@ class Input(Blob):
 
     def __init__(self, num_dims, shape=None, **kwargs):
         super(Input, self).__init__(**kwargs)
+        #if (shape is None):
         self._activation_vars = B.tensor_with_dims(
                                   num_dims,
                                   name="inp_"+str(self.get_name()))
+        #else:
+        #    self._activation_vars = B.as_tensor_variable(
+        #                              np.zeros([1]+list(shape)),
+        #                              name="inp_"+str(self.get_name()),
+        #                              ndim=num_dims)
         self._num_dims = num_dims
         self._shape = shape
 
@@ -314,10 +326,17 @@ class SingleInputMixin(object):
 class OneDimOutputMixin(object):
    
     def _init_task_index(self):
+        self._active = B.shared(0)
         self._task_index = B.shared(0)
 
     def update_task_index(self, task_index):
         self._task_index.set_value(task_index)
+
+    def set_active(self):
+        self._active.set_value(1.0)
+
+    def set_inactive(self):
+        self._active.set_value(0)
 
     def _get_task_index(self):
         return self._task_index
@@ -325,10 +344,9 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            self._mxts = B.zeros_like(self.get_activation_vars())
             self._mxts = B.set_subtensor(
                            self._mxts[:,self._get_task_index()],
-                           1.0)
+                           self._active)
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
             #I was getting some weird NoneType errors when I tried
             #to compile this piece of the code, hence the shift to
@@ -376,8 +394,6 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         self.b = b
 
     def _compute_shape(self, input_shape):
-        #assert len(input_shape)==1
-        #assert self.W.shape[0] == input_shape[0]
         return (self.W.shape[1],)
 
     def _build_activation_vars(self, input_act_vars):
@@ -505,7 +521,9 @@ class Softmax(Activation):
         return B.softmax(input_act_vars)
 
     def _get_gradient_at_activation(self, activation_vars):
-        return B.softmax_grad(activation_vars)
+        return 0#punting; this needs to have
+                #same dims as activation_vars
+                #B.softmax_grad(activation_vars)
 
 
 class Conv2D(SingleInputMixin, Node):
@@ -856,7 +874,7 @@ class BatchNormalization(SingleInputMixin, Node):
 
     def __init__(self, gamma, beta, axis,
                  mean, std, epsilon,
-                 input_shape):
+                 input_shape, **kwargs):
         """
             'axis' is the axis along which the normalization is conducted
              for dense layers, this should be -1 (which works for dense layers
@@ -870,6 +888,7 @@ class BatchNormalization(SingleInputMixin, Node):
              inference right now, but eventually this argument won't be
              necessary due to shape inference
         """
+        super(BatchNormalization, self).__init__(**kwargs)
         #in principle they could be more than one-dimensional, but
         #the current code I have written, consistent with the Keras
         #implementation, seems to support these only being one dimensional
@@ -882,24 +901,27 @@ class BatchNormalization(SingleInputMixin, Node):
         self.std = std
         self.epsilon = epsilon
         self.supplied_shape = input_shape
-        self.reshaped_mean = self.mean.reshape(new_shape)
-        self.reshaped_std = self.std.reshape(new_shape)
-        self.reshaped_gamma = self.gamma.reshape(new_shape)
-        self.reshaped_beta = self.beta.reshape(new_shape)
-
+    
     def _compute_shape(self, input_shape):
         #this is used to set _shape, and I haven't gotten around to
         #implementing it for most layers at the time of writing
         return self.supplied_shape
 
     def _build_activation_vars(self, input_act_vars):
-        new_shape = [(1 if i != self.axis else self.supplied_shape[i])
-                       for i in range(num_dims)] 
+        #the i+1 and i-1 are because we want a batch axis here
+        new_shape = [(1 if i != self.axis else self.supplied_shape[i-1])
+                       for i in range(len(self._shape)+1)] 
+        self.reshaped_mean = self.mean.reshape(new_shape)
+        self.reshaped_std = self.std.reshape(new_shape)
+        self.reshaped_gamma = self.gamma.reshape(new_shape)
+        self.reshaped_beta = self.beta.reshape(new_shape)
         return self.reshaped_gamma*\
                ((input_act_vars - self.reshaped_mean)/self.reshaped_std)\
                + self.reshaped_beta
 
     def _get_mxts_increments_for_inputs(self):
+        #self.reshaped_gamma and reshaped_std are created during
+        #the call to _build_activation_vars in _built_fwd_pass_vars
         return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
                     
     def _build_gradient_at_default_activation(self):
