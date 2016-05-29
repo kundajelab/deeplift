@@ -326,8 +326,9 @@ class SingleInputMixin(object):
 class OneDimOutputMixin(object):
    
     def _init_task_index(self):
-        self._active = B.shared(0)
-        self._task_index = B.shared(0)
+        if (hasattr(self,"_active")==False):
+            self._active = B.shared(0)
+            self._task_index = B.shared(0)
 
     def update_task_index(self, task_index):
         self._task_index.set_value(task_index)
