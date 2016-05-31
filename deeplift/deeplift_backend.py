@@ -16,6 +16,10 @@ def reshape(tensor, shape):
     return T.reshape(tensor, shape)
 
 
+def pow(inp, power):
+    return T.pow(inp, power)
+
+
 def maximum(x, y):
     return T.maximum(x, y)
 
