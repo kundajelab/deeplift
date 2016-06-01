@@ -9,7 +9,7 @@ config = {
     'version': '0.2',
     'packages': ['deeplift'],
     'setup_requires': [],
-    'install_requires': [ 'numpy', 'keras' ],
+    'install_requires': ['numpy>=1.9', 'keras==0.3.2', 'theano>=0.8'],
     'scripts': [],
     'name': 'DeepLIFT'
 }
