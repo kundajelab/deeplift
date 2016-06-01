@@ -26,12 +26,8 @@ MxtsMode = deeplift_util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                      "GuidedBackpropDeepLIFT2",
                                     GuidedBackpropDeepLIFT3=\
                                      "GuidedBackpropDeepLIFT3",
-                                    ExpoUpweightTopLayers1=\
-                                     "ExpoUpweightTopLayers1",
-                                    ExpoUpweightTopLayers2=\
-                                     "ExpoUpweightTopLayers2",
-                                    GuidedBackpropDeepLIFT5=\
-                                     "GuidedBackpropDeepLIFT5")
+                                    GuidedBackpropDeepLIFT4=\
+                                     "GuidedBackpropDeepLIFT4")
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
@@ -426,8 +422,11 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     #if you tried to call its functions for a layer that was
     #not actually one dimensional)
 
-    def __init__(self, mxts_mode, **kwargs):
+    def __init__(self, mxts_mode,
+                       expo_upweight_factor,
+                       **kwargs):
         self.mxts_mode = mxts_mode
+        self.expo_upweight_factor = expo_upweight_factor
         super(Activation, self).__init__(**kwargs)
 
     def _compute_shape(self, input_shape):
@@ -436,8 +435,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         raise NotImplementedError()
 
-    def _deeplift_get_mxts_increment_for_inputs(self):
-        unscaled_mxts = self.get_mxts()
+    def _deeplift_get_scale_factor(self):
         input_diff_from_default = self._get_input_diff_from_default_vars()
         near_zero_contrib_mask = (B.abs(input_diff_from_default)\
                                        < NEAR_ZERO_THRESHOLD)
@@ -456,60 +454,52 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                        (far_from_zero_contrib_mask*\
                         (self._get_diff_from_default_vars()/
                           pc_diff_from_default))
-        return unscaled_mxts*scale_factor
+        return scale_factor
         
-    def _gradients_get_mxts_increment_for_inputs(self):
-        mxts = self.get_mxts()*\
-               self._get_gradient_at_activation(
-                    self._get_input_activation_vars())  
-        return mxts
+    def _gradients_get_scale_factor(self):
+        return self._get_gradient_at_activation(
+                self._get_input_activation_vars())  
         
     def _get_mxts_increments_for_inputs(self):
-        if (self.mxts_mode == MxtsMode.DeepLIFT): 
-            mxts = self._deeplift_get_mxts_increment_for_inputs()
-        elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT1):
-            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
-            mxts = deeplift_mxts*(self.get_mxts() > 0)
-        elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT2):
-            gtezero_activation_mask = (self.get_activation_vars() > 0)
-            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
-            #intention: mask out all negative contribs for active relus
-            mxts = deeplift_mxts*(1-(deeplift_mxts*gtezero_activation_mask
-                                     < 0))
-        elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT3):
-            gtezero_activation_mask = (self.get_activation_vars() > 0)
-            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
-            #mask out contributions where relu inactive
-            mxts = deeplift_mxts*(gtezero_activation_mask)
-        elif (self.mxts_mode == MxtsMode.ExpoUpweightTopLayers1):
-            gtezero_activation_mask = (self.get_activation_vars() > 0)
-            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
-            mxts = deeplift_mxts*\
-                   self.get_mxts()*\
-                    ((self.get_mxts()>0) + -1*(self.get_mxts()<0))
-        elif (self.mxts_mode == MxtsMode.ExpoUpweightTopLayers2):
-            gtezero_activation_mask = (self.get_activation_vars() > 0)
-            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
-            mxts = deeplift_mxts*B.pow(B.abs(self.get_mxts()),3)
-        elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT5):
-            gtezero_activation_mask = (self.get_activation_vars() > 0)
-            deeplift_mxts = self._deeplift_get_mxts_increment_for_inputs() 
-            scale_factor = (deeplift_mxts/(self.get_mxts()+
-                                           NEAR_ZERO_THRESHOLD*
-                                    (self.get_mxts() < NEAR_ZERO_THRESHOLD)))
-            mxts = deeplift_mxts\
-                   *scale_factor\
-                   *((scale_factor>0) + -1*(scale_factor<0))
-        elif (self.mxts_mode == MxtsMode.Gradient):
-            mxts = self._gradients_get_mxts_increment_for_inputs() 
-        elif (self.mxts_mode == MxtsMode.GuidedBackprop):
-            mxts = self._gradients_get_mxts_increment_for_inputs()\
-                   *(self.get_mxts() > 0)
-        elif (self.mxts_mode == MxtsMode.DeconvNet):
-            #use the given nonlinearity, but in reverse
+        if (self.mxts_mode == MxtsMode.DeconvNet):
+            #apply the given nonlinearity in reverse
             mxts = self._build_activation_vars(self.get_mxts())
-        else: 
-            raise RuntimeError("Unsupported mxts_mode: "+str(self.mxts_mode))
+        else:
+            #all the other ones here are of the form:
+            # scale_factor*self.get_mxts()
+            if (self.mxts_mode == MxtsMode.DeepLIFT): 
+                scale_factor = self._deeplift_get_scale_factor()
+            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT1):
+                deeplift_scale_factor = self._deeplift_get_scale_factor() 
+                scale_factor = deeplift_mxts*(self.get_mxts() > 0)
+            elif (self.mxts_mode == MxtsMode.Gradient):
+                scale_factor = self._gradients_get_scale_factor() 
+            elif (self.mxts_mode == MxtsMode.GuidedBackprop):
+                scale_factor = self._gradients_get_scale_factor()\
+                                *(self.get_mxts() > 0)
+            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT2):
+                gtezero_activation_mask = (self.get_activation_vars() > 0)
+                deeplift_scale_factor = self._deeplift_get_scale_factor() 
+                #intention: mask out all negative contribs for active relus
+                scale_factor = deeplift_mxts*\
+                                (1-(deeplift_mxts*gtezero_activation_mask< 0))
+            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT3):
+                gtezero_activation_mask = (self.get_activation_vars() > 0)
+                deeplift_scale_factor =\
+                 self._deeplift_get_scale_factor() 
+                #mask out contributions where relu inactive
+                scale_factor = deeplift_scale_factor*(gtezero_activation_mask)
+            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT4):
+                gtezero_activation_mask = (self.get_activation_vars() > 0)
+                deeplift_scale_factor = self._deeplift_get_scale_factor() 
+                scale_factor = deeplift_scale_factor\
+                               *B.pow(B.abs(deeplift_scale_factor),1)\
+            else: 
+                raise RuntimeError("Unsupported mxts_mode: "
+                                   +str(self.mxts_mode))
+            mxts = scale_factor*self.get_mxts()\
+                               *B.pow(B.abs(self.get_mxts()),
+                                      expo_upweight_factor)
         return mxts
 
     def _get_gradient_at_activation(self, activation_vars):
