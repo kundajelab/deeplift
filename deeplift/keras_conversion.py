@@ -166,7 +166,7 @@ def convert_sequential_model(model, num_dims=None, mxts_mode=MxtsMode.DeepLIFT):
                                  name="input"))
     for layer_idx, layer in enumerate(model.layers):
         conversion_function = layer_name_to_conversion_function[
-                               layer.get_config()[KerasKeys.name]]
+                               type(layer).__name__]
         converted_layers.extend(conversion_function(
                                  layer=layer, name=str(layer_idx),
                                  mxts_mode=mxts_mode)) 
