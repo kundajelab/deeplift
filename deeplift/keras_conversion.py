@@ -30,7 +30,7 @@ ActivationTypes = deeplift_util.enum(relu='relu',
                                      linear='linear')
 
 
-def batchnorm_conversion(layer, name, mxts_mode):
+def batchnorm_conversion(layer, name, **kwargs):
    return [blobs.BatchNormalization(
         name=name,
         gamma=np.array(layer.gamma.get_value()),
@@ -43,10 +43,11 @@ def batchnorm_conversion(layer, name, mxts_mode):
     )] 
 
 
-def conv2d_conversion(layer, name, mxts_mode):
-    #mxts_mode not used
+def conv2d_conversion(layer, name, mxts_mode, expo_upweight_factor):
+    #mxts_mode only used for activation
     converted_activation = activation_conversion(
-                            layer, name, mxts_mode=mxts_mode)
+                            layer, name, mxts_mode=mxts_mode,
+                            expo_upweight_factor=expo_upweight_factor)
     to_return = [blobs.Conv2D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
@@ -58,8 +59,7 @@ def conv2d_conversion(layer, name, mxts_mode):
     return to_return
 
 
-def pool2d_conversion(layer, name, pool_mode, mxts_mode):
-    #mxts_mode not used
+def pool2d_conversion(layer, name, pool_mode, **kwargs):
     return [blobs.Pool2D(
              name=name,
              pool_size=layer.get_config()[KerasKeys.pool_size],
@@ -69,22 +69,21 @@ def pool2d_conversion(layer, name, pool_mode, mxts_mode):
              pool_mode=pool_mode)]
 
 
-def zeropad2d_conversion(layer, name, mxts_mode):
-    #mxts_mode not used
+def zeropad2d_conversion(layer, name, **kwargs):
     return [blobs.ZeroPad2D(
              name=name,
              padding=layer.get_config()[KerasKeys.padding])]
 
 
-def flatten_conversion(layer, name, mxts_mode):
-    #mxts_mode not used
+def flatten_conversion(layer, name, **kwargs):
     return [blobs.Flatten(name=name)]
 
 
-def dense_conversion(layer, name, mxts_mode):
-    #mxts_mode not used
-    converted_activation = activation_conversion(layer, name,
-                                                  mxts_mode=mxts_mode) 
+def dense_conversion(layer, name, mxts_mode, expo_upweight_factor):
+    converted_activation = activation_conversion(
+                                  layer, name,
+                                  mxts_mode=mxts_mode,
+                                  expo_upweight_factor=expo_upweight_factor) 
     to_return = [blobs.Dense(
                   name=("preact_" if len(converted_activation) > 0
                         else "")+name, 
@@ -94,31 +93,40 @@ def dense_conversion(layer, name, mxts_mode):
     return to_return
 
 
-def prelu_conversion(layer, name, mxts_mode):
+def prelu_conversion(layer, name, mxts_mode, expo_upweight_factor):
    return [blobs.PReLU(alpha=layer.get_weights()[0],
-                       name=name, mxts_mode=mxts_mode)] 
+                       name=name, mxts_mode=mxts_mode,
+                       expo_upweight_factor=expo_upweight_factor)] 
 
 
-def relu_conversion(layer, name, mxts_mode):
-    return [blobs.ReLU(name=name, mxts_mode=mxts_mode)]
+def relu_conversion(layer, name, mxts_mode, expo_upweight_factor):
+    return [blobs.ReLU(name=name, mxts_mode=mxts_mode,
+                                  expo_upweight_factor=expo_upweight_factor)]
 
 
-def sigmoid_conversion(layer, name, mxts_mode):
-    return [blobs.Sigmoid(name=name, mxts_mode=mxts_mode)]
+def sigmoid_conversion(layer, name, mxts_mode, expo_upweight_factor):
+    return [blobs.Sigmoid(name=name,
+                          mxts_mode=mxts_mode,
+                          expo_upweight_factor=expo_upweight_factor)]
 
 
-def softmax_conversion(layer, name, mxts_mode):
-    return [blobs.Softmax(name=name, mxts_mode=mxts_mode)]
+def softmax_conversion(layer, name, mxts_mode, expo_upweight_factor):
+    return [blobs.Softmax(name=name,
+                          mxts_mode=mxts_mode,
+                          expo_upweight_factor=expo_upweight_factor)]
 
 
-def activation_conversion(layer, name, mxts_mode):
+def activation_conversion(layer, name, mxts_mode, expo_upweight_factor):
     activation = layer.get_config()[KerasKeys.activation]
-    return activation_to_conversion_function[activation](layer, name,
-                                                         mxts_mode) 
+    return activation_to_conversion_function[activation](
+                                     layer, name,
+                                     mxts_mode=mxts_mode,
+                                     expo_upweight_factor=expo_upweight_factor) 
 
 
 activation_to_conversion_function = {
-    ActivationTypes.linear: lambda layer, name, mxts_mode: [],
+    ActivationTypes.linear: lambda layer, name,\
+                             mxts_mode, expo_upweight_factor: [],
     ActivationTypes.relu: relu_conversion,
     ActivationTypes.sigmoid: sigmoid_conversion,
     ActivationTypes.softmax: softmax_conversion
@@ -127,27 +135,28 @@ activation_to_conversion_function = {
 
 layer_name_to_conversion_function = {
     'Convolution2D': conv2d_conversion,
-    'MaxPooling2D': lambda layer, name, mxts_mode:\
+    'MaxPooling2D': lambda layer, name, mxts_mode, expo_upweight_factor:\
                      pool2d_conversion(layer, name,
-                                       pool_mode=PoolMode.max,
-                                       mxts_mode=mxts_mode),
-    'AveragePooling2D': lambda layer, name, mxts_mode:\
+                                       pool_mode=PoolMode.max),
+    'AveragePooling2D': lambda layer, name, mxts_mode, expo_upweight_factor:\
                      pool2d_conversion(layer, name,
-                                       pool_mode=PoolMode.avg,
-                                       mxts_mode=mxts_mode),
+                                       pool_mode=PoolMode.avg),
     'BatchNormalization': batchnorm_conversion,
     'ZeroPadding2D': zeropad2d_conversion,
     'Flatten': flatten_conversion,
     'Dense': dense_conversion,
      #in current keras implementation, scaling is done during training
      #and not predict time, so Dropout is a no-op at predict time
-    'Dropout': lambda layer, name, mxts_mode: [blobs.NoOp(name=name)], 
+    'Dropout': lambda layer, name, mxts_mode, expo_upweight_factor:\
+                                             [blobs.NoOp(name=name)], 
     'Activation': activation_conversion, 
     'PReLU': prelu_conversion
 }
 
 
-def convert_sequential_model(model, num_dims=None, mxts_mode=MxtsMode.DeepLIFT):
+def convert_sequential_model(model, num_dims=None,
+                                    mxts_mode=MxtsMode.DeepLIFT,
+                                    expo_upweight_factor=0):
     converted_layers = []
     if (model.layers[0].input_shape is not None):
         input_shape = model.layers[0].input_shape[1:]
@@ -169,7 +178,8 @@ def convert_sequential_model(model, num_dims=None, mxts_mode=MxtsMode.DeepLIFT):
                                type(layer).__name__]
         converted_layers.extend(conversion_function(
                                  layer=layer, name=str(layer_idx),
-                                 mxts_mode=mxts_mode)) 
+                                 mxts_mode=mxts_mode,
+                                 expo_upweight_factor=expo_upweight_factor)) 
     connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
@@ -195,6 +205,7 @@ def connect_list_of_layers(deeplift_layers):
 
 def convert_graph_model(model,
                         mxts_mode=MxtsMode.DeepLIFT,
+                        expo_upweight_factor=0,
                         auto_build_outputs=True):
     name_to_blob = OrderedDict()
     keras_layer_to_deeplift_blobs = OrderedDict() 
@@ -218,7 +229,8 @@ def convert_graph_model(model,
                                layer.get_config()[KerasKeys.name]]
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
-                                 mxts_mode=mxts_mode)
+                                 mxts_mode=mxts_mode,
+                                 expo_upweight_factor=expo_upweight_factor)
         connect_list_of_layers(deeplift_layers)
         keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
         for deeplift_layer in deeplift_layers:
@@ -245,6 +257,7 @@ def convert_graph_model(model,
 
 
 def mean_normalise_first_conv_layer_weights(model,
+                                            normalise_across_rows,
                                             name_of_conv_layer_to_normalise):
     if (type(model).__name__ == "Sequential"):
         layer_to_adjust = model.layers[0];
@@ -255,7 +268,8 @@ def mean_normalise_first_conv_layer_weights(model,
                name_of_conv_layer_to_normalise+" not found; node names are: "\
                " "+str(mode.nodes.keys())
         layer_to_adjust = model.nodes[name_of_conv_layer_to_normalise]
-    mean_normalise_columns_in_conv_layer(layer_to_adjust)
+    mean_normalise_columns_in_conv_layer(layer_to_adjust,
+                                         normalise_across_rows)
 
 
 def mean_normalise_conv_layer_with_name(model, layer_name):
@@ -265,7 +279,8 @@ def mean_normalise_conv_layer_with_name(model, layer_name):
     mean_normalise_columns_in_conv_layer(model.nodes[layer_name]);
 
 
-def mean_normalise_columns_in_conv_layer(layer_to_adjust):
+def mean_normalise_columns_in_conv_layer(layer_to_adjust,
+                                         normalise_across_rows):
     """
         For conv layers operating on one hot encoding,
         adjust the weights/bias such that the output is
@@ -275,7 +290,7 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust):
     weights, biases = layer_to_adjust.get_weights();
     normalised_weights, normalised_bias =\
      deeplift_util.mean_normalise_weights_for_sequence_convolution(
-                    weights, biases)
+                    weights, biases, normalise_across_rows)
     layer_to_adjust.set_weights([normalised_weights,
                                  normalised_bias])
 
@@ -289,6 +304,7 @@ def mean_normalise_softmax_weights(softmax_dense_layer):
 
 def load_keras_model(weights, yaml,
                      normalise_conv_for_one_hot_encoded_input=False,
+                     normalise_across_rows=True,
                      name_of_conv_layer_to_normalise=None): 
     #At the time of writing, I don't actually use this because
     #I do the converion in convert_sequential_model to the deeplift_layer
@@ -298,5 +314,6 @@ def load_keras_model(weights, yaml,
     if (normalise_conv_for_one_hot_encoded_input):
         mean_normalise_first_conv_layer_weights(
          model,
+         normalise_across_rows=normalise_across_rows,
          name_of_conv_layer_to_normalise=name_of_conv_layer_to_normalise)
     return model 

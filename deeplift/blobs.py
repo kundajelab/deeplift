@@ -423,7 +423,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     #not actually one dimensional)
 
     def __init__(self, mxts_mode,
-                       expo_upweight_factor,
+                       expo_upweight_factor=0,
                        **kwargs):
         self.mxts_mode = mxts_mode
         self.expo_upweight_factor = expo_upweight_factor
@@ -471,7 +471,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                 scale_factor = self._deeplift_get_scale_factor()
             elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT1):
                 deeplift_scale_factor = self._deeplift_get_scale_factor() 
-                scale_factor = deeplift_mxts*(self.get_mxts() > 0)
+                scale_factor = deeplift_scale_factor*(self.get_mxts() > 0)
             elif (self.mxts_mode == MxtsMode.Gradient):
                 scale_factor = self._gradients_get_scale_factor() 
             elif (self.mxts_mode == MxtsMode.GuidedBackprop):
@@ -493,13 +493,13 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                 gtezero_activation_mask = (self.get_activation_vars() > 0)
                 deeplift_scale_factor = self._deeplift_get_scale_factor() 
                 scale_factor = deeplift_scale_factor\
-                               *B.pow(B.abs(deeplift_scale_factor),1)\
+                               *B.pow(B.abs(deeplift_scale_factor),1)
             else: 
                 raise RuntimeError("Unsupported mxts_mode: "
                                    +str(self.mxts_mode))
             mxts = scale_factor*self.get_mxts()\
                                *B.pow(B.abs(self.get_mxts()),
-                                      expo_upweight_factor)
+                                      self.expo_upweight_factor)
         return mxts
 
     def _get_gradient_at_activation(self, activation_vars):

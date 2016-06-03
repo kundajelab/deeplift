@@ -74,14 +74,26 @@ def run_function_in_batches(func,
 
 def mean_normalise_weights_for_sequence_convolution(weights,
                                                     bias,
+                                                    normalise_across_rows,
                                                     weightsHeight=4):
     #weights: outputchannels, inputChannels, windowDims
     assert len(weights.shape)==4
-    assert weights.shape[1]==1
-    assert weights.shape[2]==weightsHeight
-    mean_weights_at_positions=np.mean(weights,axis=2)
-    new_bias = bias + np.sum(np.sum(mean_weights_at_positions,axis=2),axis=1)
-    mean_weights_at_positions=mean_weights_at_positions[:,:,None,:]
+    assert weights.shape[1]==1, weights.shape
+    axis_for_normalisation = 2 if normalise_across_rows else 3
+    if (normalise_across_rows):
+        assert weights.shape[axis_for_normalisation]==\
+         weightsHeight, weights.shape
+    else:
+        assert weights.shape[axis_for_normalisation]==\
+         weightsHeight, weights.shape
+        
+    mean_weights_at_positions=np.mean(weights,axis=axis_for_normalisation)
+    new_bias = bias + np.sum(np.sum(mean_weights_at_positions,
+                                    axis=2),axis=1)
+    if (normalise_across_rows):
+        mean_weights_at_positions=mean_weights_at_positions[:,:,None,:]
+    else:
+        mean_weights_at_positions=mean_weights_at_positions[:,:,:,None]
     renormalised_weights=weights-mean_weights_at_positions
     return renormalised_weights, new_bias
 
