@@ -259,7 +259,7 @@ class Node(Blob):
         """
             compute the shape of this layer given the shape of the inputs
         """
-        pass #I am going to punt on this for now as it's not essential
+        raise NotImplementedError()
 
     def _build_activation_vars(self, input_act_vars):
         """
@@ -497,10 +497,32 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             else: 
                 raise RuntimeError("Unsupported mxts_mode: "
                                    +str(self.mxts_mode))
-            mxts = scale_factor*self.get_mxts()\
-                               *B.pow(B.abs(self.get_mxts()),
-                                      self.expo_upweight_factor)
+            #apply the exponential upweighting
+            orig_mxts = scale_factor*self.get_mxts()
+            unnorm_mxts = orig_mxts*B.pow(B.abs(self.get_mxts()),
+                                          self.expo_upweight_factor)
+            mxts = self.normalise_mxts(orig_mxts=orig_mxts,
+                                       unnorm_mxts=unnorm_mxts) 
         return mxts
+
+    def normalise_mxts(self, orig_mxts, unnorm_mxts):
+        #normalise unnorm_mxts so that the total contribs of input as
+        #mediated through this layer remains the same as for orig_mxts
+        #remember that there is a batch axis
+        #first, let's reshape orig_mxts and unnorm_mxts to be 2d
+        orig_mxts_2d = B.flatten_keeping_first(orig_mxts)
+        unnorm_mxts_2d = B.flatten_keeping_first(unnorm_mxts)
+        input_act_2d = B.flatten_keeping_first(
+                         self._get_input_activation_vars())
+        total_contribs_of_input_orig = B.sum(orig_mxts_2d*input_act_2d,
+                                             axis=1)
+        total_contribs_of_input_unnorm = B.sum(unnorm_mxts*input_act_2d, 
+                                               axis=1)
+        rescaling = (total_contribs_of_input_orig/
+                     total_contribs_of_input_unnorm)
+        assert False
+        return unnorm_mxts*rescaling
+
 
     def _get_gradient_at_activation(self, activation_vars):
         """
@@ -573,10 +595,26 @@ class Conv2D(SingleInputMixin, Node):
                 learning packages actually do this.
         """
         super(Conv2D, self).__init__(**kwargs)
+        #W has dimensions:
+        #num_output_channels x num_inp_channels
+        #                    x rows_kern_width x cols_kern_width
         self.W = W
         self.b = b
         self.strides = strides
         self.border_mode = border_mode
+
+    def _compute_shape(self, input_shape):
+        #assuming a theano dimension ordering here...
+        shape_to_return = [self.W.shape[0]]
+        if (self.border_mode != B.border_mode.valid):
+            raise RuntimeError("Please implement shape inference for"
+                               " border mode: "+str(self.border_mode))
+        for (dim_inp_len, dim_kern_width, dim_stride) in\
+            zip(input_shape[1:], self.W.shape[2:], self.strides):
+            #assuming that overhangs are excluded
+            shape_to_return.append(
+             1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+        return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
         conv_without_bias = self._compute_conv_without_bias(input_act_vars)
@@ -611,6 +649,18 @@ class Pool2D(SingleInputMixin, Node):
         self.ignore_border = ignore_border
         self.pool_mode = pool_mode
 
+    def _compute_shape(self, input_shape):
+        shape_to_return = input_shape[0] #num channels unchanged 
+        if (self.border_mode != B.border_mode.valid):
+            raise RuntimeError("Please implement shape inference for"
+                               " border mode: "+str(self.border_mode))
+        for (dim_inp_len, dim_kern_width, dim_stride) in\
+            zip(input_shape[1:], self.pool_size, self.strides):
+            #assuming that overhangs are excluded
+            shape_to_return.append(
+             1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+        return shape_to_return
+
     def _build_activation_vars(self, input_act_vars):
         return B.pool2d(input_act_vars, 
                       pool_size=self.pool_size,
@@ -640,6 +690,9 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return B.flatten_keeping_first(input_act_vars)
 
+    def _compute_shape(self, input_shape):
+        return np.prod(input_shape)
+
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
         return B.unflatten_keeping_first(
@@ -655,6 +708,12 @@ class ZeroPad2D(SingleInputMixin, Node):
     def __init__(self, padding, **kwargs):
         super(ZeroPad2D, self).__init__(**kwargs) 
         self.padding = padding
+
+    def _compute_shape(self, input_shape):
+        shape_to_return = [input_shape[0]] #channel axis the same
+        for dim_inp_len, dim_pad in zip(inpu_shape[1:], self.padding):
+            shape_to_return.append(dim_inp_len + 2*dim_pad) 
+        return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
         return B.zeropad2d(input_act_vars, padding=self.padding) 
@@ -692,6 +751,8 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
             self.b_differences[feature_idx] =\
                 self.b[feature_idx,:][None,:] - self.b
          
+    def _compute_shape(self, input_shape):
+        return (self.W.shape[-1],)
 
     def _build_activation_vars(self, input_act_vars):
         #self.W has dims: num_features x num_inputs x num_outputs
@@ -904,8 +965,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
 class BatchNormalization(SingleInputMixin, Node):
 
     def __init__(self, gamma, beta, axis,
-                 mean, std, epsilon,
-                 input_shape, **kwargs):
+                 mean, std, epsilon,**kwargs):
         """
             'axis' is the axis along which the normalization is conducted
              for dense layers, this should be -1 (which works for dense layers
@@ -931,12 +991,9 @@ class BatchNormalization(SingleInputMixin, Node):
         self.mean = mean
         self.std = std
         self.epsilon = epsilon
-        self.supplied_shape = input_shape
     
     def _compute_shape(self, input_shape):
-        #this is used to set _shape, and I haven't gotten around to
-        #implementing it for most layers at the time of writing
-        return self.supplied_shape
+        return input_shape
 
     def _build_activation_vars(self, input_act_vars):
         #the i+1 and i-1 are because we want a batch axis here
