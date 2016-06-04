@@ -523,7 +523,9 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         total_contribs_of_input_unnorm = B.sum(unnorm_mxts_flat*input_act_flat, 
                                                axis=1)
         rescaling = (total_contribs_of_input_orig/
-                     total_contribs_of_input_unnorm)
+                     (total_contribs_of_input_unnorm + 
+                      NEAR_ZERO_THRESHOLD*\
+                       (total_contribs_of_input_unnorm < NEAR_ZERO_THRESHOLD)))
         broadcast_shape = [unnorm_mxts.shape[0]]\
                                   +([1]*len(self._shape))
         return unnorm_mxts*(B.reshape(rescaling, broadcast_shape))
