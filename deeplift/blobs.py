@@ -501,6 +501,10 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             orig_mxts = scale_factor*self.get_mxts()
             unnorm_mxts = orig_mxts*B.pow(B.abs(self.get_mxts()),
                                           self.expo_upweight_factor)
+            #apply a rescaling so the total contribs going through are the
+            #same...note that this may not preserve the total contribution
+            #when the multipliers from other layers are factored in. Mostly,
+            #it is there to reduce numerical underflow
             mxts = self.normalise_mxts(orig_mxts=orig_mxts,
                                        unnorm_mxts=unnorm_mxts) 
         return mxts
@@ -510,18 +514,19 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         #mediated through this layer remains the same as for orig_mxts
         #remember that there is a batch axis
         #first, let's reshape orig_mxts and unnorm_mxts to be 2d
-        orig_mxts_2d = B.flatten_keeping_first(orig_mxts)
-        unnorm_mxts_2d = B.flatten_keeping_first(unnorm_mxts)
-        input_act_2d = B.flatten_keeping_first(
+        orig_mxts_flat = B.flatten_keeping_first(orig_mxts)
+        unnorm_mxts_flat = B.flatten_keeping_first(unnorm_mxts)
+        input_act_flat = B.flatten_keeping_first(
                          self._get_input_activation_vars())
-        total_contribs_of_input_orig = B.sum(orig_mxts_2d*input_act_2d,
+        total_contribs_of_input_orig = B.sum(orig_mxts_flat*input_act_flat,
                                              axis=1)
-        total_contribs_of_input_unnorm = B.sum(unnorm_mxts*input_act_2d, 
+        total_contribs_of_input_unnorm = B.sum(unnorm_mxts_flat*input_act_flat, 
                                                axis=1)
         rescaling = (total_contribs_of_input_orig/
                      total_contribs_of_input_unnorm)
-        assert False
-        return unnorm_mxts*rescaling
+        broadcast_shape = [unnorm_mxts.shape[0]]\
+                                  +([1]*len(self._shape))
+        return unnorm_mxts*(B.reshape(rescaling, broadcast_shape))
 
 
     def _get_gradient_at_activation(self, activation_vars):
@@ -606,7 +611,7 @@ class Conv2D(SingleInputMixin, Node):
     def _compute_shape(self, input_shape):
         #assuming a theano dimension ordering here...
         shape_to_return = [self.W.shape[0]]
-        if (self.border_mode != B.border_mode.valid):
+        if (self.border_mode != B.BorderMode.valid):
             raise RuntimeError("Please implement shape inference for"
                                " border mode: "+str(self.border_mode))
         for (dim_inp_len, dim_kern_width, dim_stride) in\
@@ -650,8 +655,8 @@ class Pool2D(SingleInputMixin, Node):
         self.pool_mode = pool_mode
 
     def _compute_shape(self, input_shape):
-        shape_to_return = input_shape[0] #num channels unchanged 
-        if (self.border_mode != B.border_mode.valid):
+        shape_to_return = [input_shape[0]] #num channels unchanged 
+        if (self.border_mode != B.BorderMode.valid):
             raise RuntimeError("Please implement shape inference for"
                                " border mode: "+str(self.border_mode))
         for (dim_inp_len, dim_kern_width, dim_stride) in\
