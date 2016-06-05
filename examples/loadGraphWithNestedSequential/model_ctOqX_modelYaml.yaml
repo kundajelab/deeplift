@@ -1,0 +1,212 @@
+input_config:
+- dtype: float
+  input_shape: !!python/tuple [1, 4, 800]
+  name: inputMode1
+input_order: [inputMode1]
+loss: {16hr: categorical_crossentropy, 3hr: categorical_crossentropy, 3hr.binary: taskweightedCrossentropyLoss,
+  48hr: categorical_crossentropy}
+name: Graph
+node_config:
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: inputMode1
+  inputs: &id001 []
+  merge_mode: concat
+  name: sequentialCore
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: sequentialCore
+  inputs: *id001
+  merge_mode: concat
+  name: preOutput-3hr
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: sequentialCore
+  inputs: *id001
+  merge_mode: concat
+  name: preOutput-16hr
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: sequentialCore
+  inputs: *id001
+  merge_mode: concat
+  name: preOutput-48hr
+- concat_axis: -1
+  create_output: false
+  dot_axes: -1
+  input: sequentialCore
+  inputs: *id001
+  merge_mode: concat
+  name: preOutput-3hr.binary
+nodes:
+  preOutput-16hr:
+    layers:
+    - W_constraint: null
+      W_learning_rate_multiplier: 1.0
+      W_regularizer: null
+      activation: linear
+      activity_regularizer: null
+      b_constraint: null
+      b_learning_rate_multiplier: 1.0
+      b_regularizer: null
+      cache_enabled: true
+      custom_name: dense
+      init: glorot_uniform
+      input_dim: null
+      input_shape: !!python/tuple [10]
+      name: Dense
+      output_dim: 3
+      trainable: true
+    - {activation: softmax, cache_enabled: true, custom_name: activation, name: Activation,
+      trainable: true}
+    name: Sequential
+  preOutput-3hr:
+    layers:
+    - W_constraint: null
+      W_learning_rate_multiplier: 1.0
+      W_regularizer: null
+      activation: linear
+      activity_regularizer: null
+      b_constraint: null
+      b_learning_rate_multiplier: 1.0
+      b_regularizer: null
+      cache_enabled: true
+      custom_name: dense
+      init: glorot_uniform
+      input_dim: null
+      input_shape: !!python/tuple [10]
+      name: Dense
+      output_dim: 3
+      trainable: true
+    - {activation: softmax, cache_enabled: true, custom_name: activation, name: Activation,
+      trainable: true}
+    name: Sequential
+  preOutput-3hr.binary:
+    layers:
+    - W_constraint: null
+      W_learning_rate_multiplier: 1.0
+      W_regularizer: null
+      activation: linear
+      activity_regularizer: null
+      b_constraint: null
+      b_learning_rate_multiplier: 1.0
+      b_regularizer: null
+      cache_enabled: true
+      custom_name: dense
+      init: glorot_uniform
+      input_dim: null
+      input_shape: !!python/tuple [10]
+      name: Dense
+      output_dim: 1
+      trainable: true
+    - {activation: sigmoid, cache_enabled: true, custom_name: activation, name: Activation,
+      trainable: true}
+    name: Sequential
+  preOutput-48hr:
+    layers:
+    - W_constraint: null
+      W_learning_rate_multiplier: 1.0
+      W_regularizer: null
+      activation: linear
+      activity_regularizer: null
+      b_constraint: null
+      b_learning_rate_multiplier: 1.0
+      b_regularizer: null
+      cache_enabled: true
+      custom_name: dense
+      init: glorot_uniform
+      input_dim: null
+      input_shape: !!python/tuple [10]
+      name: Dense
+      output_dim: 3
+      trainable: true
+    - {activation: softmax, cache_enabled: true, custom_name: activation, name: Activation,
+      trainable: true}
+    name: Sequential
+  sequentialCore:
+    layers:
+    - W_constraint: null
+      W_learning_rate_multiplier: 3.0
+      W_regularizer: {l1: 1.0e-05, l2: 0, name: WeightRegularizer, zr: 0.0001}
+      activation: linear
+      activity_regularizer: null
+      b_constraint: null
+      b_learning_rate_multiplier: 1.0
+      b_regularizer: null
+      border_mode: valid
+      cache_enabled: true
+      custom_name: convolution2d
+      dim_ordering: th
+      init: glorot_uniform
+      input_shape: !!python/tuple [1, 4, 800]
+      name: Convolution2D
+      nb_col: 45
+      nb_filter: 30
+      nb_row: 4
+      subsample: !!python/tuple [1, 1]
+      trainable: true
+    - {axis: 1, cache_enabled: true, custom_name: batchnormalization, epsilon: 1.0e-06,
+      mode: 0, momentum: 0.9, name: BatchNormalization, trainable: true}
+    - {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+      trainable: true}
+    - {cache_enabled: true, custom_name: dropout, name: Dropout, p: 0.2, trainable: true}
+    - border_mode: valid
+      cache_enabled: true
+      custom_name: maxpooling2d
+      dim_ordering: th
+      name: MaxPooling2D
+      pool_size: !!python/tuple [1, 50]
+      strides: !!python/tuple [1, 20]
+      trainable: true
+    - {cache_enabled: true, custom_name: flatten, name: Flatten, trainable: true}
+    - W_constraint: null
+      W_learning_rate_multiplier: 1.0
+      W_regularizer: null
+      activation: linear
+      activity_regularizer: null
+      b_constraint: null
+      b_learning_rate_multiplier: 1.0
+      b_regularizer: null
+      cache_enabled: true
+      custom_name: dense
+      init: glorot_uniform
+      input_dim: null
+      input_shape: !!python/tuple [10]
+      name: Dense
+      output_dim: 10
+      trainable: true
+    - {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+      trainable: true}
+    name: Sequential
+optimizer: {beta_1: 0.8999999761581421, beta_2: 0.9990000128746033, epsilon: 1.0e-08,
+  lr: 0.0010000000474974513, name: Adam}
+output_config:
+- concat_axis: -1
+  dot_axes: -1
+  input: preOutput-3hr
+  inputs: &id002 []
+  merge_mode: concat
+  name: 3hr
+- concat_axis: -1
+  dot_axes: -1
+  input: preOutput-16hr
+  inputs: *id002
+  merge_mode: concat
+  name: 16hr
+- concat_axis: -1
+  dot_axes: -1
+  input: preOutput-48hr
+  inputs: *id002
+  merge_mode: concat
+  name: 48hr
+- concat_axis: -1
+  dot_axes: -1
+  input: preOutput-3hr.binary
+  inputs: *id002
+  merge_mode: concat
+  name: 3hr.binary
+output_order: [3hr, 16hr, 48hr, 3hr.binary]
