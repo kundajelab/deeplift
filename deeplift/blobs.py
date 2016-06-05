@@ -148,17 +148,25 @@ class Input(Blob):
         Input layer
     """
 
-    def __init__(self, num_dims, shape=None, **kwargs):
+    def __init__(self, num_dims, shape, **kwargs):
         super(Input, self).__init__(**kwargs)
         #if (shape is None):
-        self._activation_vars = B.tensor_with_dims(
-                                  num_dims,
-                                  name="inp_"+str(self.get_name()))
         #else:
         #    self._activation_vars = B.as_tensor_variable(
         #                              np.zeros([1]+list(shape)),
         #                              name="inp_"+str(self.get_name()),
         #                              ndim=num_dims)
+        assert num_dims is not None or shape is not None
+        if (shape is not None):
+            if (num_dims is None):
+                shape_num_dims = len(shape)+1 #+1 for batch axis
+            else:
+                assert shape_num_dims==num_dims,\
+                "dims of "+str(shape)+" != "+str(num_dims)
+            num_dims = shape_num_dims
+        self._activation_vars = B.tensor_with_dims(
+                                  num_dims,
+                                  name="inp_"+str(self.get_name()))
         self._num_dims = num_dims
         self._shape = shape
 
@@ -980,11 +988,6 @@ class BatchNormalization(SingleInputMixin, Node):
             for things like batch normalization over channels (where the input
              looks like: batch, channel, rows, columns), an axis=1 will
              normalize over channels
-
-            num_dims: I am requiring the user to pass this in for now
-             because I don't want to sink time into implementing shape
-             inference right now, but eventually this argument won't be
-             necessary due to shape inference
         """
         super(BatchNormalization, self).__init__(**kwargs)
         #in principle they could be more than one-dimensional, but
@@ -1004,7 +1007,7 @@ class BatchNormalization(SingleInputMixin, Node):
 
     def _build_activation_vars(self, input_act_vars):
         #the i+1 and i-1 are because we want a batch axis here
-        new_shape = [(1 if i != self.axis else self.supplied_shape[i-1])
+        new_shape = [(1 if i != self.axis else self._shape[i-1])
                        for i in range(len(self._shape)+1)] 
         self.reshaped_mean = self.mean.reshape(new_shape)
         self.reshaped_std = self.std.reshape(new_shape)

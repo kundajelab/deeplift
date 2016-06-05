@@ -38,8 +38,7 @@ def batchnorm_conversion(layer, name, **kwargs):
         axis=layer.axis,
         mean=np.array(layer.running_mean.get_value()),
         std=np.array(layer.running_std.get_value()),
-        epsilon=layer.epsilon,
-        input_shape=layer.input_shape[1:] 
+        epsilon=layer.epsilon 
     )] 
 
 
@@ -123,6 +122,25 @@ def activation_conversion(layer, name, mxts_mode, expo_upweight_factor):
                                      mxts_mode=mxts_mode,
                                      expo_upweight_factor=expo_upweight_factor) 
 
+def sequential_container_conversion(layer, name,
+                                    mxts_mode, expo_upweight_factor,
+                                    converted_layers=None):
+    if (converted_layers is None):
+        converted_layers = []
+    #rename some arguments to be more intuitive
+    container=layer
+    name_prefix=name
+    for layer_idx, layer in enumerate(container.layers):
+        conversion_function = layer_name_to_conversion_function[
+                               type(layer).__name__]
+        converted_layers.extend(conversion_function(
+                                 layer=layer,
+                                 name=(name_prefix+"-" if name_prefix != ""
+                                       else "")+str(layer_idx),
+                                 mxts_mode=mxts_mode,
+                                 expo_upweight_factor=expo_upweight_factor)) 
+    return converted_layers
+     
 
 activation_to_conversion_function = {
     ActivationTypes.linear: lambda layer, name,\
@@ -150,7 +168,8 @@ layer_name_to_conversion_function = {
     'Dropout': lambda layer, name, mxts_mode, expo_upweight_factor:\
                                              [blobs.NoOp(name=name)], 
     'Activation': activation_conversion, 
-    'PReLU': prelu_conversion
+    'PReLU': prelu_conversion,
+    'Sequential': sequential_container_conversion
 }
 
 
@@ -159,7 +178,7 @@ def convert_sequential_model(model, num_dims=None,
                                     expo_upweight_factor=0):
     converted_layers = []
     if (model.layers[0].input_shape is not None):
-        input_shape = model.layers[0].input_shape[1:]
+        input_shape = model.layers[0].input_shape
         num_dims_input = len(input_shape)+1 #+1 for the batch axis
         assert num_dims is None or num_dims_input==num_dims,\
         "num_dims argument of "+str(num_dims)+" is incompatible with"\
@@ -171,15 +190,16 @@ def convert_sequential_model(model, num_dims=None,
     converted_layers.append(
         blobs.Input_FixedDefault(default=0.0,
                                  num_dims=num_dims,
-                                 shape = input_shape,
+                                 shape=input_shape,
                                  name="input"))
-    for layer_idx, layer in enumerate(model.layers):
-        conversion_function = layer_name_to_conversion_function[
-                               type(layer).__name__]
-        converted_layers.extend(conversion_function(
-                                 layer=layer, name=str(layer_idx),
-                                 mxts_mode=mxts_mode,
-                                 expo_upweight_factor=expo_upweight_factor)) 
+    #converted_layers is actually mutated to be extended with the
+    #additional layers so the assignment is not strictly necessary,
+    #but whatever
+    converted_layers = sequential_container_conversion(
+                        layer=model, name="",
+                        mxts_mode=mxts_mode,
+                        expo_upweight_factor=expo_upweight_factor,
+                        converted_layers=converted_layers)
     connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
@@ -217,7 +237,8 @@ def convert_graph_model(model,
         deeplift_input_layer =\
          blobs.Input_FixedDefault(
           default=0.0,
-          num_dims=(len(keras_input_layer.get_config()['input_shape'])+1),
+          shape=keras_input_layer.get_config()['input_shape'],
+          num_dims=None,
           name=keras_input_layer_name)
         name_to_blob[keras_input_layer_name] = deeplift_input_layer
         keras_layer_to_deeplift_blobs[id(keras_input_layer)] =\
@@ -227,6 +248,7 @@ def convert_graph_model(model,
     for layer_name, layer in list(model.nodes.items()):
         conversion_function = layer_name_to_conversion_function[
                                layer.get_config()[KerasKeys.name]]
+        keras_non_input_layers.append(layer)
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
                                  mxts_mode=mxts_mode,
@@ -235,13 +257,12 @@ def convert_graph_model(model,
         keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
         for deeplift_layer in deeplift_layers:
             name_to_blob[deeplift_layer.get_name()] = deeplift_layer
-        keras_non_input_layers.append(layer)
 
     #connect any remaining things not connected to their inputs 
     for keras_non_input_layer in keras_non_input_layers:
         deeplift_layers =\
          keras_layer_to_deeplift_blobs[id(keras_non_input_layer)]
-        previous_keras_layer = keras_non_input_layer.previous 
+        previous_keras_layer = get_previous_layer(keras_non_input_layer)
         previous_deeplift_layer =\
          keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
         apply_softmax_normalization_if_needed(deeplift_layers[0],
@@ -256,6 +277,16 @@ def convert_graph_model(model,
                              input_layer_names=model.inputs.keys())
 
 
+def get_previous_layer(keras_layer):
+    if (hasattr(keras_layer,'previous')):
+        return keras_layer.previous
+    elif (type(keras_layer).__name__ == 'Sequential'):
+        return keras_layer.layers[0].previous
+    else:
+        raise RuntimeError("Not sure how to get prev layer for"
+                           +" "+str(keras_layer))
+
+
 def mean_normalise_first_conv_layer_weights(model,
                                             normalise_across_rows,
                                             name_of_conv_layer_to_normalise):
@@ -266,7 +297,7 @@ def mean_normalise_first_conv_layer_weights(model,
                "Please provide name of conv layer for graph model"
         assert name_of_conv_layer_to_normalise in model.nodes,\
                name_of_conv_layer_to_normalise+" not found; node names are: "\
-               " "+str(mode.nodes.keys())
+               " "+str(model.nodes.keys())
         layer_to_adjust = model.nodes[name_of_conv_layer_to_normalise]
     mean_normalise_columns_in_conv_layer(layer_to_adjust,
                                          normalise_across_rows)
