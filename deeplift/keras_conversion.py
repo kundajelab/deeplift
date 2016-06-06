@@ -179,6 +179,8 @@ def convert_sequential_model(model, num_dims=None,
     converted_layers = []
     if (model.layers[0].input_shape is not None):
         input_shape = model.layers[0].input_shape
+        if input_shape[0] is None: #sometimes is the case for batch axis
+            input_shape = input_shape[1:]
         num_dims_input = len(input_shape)+1 #+1 for the batch axis
         assert num_dims is None or num_dims_input==num_dims,\
         "num_dims argument of "+str(num_dims)+" is incompatible with"\
@@ -234,10 +236,13 @@ def convert_graph_model(model,
     #convert the inputs
     for keras_input_layer_name in model.inputs:
         keras_input_layer = model.inputs[keras_input_layer_name]
+        input_shape = keras_input_layer.get_config()['input_shape']
+        if input_shape[0] is None: #sometimes is the case for batch axis
+            input_shape = input_shape[1:]
         deeplift_input_layer =\
          blobs.Input_FixedDefault(
           default=0.0,
-          shape=keras_input_layer.get_config()['input_shape'],
+          shape=input_shape,
           num_dims=None,
           name=keras_input_layer_name)
         name_to_blob[keras_input_layer_name] = deeplift_input_layer
