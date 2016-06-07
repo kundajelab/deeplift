@@ -158,11 +158,10 @@ class Input(Blob):
         #                              ndim=num_dims)
         assert num_dims is not None or shape is not None
         if (shape is not None):
-            if (num_dims is None):
-                shape_num_dims = len(shape)+1 #+1 for batch axis
-            else:
+            shape_num_dims = len(shape)+1 #+1 for batch axis
+            if (num_dims is not None):
                 assert shape_num_dims==num_dims,\
-                "dims of "+str(shape)+" != "+str(num_dims)
+                "dims of "+str(shape)+" +1 != "+str(num_dims)
             num_dims = shape_num_dims
         self._activation_vars = B.tensor_with_dims(
                                   num_dims,
