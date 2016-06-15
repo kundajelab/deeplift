@@ -102,3 +102,36 @@ def get_mean_normalised_softmax_weights(weights, biases):
     new_weights = weights - np.mean(weights, axis=1)[:,None]
     new_biases = biases - np.mean(biases)
     return new_weights, new_biases
+
+def get_effective_width_and_stride(widths,strides):
+    effectiveStride = strides[0] 
+    effectiveWidth = widths[0]
+    assert len(strides)==len(widths)
+    if len(strides)>1:
+        for (stride, width) in zip(strides[1:],widths[1:]):
+            effectiveWidth = ((width-1)*effectiveStride)+effectiveWidth 
+            effectiveStride = effectiveStride*stride
+    return effectiveWidth, effectiveStride
+
+def get_lengthwise_widths_and_strides(layers):
+    """
+        layers: a list of convolutional/pooling blobs
+    """
+    import blobs
+    widths = [] 
+    strides = []
+    for layer in layers:
+        if type(layer).__name__ == "Conv2D":
+            strides.append(layer.strides[1]) 
+            widths.append(layer.W.shape[3])
+        elif isinstance(layer, blobs.Activation):
+            pass
+        else:
+            raise RuntimeError("Please implement how to extract width and"
+                               "stride from layer of type: "
+                               +type(layer).__name__)
+    return widths, strides
+
+def get_lengthwise_effective_width_and_stride(layers):
+    widths, strides = get_lengthwise_widths_and_strides(layers)
+    return get_effective_width_and_stride(widths, strides)
