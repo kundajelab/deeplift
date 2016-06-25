@@ -1,0 +1,87 @@
+class_mode: categorical
+layers:
+- W_constraint: {axis: 0, m: 7, name: MaxNorm}
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: null
+  b_constraint: null
+  b_regularizer: null
+  border_mode: valid
+  cache_enabled: true
+  custom_name: convolution2d
+  dim_ordering: th
+  init: glorot_uniform
+  input_shape: !!python/tuple [1, 4, 500]
+  name: Convolution2D
+  nb_col: 16
+  nb_filter: 300
+  nb_row: 4
+  subsample: &id002 !!python/tuple [1, 1]
+  trainable: true
+- {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+- {axis: -1, cache_enabled: true, custom_name: batchnormalization, epsilon: 1.0e-06,
+  mode: 0, momentum: 0.9, name: BatchNormalization, trainable: true}
+- border_mode: valid
+  cache_enabled: true
+  custom_name: maxpooling2d
+  dim_ordering: th
+  name: MaxPooling2D
+  pool_size: &id001 !!python/tuple [1, 3]
+  strides: *id001
+  trainable: true
+- W_constraint: {axis: 0, m: 7, name: MaxNorm}
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: null
+  b_constraint: null
+  b_regularizer: null
+  border_mode: valid
+  cache_enabled: true
+  custom_name: convolution2d
+  dim_ordering: th
+  init: glorot_uniform
+  name: Convolution2D
+  nb_col: 10
+  nb_filter: 300
+  nb_row: 1
+  subsample: *id002
+  trainable: true
+- {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+- {axis: -1, cache_enabled: true, custom_name: batchnormalization, epsilon: 1.0e-06,
+  mode: 0, momentum: 0.9, name: BatchNormalization, trainable: true}
+- border_mode: valid
+  cache_enabled: true
+  custom_name: maxpooling2d
+  dim_ordering: th
+  name: MaxPooling2D
+  pool_size: &id003 !!python/tuple [1, 4]
+  strides: *id003
+  trainable: true
+- {cache_enabled: true, custom_name: flatten, name: Flatten, trainable: true}
+- W_constraint: {axis: 0, m: 7, name: MaxNorm}
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: {l1: 3.0e-05, l2: 0.0, name: ActivityRegularizer}
+  b_constraint: null
+  b_regularizer: null
+  cache_enabled: true
+  custom_name: dense
+  init: glorot_uniform
+  input_dim: null
+  name: Dense
+  output_dim: 1200
+  trainable: true
+- {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+- {cache_enabled: true, custom_name: dropout, name: Dropout, p: 0.3, trainable: true}
+- {W_constraint: null, W_regularizer: null, activation: linear, activity_regularizer: null,
+  b_constraint: null, b_regularizer: null, cache_enabled: true, custom_name: dense,
+  init: glorot_uniform, input_dim: null, name: Dense, output_dim: 1, trainable: true}
+- {activation: sigmoid, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+loss: binary_crossentropy
+name: Sequential
+optimizer: {beta_1: 0.8999999761581421, beta_2: 0.9990000128746033, epsilon: 1.0e-08,
+  lr: 0.0010000000474974513, name: Adam}
