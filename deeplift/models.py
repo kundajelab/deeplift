@@ -15,6 +15,7 @@ if (scripts_dir is None):
 sys.path.insert(0, scripts_dir)
 import deeplift.util
 from deeplift import blobs
+from blobs import *
 from deeplift.blobs import ScoringMode
 import deeplift.backend as B
 
@@ -140,14 +141,16 @@ class SequentialModel(Model):
                     input_layers=[self.get_layers()[0]],
                     **kwargs) 
 
-    def save_to_yaml_only(self):
-        #implement me
-        #TODO
-        raise NotImplementedError()    
+    def save_to_yaml_only(self, yaml_file_name):
+        yamld_layers = []
+        for layer in self.get_layers():
+            yamld_layers.append(layer.get_yaml_compatible_object())
+        yaml_file_handle = deeplift.util.get_file_handle(yaml_file_name)
+        yaml_file_handle.write(deeplift.util.format_json_dump(yamld_layers))
+        yaml_file_handle.close()
 
     @classmethod
     def load_model_from_yaml_contents_only(cls, yaml_contents):
-        from blobs import *
         assert isinstance(yaml_contents, list) 
         layers = [] #sequential models have an array of blobs/layers
         for blob_yaml_contents in yaml_contents:
