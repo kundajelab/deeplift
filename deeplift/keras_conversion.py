@@ -13,6 +13,7 @@ import deeplift
 from deeplift import models, blobs
 from deeplift.blobs import MxtsMode
 import deeplift.util  
+import deeplift.conversion.util
 from deeplift.backend import PoolMode, BorderMode
 import numpy as np
 
@@ -202,28 +203,10 @@ def convert_sequential_model(model, num_dims=None,
                         mxts_mode=mxts_mode,
                         expo_upweight_factor=expo_upweight_factor,
                         converted_layers=converted_layers)
-    connect_list_of_layers(converted_layers)
+    deeplift.util.connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
 
-
-def apply_softmax_normalization_if_needed(layer, previous_layer):
-    if (type(layer)==blobs.Softmax):
-        #mean normalise the inputs to the softmax
-        previous_layer.W, previous_layer.b =\
-         deeplift.util.get_mean_normalised_softmax_weights(
-            previous_layer.W, previous_layer.b)
-
-
-def connect_list_of_layers(deeplift_layers):
-    if (len(deeplift_layers) > 1):
-        #string the layers together so that subsequent layers take the previous
-        #layer as input
-        last_layer_processed = deeplift_layers[0] 
-        for layer in deeplift_layers[1:]:
-            apply_softmax_normalization_if_needed(layer, last_layer_processed)
-            layer.set_inputs(last_layer_processed)
-            last_layer_processed = layer
 
 def convert_graph_model(model,
                         mxts_mode=MxtsMode.DeepLIFT,
@@ -258,7 +241,7 @@ def convert_graph_model(model,
                                  layer=layer, name=layer_name,
                                  mxts_mode=mxts_mode,
                                  expo_upweight_factor=expo_upweight_factor)
-        connect_list_of_layers(deeplift_layers)
+        deeplift.util.connect_list_of_layers(deeplift_layers)
         keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
         for deeplift_layer in deeplift_layers:
             name_to_blob[deeplift_layer.get_name()] = deeplift_layer
@@ -270,7 +253,8 @@ def convert_graph_model(model,
         previous_keras_layer = get_previous_layer(keras_non_input_layer)
         previous_deeplift_layer =\
          keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
-        apply_softmax_normalization_if_needed(deeplift_layers[0],
+        deeplfit.util.apply_softmax_normalization_if_needed(
+                                              deeplift_layers[0],
                                               previous_deeplift_layer)
         deeplift_layers[0].set_inputs(previous_deeplift_layer) 
 
