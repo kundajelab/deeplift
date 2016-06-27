@@ -35,6 +35,9 @@ class Blob(object):
     """
         Blob can be an input to the network or a node (layer) in the network
     """
+    
+    YamlKeys = deeplift.util.enum(blob_class="blob_class",
+                                  blob_kwargs="blob_kwargs")
 
     def __init__(self, name=None):
         self.name = name
@@ -141,6 +144,17 @@ class Blob(object):
         self._mxts_updated = True 
         self._target_contrib_vars =\
          self._build_target_contrib_vars()
+
+    def get_jsonable_object(self):
+        """
+            return the data of the blob
+            in a format that can be saved to yaml
+        """
+        raise NotImplementedError() 
+
+    @classmethod
+    def load_blob_from_yaml_contents_only(cls, **kwargs):
+        return cls(**kwargs) #default to calling init
 
 
 class Input(Blob):

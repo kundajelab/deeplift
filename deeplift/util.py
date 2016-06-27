@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 import sys
 import os
+import os.path
 import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
@@ -135,3 +136,67 @@ def get_lengthwise_widths_and_strides(layers):
 def get_lengthwise_effective_width_and_stride(layers):
     widths, strides = get_lengthwise_widths_and_strides(layers)
     return get_effective_width_and_stride(widths, strides)
+
+
+def load_yaml_data_from_file(file_name):
+    file_handle = get_file_handle(file_name)
+    data = yaml.load(file_handle) 
+    file_handle.close()
+    return data
+
+
+def get_file_handle(file_name, mode='r'):
+    use_gzip_open = False
+    #if want to read from file, check that is gzipped and set
+    #use_gzip_open to True if it is 
+    if (mode=="r" or mode=="rb"):
+        if (is_gzipped(file_name)):
+            mode="rb"
+            use_gzip_open = True
+    #Also check if gz or gzip is in the name, and use gzip open
+    #if writing to the file.
+    if (re.search('.gz$',filename) or re.search('.gzip',filename)):
+        #check for the case where the file name implies the file
+        #is gzipped, but the file is not actually detected as gzipped,
+        #and warn the user accordingly
+        if (mode=="r" or mode=="rb"):
+            if (use_gzip_open==False):
+                print("Warning: file has gz or gzip in name, but was not"
+                      " detected as gzipped")
+        if (mode=="w"):
+            use_gzip_open = True
+            #I think write will actually append if the file already
+            #exists...so you want to remove it if it exists
+            if os.path.isfile(file_name):
+                os.remove(file_name)
+    if (use_gzip_open):
+        return gzip.open(file_name,mode)
+    else:
+        return open(file_name,mode) 
+
+
+def is_gzipped(file_name):
+    file_handle = open(file_name, 'rb')
+    magic_number = file_handle.read(2)
+    file_handle.close()
+    is_gzipped = (magic_number == b'\x1f\x8b' )
+    return is_gzipped
+
+
+def apply_softmax_normalization_if_needed(layer, previous_layer):
+    if (type(layer)==blobs.Softmax):
+        #mean normalise the inputs to the softmax
+        previous_layer.W, previous_layer.b =\
+         deeplift.util.get_mean_normalised_softmax_weights(
+            previous_layer.W, previous_layer.b)
+
+
+def connect_list_of_layers(deeplift_layers):
+    if (len(deeplift_layers) > 1):
+        #string the layers together so that subsequent layers take the previous
+        #layer as input
+        last_layer_processed = deeplift_layers[0] 
+        for layer in deeplift_layers[1:]:
+            apply_softmax_normalization_if_needed(layer, last_layer_processed)
+            layer.set_inputs(last_layer_processed)
+            last_layer_processed = layer
