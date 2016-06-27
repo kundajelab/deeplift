@@ -13,7 +13,6 @@ import deeplift
 from deeplift import models, blobs
 from deeplift.blobs import MxtsMode
 import deeplift.util  
-import deeplift.conversion.util
 from deeplift.backend import PoolMode, BorderMode
 import numpy as np
 
