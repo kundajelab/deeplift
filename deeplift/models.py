@@ -4,6 +4,7 @@ from __future__ import absolute_import
 import sys
 import os
 import numpy as np
+import yaml
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
@@ -23,6 +24,8 @@ FuncType = deeplift.util.enum(contribs="contribs", multipliers="multipliers")
 
 class Model(object):
     
+    YamlKeys = deeplift.util.enum(model_class="model_class",
+                                  model_contents="yaml_contents")
     def __init__(self):
         pass #at some point, I want to put in locking so that only
         #one function can be running at a time
@@ -102,7 +105,23 @@ class Model(object):
             raise RuntimeError("Unsupported final_activation_type: "
                                +final_activation_type)
         target_layer.set_scoring_mode(scoring_mode)    
-        
+    
+    def save_to_yaml_only(self, file_name):
+        raise NotImplementedError()    
+
+    @classmethod
+    def load_model_from_yaml_contents_only(cls, yaml_contents):
+        raise NotImplementedError()
+
+    @staticmethod
+    def load_model_from_yaml_file_only(file_name):
+        #read the class name first, and then
+        #load the appropriate class
+        yaml_data = deeplift.util.load_yaml_data_from_file(file_name)
+        model_class = eval(yaml_data[Model.YamlKeys.model_class])
+        return model_class.load_model_from_yaml_contents_only(
+                            yaml_data[Model.YamlKeys.yaml_contents])
+
 
 class SequentialModel(Model):
     
@@ -121,6 +140,25 @@ class SequentialModel(Model):
                     input_layers=[self.get_layers()[0]],
                     **kwargs) 
 
+    def save_to_yaml_only(self):
+        #implement me
+        #TODO
+        raise NotImplementedError()    
+
+    @classmethod
+    def load_model_from_yaml_contents_only(cls, yaml_contents):
+        from blobs import *
+        assert isinstance(yaml_contents, list) 
+        layers = [] #sequential models have an array of blobs/layers
+        for blob_yaml_contents in yaml_contents:
+            blob_class = eval(blob_yaml_contents\
+                               [blobs.Blob.YamlKeys.blob_class])
+            blob_kwargs = blob_yaml_contents[blobs.Blob.YamlKeys.blob_kwargs]
+            blob = blob_class.load_blob_from_yaml_contents_only(**blob_kwargs)
+            layers.append(blob)
+        deeplift.util.connect_list_of_layers(layers)
+        return cls(layers)
+        
 
 class GraphModel(Model):
     def __init__(self, name_to_blob, input_layer_names):
