@@ -15,7 +15,7 @@ if (scripts_dir is None):
 sys.path.insert(0, scripts_dir)
 import deeplift.util
 from deeplift import blobs
-from blobs import *
+from deeplift.blobs import *
 from deeplift.blobs import ScoringMode
 import deeplift.backend as B
 
