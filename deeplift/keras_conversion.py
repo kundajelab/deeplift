@@ -9,21 +9,21 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
-import models
-import blobs
-from blobs import MxtsMode
-import deeplift_util as deeplift_util  
-from deeplift_backend import PoolMode, BorderMode
+import deeplift
+from deeplift import models, blobs
+from deeplift.blobs import MxtsMode
+import deeplift.util  
+from deeplift.backend import PoolMode, BorderMode
 import numpy as np
 
 
-KerasKeys = deeplift_util.enum(name='name', activation='activation',
+KerasKeys = deeplift.util.enum(name='name', activation='activation',
                       subsample='subsample', border_mode='border_mode',
                       output_dim='output_dim', pool_size='pool_size',
                       strides='strides', padding='padding')
 
 
-ActivationTypes = deeplift_util.enum(relu='relu',
+ActivationTypes = deeplift.util.enum(relu='relu',
                                      prelu='prelu',
                                      sigmoid='sigmoid',
                                      softmax='softmax',
@@ -211,7 +211,7 @@ def apply_softmax_normalization_if_needed(layer, previous_layer):
     if (type(layer)==blobs.Softmax):
         #mean normalise the inputs to the softmax
         previous_layer.W, previous_layer.b =\
-         deeplift_util.get_mean_normalised_softmax_weights(
+         deeplift.util.get_mean_normalised_softmax_weights(
             previous_layer.W, previous_layer.b)
 
 
@@ -325,7 +325,7 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust,
     """
     weights, biases = layer_to_adjust.get_weights();
     normalised_weights, normalised_bias =\
-     deeplift_util.mean_normalise_weights_for_sequence_convolution(
+     deeplift.util.mean_normalise_weights_for_sequence_convolution(
                     weights, biases, normalise_across_rows)
     layer_to_adjust.set_weights([normalised_weights,
                                  normalised_bias])
@@ -334,7 +334,7 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust,
 def mean_normalise_softmax_weights(softmax_dense_layer):
     weights, biases = softmax_dense_layer.get_weights()
     new_weights, new_biases =\
-     deeplift_util.get_mean_normalised_softmax_weights(weights, biases)
+     deeplift.util.get_mean_normalised_softmax_weights(weights, biases)
     softmax_dense_layer.set_weights([new_weights, new_biases])
 
 
