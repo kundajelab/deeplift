@@ -145,12 +145,19 @@ class Blob(object):
         self._target_contrib_vars =\
          self._build_target_contrib_vars()
 
-    def get_jsonable_object(self):
+    def get_yaml_compatible_object(self):
         """
             return the data of the blob
             in a format that can be saved to yaml
         """
-        raise NotImplementedError() 
+        to_return = OrderedDict()
+        to_return[Blob.YamlKeys.blob_class] = type(self).__name__
+        to_return[Blob.YamlKeys.blob_kwargs] =\
+         self.get_yaml_compatible_object_kwargs()
+        return to_return
+
+    def get_yaml_compatible_object_kwargs(self):
+        return OrderedDict([('name', self.name)])
 
     @classmethod
     def load_blob_from_yaml_contents_only(cls, **kwargs):
@@ -189,6 +196,12 @@ class Input(Blob):
     def _build_default_activation_vars(self):
         raise NotImplementedError()
 
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Input).get_yaml_compatible_object_kwargs()
+        kwargs_dict['num_dims'] = self._num_dims
+        kwargs_dict['shape'] = self._shape
+        return kwargs_dict
+
     def _build_fwd_pass_vars(self):
         self._default_activation_vars = self._build_default_activation_vars()
         self._diff_from_default_vars = self._build_diff_from_default_vars()
@@ -200,6 +213,12 @@ class Input_FixedDefault(Input):
     def __init__(self, default=0.0, **kwargs):
         super(Input_FixedDefault, self).__init__(**kwargs)
         self.default = default
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Input_FixedDefault).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['default'] = self.default
+        return kwargs_dict
 
     def _build_default_activation_vars(self):
         return B.ones_like(self._activation_vars)*self.default
@@ -422,6 +441,13 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         self.W = W
         self.b = b
 
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Dense).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['W'] = self.W
+        kwargs_dict['b'] = self.b
+        return kwargs_dict
+
     def _compute_shape(self, input_shape):
         return (self.W.shape[1],)
 
@@ -449,6 +475,13 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         self.mxts_mode = mxts_mode
         self.expo_upweight_factor = expo_upweight_factor
         super(Activation, self).__init__(**kwargs)
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Activation).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['mxts_mode'] = self.mxts_mode
+        kwargs_dict['expo_upweight_factor'] = self.expo_upweight_factor
+        return kwargs_dict
 
     def _compute_shape(self, input_shape):
         return input_shape
@@ -631,6 +664,15 @@ class Conv2D(SingleInputMixin, Node):
         self.strides = strides
         self.border_mode = border_mode
 
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Conv2D).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['W'] = self.W
+        kwargs_dict['b'] = self.b
+        kwargs_dict['strides'] = self.strides
+        kwargs_dict['border_mode'] = self.border_mode
+        return kwargs_dict
+
     def _compute_shape(self, input_shape):
         #assuming a theano dimension ordering here...
         shape_to_return = [self.W.shape[0]]
@@ -676,6 +718,16 @@ class Pool2D(SingleInputMixin, Node):
         self.border_mode = border_mode
         self.ignore_border = ignore_border
         self.pool_mode = pool_mode
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Pool2D).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['pool_size'] = self.pool_size
+        kwargs_dict['strides'] = self.strides
+        kwargs_dict['border_mode'] = self.border_mode
+        kwargs_dict['ignore_border'] = self.ignore_border
+        kwargs_dict['pool_mode'] = self.pool_mode
+        return kwargs_dict
 
     def _compute_shape(self, input_shape):
         shape_to_return = [input_shape[0]] #num channels unchanged 
@@ -737,6 +789,12 @@ class ZeroPad2D(SingleInputMixin, Node):
         super(ZeroPad2D, self).__init__(**kwargs) 
         self.padding = padding
 
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, ZeroPad2D).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['padding'] = self.padding
+        return kwargs_dict
+
     def _compute_shape(self, input_shape):
         shape_to_return = [input_shape[0]] #channel axis the same
         for dim_inp_len, dim_pad in zip(inpu_shape[1:], self.padding):
@@ -778,6 +836,13 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
                 self.W[feature_idx][None,:,:] - self.W
             self.b_differences[feature_idx] =\
                 self.b[feature_idx,:][None,:] - self.b
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, Maxout).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['W'] = self.W
+        kwargs_dict['b'] = self.b
+        return kwargs_dict
          
     def _compute_shape(self, input_shape):
         return (self.W.shape[-1],)
@@ -1015,6 +1080,17 @@ class BatchNormalization(SingleInputMixin, Node):
         self.std = std
         self.epsilon = epsilon
     
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(self, BatchNormalization).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['gamma'] = self.gamma
+        kwargs_dict['beta'] = self.beta
+        kwargs_dict['axis'] = self.axis
+        kwargs_dict['mean'] = self.mean
+        kwargs_dict['std'] = self.std
+        kwargs_dict['epsilon'] = self.epsilon
+        return kwargs_dict
+
     def _compute_shape(self, input_shape):
         return input_shape
 

@@ -7,6 +7,8 @@ import os.path
 import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
+import json
+
 
 def enum(**enums):
     class Enum(object):
@@ -73,6 +75,7 @@ def run_function_in_batches(func,
         i += batch_size;
     return to_return
 
+
 def mean_normalise_weights_for_sequence_convolution(weights,
                                                     bias,
                                                     normalise_across_rows,
@@ -104,6 +107,7 @@ def get_mean_normalised_softmax_weights(weights, biases):
     new_biases = biases - np.mean(biases)
     return new_weights, new_biases
 
+
 def get_effective_width_and_stride(widths,strides):
     effectiveStride = strides[0] 
     effectiveWidth = widths[0]
@@ -113,6 +117,7 @@ def get_effective_width_and_stride(widths,strides):
             effectiveWidth = ((width-1)*effectiveStride)+effectiveWidth 
             effectiveStride = effectiveStride*stride
     return effectiveWidth, effectiveStride
+
 
 def get_lengthwise_widths_and_strides(layers):
     """
@@ -132,6 +137,7 @@ def get_lengthwise_widths_and_strides(layers):
                                "stride from layer of type: "
                                +type(layer).__name__)
     return widths, strides
+
 
 def get_lengthwise_effective_width_and_stride(layers):
     widths, strides = get_lengthwise_widths_and_strides(layers)
@@ -200,3 +206,7 @@ def connect_list_of_layers(deeplift_layers):
             apply_softmax_normalization_if_needed(layer, last_layer_processed)
             layer.set_inputs(last_layer_processed)
             last_layer_processed = layer
+
+
+def format_json_dump(json_data, indent=2):
+    return json.dumps(jsonData, indent=indent, separators=(',', ': '))
