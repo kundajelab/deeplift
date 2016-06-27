@@ -8,6 +8,7 @@ import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
 import json
+import deeplift
 
 
 def enum(**enums):
@@ -190,7 +191,7 @@ def is_gzipped(file_name):
 
 
 def apply_softmax_normalization_if_needed(layer, previous_layer):
-    if (type(layer)==blobs.Softmax):
+    if (type(layer)==deeplift.blobs.Softmax):
         #mean normalise the inputs to the softmax
         previous_layer.W, previous_layer.b =\
          deeplift.util.get_mean_normalised_softmax_weights(
