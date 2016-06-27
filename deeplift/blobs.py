@@ -12,12 +12,12 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
-import deeplift_util as deeplift_util  
-import deeplift_backend as B
+import deeplift.util  
+import deeplift.backend as B
 
-ScoringMode = deeplift_util.enum(OneAndZeros="OneAndZeros",
+ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
-MxtsMode = deeplift_util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
+MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                     DeconvNet="DeconvNet",
                                     GuidedBackprop="GuidedBackprop",
                                     GuidedBackpropDeepLIFT1=\
@@ -317,7 +317,7 @@ class SingleInputMixin(object):
         """
            check that self.inputs is a single instance of Node 
         """
-        deeplift_util.assert_is_type(instance=self.inputs,
+        deeplift.util.assert_is_type(instance=self.inputs,
                                    the_class=Blob,
                                    instance_var_name="self.inputs")
 
