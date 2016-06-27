@@ -12,13 +12,13 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
-import deeplift_util
-import blobs
-from blobs import ScoringMode
-import deeplift_backend as B
+import deeplift.util
+from deeplift import blobs
+from deeplift.blobs import ScoringMode
+import deeplift.backend as B
 
 
-FuncType = deeplift_util.enum(contribs="contribs", multipliers="multipliers")
+FuncType = deeplift.util.enum(contribs="contribs", multipliers="multipliers")
 
 
 class Model(object):
@@ -48,7 +48,7 @@ class Model(object):
             #active at once
             target_layer.set_active()
             target_layer.update_task_index(task_idx)
-            to_return = deeplift_util.run_function_in_batches(
+            to_return = deeplift.util.run_function_in_batches(
                     func = core_function,
                     input_data_list = input_data_list,
                     batch_size = batch_size,
@@ -69,7 +69,7 @@ class Model(object):
                +str(target_layer.get_name())+" but got: "+\
                str(target_layer.get_output_layers())
         final_activation_layer = target_layer.get_output_layers()[0]
-        deeplift_util.assert_is_type(final_activation_layer, blobs.Activation,
+        deeplift.util.assert_is_type(final_activation_layer, blobs.Activation,
                                      "final_activation_layer")
         final_activation_type = type(final_activation_layer).__name__
 
@@ -77,7 +77,7 @@ class Model(object):
             scoring_mode=ScoringMode.OneAndZeros
         elif (final_activation_type == "Softmax"):
             new_W, new_b =\
-             deeplift_util.get_mean_normalised_softmax_weights(
+             deeplift.util.get_mean_normalised_softmax_weights(
               target_layer.W, target_layer.b)
             #The weights need to be mean normalised before they are passed in
             #because build_fwd_pass_vars() has already been called
