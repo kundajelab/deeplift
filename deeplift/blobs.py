@@ -163,6 +163,14 @@ class Blob(object):
     def load_blob_from_yaml_contents_only(cls, **kwargs):
         return cls(**kwargs) #default to calling init
 
+    def copy_blob_keep_params(self):
+        """
+            Make a copy of the layer that retains the parameters, but
+            not any of the other aspects (eg output layers)
+        """
+        return self.load_blob_from_yaml_contents_only( 
+                    **self.get_yaml_compatible_object_kwargs())
+
 
 class Input(Blob):
     """
@@ -676,14 +684,17 @@ class Conv2D(SingleInputMixin, Node):
     def _compute_shape(self, input_shape):
         #assuming a theano dimension ordering here...
         shape_to_return = [self.W.shape[0]]
-        if (self.border_mode != B.BorderMode.valid):
-            raise RuntimeError("Please implement shape inference for"
-                               " border mode: "+str(self.border_mode))
-        for (dim_inp_len, dim_kern_width, dim_stride) in\
-            zip(input_shape[1:], self.W.shape[2:], self.strides):
-            #assuming that overhangs are excluded
-            shape_to_return.append(
-             1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+        if (input_shape is None):
+            shape_to_return += [None, None]
+        else:
+            if (self.border_mode != B.BorderMode.valid):
+                raise RuntimeError("Please implement shape inference for"
+                                   " border mode: "+str(self.border_mode))
+            for (dim_inp_len, dim_kern_width, dim_stride) in\
+                zip(input_shape[1:], self.W.shape[2:], self.strides):
+                #assuming that overhangs are excluded
+                shape_to_return.append(
+                 1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
