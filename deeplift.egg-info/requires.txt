@@ -1,0 +1,2 @@
+numpy>=1.9
+theano>=0.8
