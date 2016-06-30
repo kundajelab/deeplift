@@ -6,7 +6,7 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
-import deeplift.util 
+import deeplift.util
 
 PoolMode = deeplift.util.enum(max='max', avg='avg')
 BorderMode = deeplift.util.enum(same='same', half='half', valid='valid')
