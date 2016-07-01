@@ -450,7 +450,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         self.b = b
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Dense).\
+        kwargs_dict = super(Dense, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['W'] = self.W
         kwargs_dict['b'] = self.b
@@ -485,7 +485,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         super(Activation, self).__init__(**kwargs)
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Activation).\
+        kwargs_dict = super(Activation, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['mxts_mode'] = self.mxts_mode
         kwargs_dict['expo_upweight_factor'] = self.expo_upweight_factor
@@ -731,7 +731,7 @@ class Pool2D(SingleInputMixin, Node):
         self.pool_mode = pool_mode
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Pool2D).\
+        kwargs_dict = super(Pool2D, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['pool_size'] = self.pool_size
         kwargs_dict['strides'] = self.strides
@@ -801,7 +801,7 @@ class ZeroPad2D(SingleInputMixin, Node):
         self.padding = padding
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, ZeroPad2D).\
+        kwargs_dict = super(ZeroPad2D, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['padding'] = self.padding
         return kwargs_dict
@@ -849,7 +849,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
                 self.b[feature_idx,:][None,:] - self.b
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Maxout).\
+        kwargs_dict = super(Maxout, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['W'] = self.W
         kwargs_dict['b'] = self.b
@@ -1092,7 +1092,7 @@ class BatchNormalization(SingleInputMixin, Node):
         self.epsilon = epsilon
     
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, BatchNormalization).\
+        kwargs_dict = super(BatchNormalization, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['gamma'] = self.gamma
         kwargs_dict['beta'] = self.beta
