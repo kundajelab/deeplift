@@ -205,7 +205,7 @@ class Input(Blob):
         raise NotImplementedError()
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Input).get_yaml_compatible_object_kwargs()
+        kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
         kwargs_dict['num_dims'] = self._num_dims
         kwargs_dict['shape'] = self._shape
         return kwargs_dict
@@ -223,7 +223,7 @@ class Input_FixedDefault(Input):
         self.default = default
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Input_FixedDefault).\
+        kwargs_dict = super(Input_FixedDefault, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['default'] = self.default
         return kwargs_dict
@@ -673,7 +673,7 @@ class Conv2D(SingleInputMixin, Node):
         self.border_mode = border_mode
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(self, Conv2D).\
+        kwargs_dict = super(Conv2D,self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['W'] = self.W
         kwargs_dict['b'] = self.b
