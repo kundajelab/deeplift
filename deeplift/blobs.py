@@ -1130,9 +1130,82 @@ class BatchNormalization(SingleInputMixin, Node):
 
 class RNN(SingleInputMixin, Node):                                              
                                                                                 
-   def __init__(self, weights=None, expose_all_hidden=False,                    
-                    reverse_input=None, **kwargs):                              
-        self.weights = weights                                                  
-        self.expose_all_hidden = expose_all_hidden                              
+    def __init__(self, reverse_input=None, **kwargs):                              
         self.reverse_input = reverse_input                                      
         super(RNN, self).__init__(**kwargs) 
+
+    def forward_pass_step_function(self):
+        """
+            Reminder of the API:
+                first arguments are inputs at time t, subsequent 
+                 arguments are the hidden states after t-1
+                 This is the function that will be passed
+                 *directly* to theano.scan. Should return an array
+                 of the hidden states after time t.
+        """
+        raise NotImplementedError() 
+
+    def get_final_output_from_output_of_for_loop(self, output_of_for_loop):
+        """
+            output_of_for_loop is like the output of theano.scan; it is a
+             list of tensors, and each tensor has a first dimension which
+             is time. This function decides how to extract the output of
+             the net from the output of this for loop
+        """
+        raise NotImplementedError() 
+
+    def backward_pass_multiplier_step_function(self):
+        """
+            Reminder of the API: if the internal hidden states were
+             exposed to the rest of the net during the forward pass,
+             then the first arguments are the multipliers of the
+             forward-pass hidden state at time t-1 that flow from the
+             rest of the net. The subsequent arguments are:
+              the diff-from-default of the forward-pass hidden state at
+              time t-1, the diff-from-default of the forward-pass
+              hidden state at time t, and the multipliers of the
+              forward-pass hidden state at time t. All but the last
+              are provided as "inputs" to the for loop (i.e. the
+              'sequences' argument to theano.scan) - the last is the
+              equivalent of the 'hidden state' during the backwards pass
+              and is computed iteratively. 
+             The output of this function should be the multipliers of the
+              forward-pass hidden state at time t-1.
+
+        More details for why I set it up this way:
+        The hidden 'states' of the loop are now the importance assigned to
+         what was the hidden state at that time during the forward pass.
+         There is a bit of trickiness here because if the intermediate hidden
+         state has been exposed, then it acquires some multiplier flowing from
+         operations of the rest of the net directly on it. So, when computing
+         the multiplier of the previous hidden state of the forward pass
+         (which will be the next hidden state of the backward pass), it is
+         necessary to add the multiplier coming from the rest of the net.
+         Thus, the multipliers coming from the rest of the net
+         *at the previous timestep* will form
+         the inputs ('sequences' argument for theano.scan) to the current
+         timestep, and these need to be added to the multiplier flow
+         calculated as coming from the current hidden states to the previous
+         hidden states
+        """
+        raise NotImplementedError()
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(RNN, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['reverse_input'] = self.reverse_input
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        raise NotImplementedError()
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.dot(input_act_vars, self.W) + self.b
+
+    def _get_mxts_increments_for_inputs(self):
+        return B.dot(self.get_mxts(),self.W.T)
+
+    def _build_gradient_at_default_activation(self):
+        pass #not used
+
+     
