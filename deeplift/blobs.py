@@ -1156,15 +1156,24 @@ class RNN(SingleInputMixin, Node):
              forward-pass hidden state at time t-1 that flow from the
              rest of the net. The subsequent arguments are:
               the diff-from-default of the forward-pass hidden state at
-              time t-1, the diff-from-default of the forward-pass
-              hidden state at time t, and the multipliers of the
-              forward-pass hidden state at time t. All but the last
+              time t-1, diff-from-default of the inputs to the RNN
+              at time t-1, the diff-from-default of the forward-pass
+              hidden state at time t, the multipliers of the
+              forward-pass hidden state at time t, and (this last one is
+              not used in subsequent calculations but comes up because of
+              how theano.scan works) the multipliers on the inputs to the
+              net at time t+1. All but the last two
               are provided as "inputs" to the for loop (i.e. the
-              'sequences' argument to theano.scan) - the last is the
+              'sequences' argument to theano.scan) - the second last
+              (multipliers on the hidden states at time t)  is the
               equivalent of the 'hidden state' during the backwards pass
-              and is computed iteratively. 
-             The output of this function should be the multipliers of the
-              forward-pass hidden state at time t-1.
+              and is computed iteratively. The last (multipliers on the input
+              to the net at time t+1) is the equivalent of the 'outputs'
+              during the backwards pass. 
+             The output of this function should be a list, with the first
+              element being the multipliers of the forward-pass
+              hidden state at time t-1, and the second element being
+              the multipliers on the inputs at time t.
 
         More details for why I set it up this way:
         The hidden 'states' of the loop are now the importance assigned to
@@ -1205,7 +1214,8 @@ class RNN(SingleInputMixin, Node):
             return output_of_for_loop[0][-1]
 
     def _get_mxts_increments_for_inputs(self):
-        return B.dot(self.get_mxts(),self.W.T)
+        raise NotImplementedError()
+
 
 class RNNActivationsMixin(object):
     """
@@ -1285,7 +1295,6 @@ class GRU(RNN, RNNActivationsMixin):
         return kwargs_dict
 
     def forward_pass_step_function(self, x_at_t, hidden_state_at_tm1):
-
         r_input_from_x = K.dot(x_at_t, self.weights_on_input_for_r)\
                                                  + self.bias_for_r
         r_gate = self.gate_activation(r_input_from_x
@@ -1308,4 +1317,46 @@ class GRU(RNN, RNNActivationsMixin):
         return [hidden]
 
     def backward_pass_multiplier_step_function(self):
+        """
+            Reminder of the API: if the internal hidden states were
+             exposed to the rest of the net during the forward pass,
+             then the first arguments are the multipliers of the
+             forward-pass hidden state at time t-1 that flow from the
+             rest of the net. The subsequent arguments are:
+              the diff-from-default of the forward-pass hidden state at
+              time t-1, diff-from-default of the inputs to the RNN
+              at time t-1, the diff-from-default of the forward-pass
+              hidden state at time t, the multipliers of the
+              forward-pass hidden state at time t, and (this last one is
+              not used in subsequent calculations but comes up because of
+              how theano.scan works) the multipliers on the inputs to the
+              net at time t+1. All but the last two
+              are provided as "inputs" to the for loop (i.e. the
+              'sequences' argument to theano.scan) - the second last
+              (multipliers on the hidden states at time t)  is the
+              equivalent of the 'hidden state' during the backwards pass
+              and is computed iteratively. The last (multipliers on the input
+              to the net at time t+1) is the equivalent of the 'outputs'
+              during the backwards pass. 
+             The output of this function should be a list, with the first
+              element being the multipliers of the forward-pass
+              hidden state at time t-1, and the second element being
+              the multipliers on the inputs at time t.
+
+        More details for why I set it up this way:
+        The hidden 'states' of the loop are now the importance assigned to
+         what was the hidden state at that time during the forward pass.
+         There is a bit of trickiness here because if the intermediate hidden
+         state has been exposed, then it acquires some multiplier flowing from
+         operations of the rest of the net directly on it. So, when computing
+         the multiplier of the previous hidden state of the forward pass
+         (which will be the next hidden state of the backward pass), it is
+         necessary to add the multiplier coming from the rest of the net.
+         Thus, the multipliers coming from the rest of the net
+         *at the previous timestep* will form
+         the inputs ('sequences' argument for theano.scan) to the current
+         timestep, and these need to be added to the multiplier flow
+         calculated as coming from the current hidden states to the previous
+         hidden states
+        """
         raise NotImplementedError()
