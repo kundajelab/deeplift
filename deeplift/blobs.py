@@ -28,6 +28,9 @@ MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                      "GuidedBackpropDeepLIFT3",
                                     GuidedBackpropDeepLIFT4=\
                                      "GuidedBackpropDeepLIFT4")
+ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
+                                     relu="relu",
+                                     linear="linear")
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
@@ -1204,40 +1207,105 @@ class RNN(SingleInputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         return B.dot(self.get_mxts(),self.W.T)
 
+class RNNActivationsMixin(object):
+    """
+        just a class with some helper functions for setting
+        gate_activation_name and hidden_state_activation_name
+    """
+    def set_activations(self, gate_activation_name,
+                              hidden_state_activation_name,
+                              **kwargs):
+        self.gate_activation_name = gate_activation_name
+        self.hidden_state_activation_name = hidden_state_activation_name
+        self.gate_activation = self.map_name_to_activation(
+                                     gate_activation_name)
+        self.hidden_state_activation =\
+                           RNNActivationsMixin.map_name_to_activation(
+                            hidden_state_activation_name)
 
-class GRU(RNN):
+    def add_activation_kwargs_to_dict(self, kwargs_dict):
+        kwargs_dict[self.gate_activation_name] = self.gate_activation_name
+        kwargs_dict[self.hidden_state_activation_name] =\
+                        self.hidden_state_activation_name
+
+    def map_name_to_activation(self, activation_name):
+        if (activation_name==ActivationNames.sigmoid):
+            return B.sigmoid
+        elif (activation_name==ActivationNames.relu):
+            return B.relu
+        elif (activation_name==ActivationNames.linear):
+            return lambda x: x 
+        else:
+            raise RuntimeError("Unsupported activation:",activation_name)
+
+
+class GRU(RNN, RNNActivationsMixin):
  
-    def __init__(self, weights_lookup):
+    def __init__(self, weights_lookup,
+                 gate_activation_name,
+                 hidden_state_activation_name, **kwargs):
 
-        self.W_z = weights_lookup['W_z']
-        self.U_z = weights_lookup['U_z']
-        self.b_z = weights_lookup['b_z']
+        self.weights_on_input_for_z = weights_lookup['input_weights_for_z']
+        self.weights_on_input_for_r = weights_lookup['weights_on_input_for_r'] 
+        self.weights_on_input_for_h = weights_lookup['weights_on_input_for_h']
         
-        self.W_r = weights_lookup['W_r'] 
-        self.U_r = weights_lookup['U_r']
-        self.b_r = weights_lookup['b_r']
+        self.weights_on_hidden_state_for_z =\
+         weights_lookup['weights_on_hidden_state_for_z']
+        self.weights_on_hidden_state_for_r =\
+         weights_lookup['weights_on_hidden_state_for_r']
+        self.weights_on_hidden_state_for_h =\
+         weights_lookup['weights_on_hidden_state_for_h']
 
-        self.W_h = weights_lookup['W_h']
-        self.U_h = weights_lookup['U_h']
-        self.b_h = weights_lookup['b_h']
+        self.bias_for_h = weights_lookup['bias_for_h']
+        self.bias_for_z = weights_lookup['bias_for_z']
+        self.bias_for_r = weights_lookup['bias_for_r']
+
         super(GRU, self).__init__(**kwargs) 
+        super(GRU, self).set_activations(
+                          gate_activation_name=gate_activation_name,
+                          activation_name=activation_name)
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(GRU, self).\
                        get_yaml_compatible_object_kwargs()
-        kwargs_dict['weights_lookup'] = OrderedDict([('W_z', self.W_z),
-                                                     ('U_z', self.U_z),
-                                                     ('b_z', self.b_z),
-                                                     ('W_r', self.W_r),
-                                                     ('U_r', self.U_r),
-                                                     ('b_r', self.b_r),
-                                                     ('W_h', self.W_h),
-                                                     ('U_h', self.U_h),
-                                                     ('b_h', self.b_h)])
+        super(GRU, self).add_activation_kwargs_to_dict(self, kwargs_dict)
+        kwargs_dict['weights_lookup'] = OrderedDict([
+            ('weights_on_input_for_z', self.weights_on_input_for_z),
+            ('weights_on_input_for_r', self.weights_on_input_for_r),
+            ('weights_on_input_for_h', self.weights_on_input_for_h),
+            ('weights_on_hidden_state_for_z',
+              self.weights_on_hidden_state_for_z),
+            ('weights_on_hidden_state_for_r',
+              self.weights_on_hidden_state_for_r),
+            ('weights_on_hidden_state_for_h',
+              self.weights_on_hidden_state_for_h),
+            ('bias_for_z', self.bias_for_z),
+            ('bias_for_r', self.bias_for_r),
+            ('bias_for_h', self.bias_for_h)])
         return kwargs_dict
 
-    def forward_pass_step_function(self):
-        raise NotImplementedError() 
+    def forward_pass_step_function(self, x_at_t, hidden_state_at_tm1):
+
+        r_input_from_x = K.dot(x_at_t, self.weights_on_input_for_r)\
+                                                 + self.bias_for_r
+        r_gate = self.gate_activation(r_input_from_x
+                                      + K.dot(hidden_state_at_tm1,
+                                         self.weights_on_hidden_state_for_r))
+
+        z_input_from_x = K.dot(x_at_t, self.weights_on_input_for_z)\
+                                                 + self.bias_for_z
+        z_gate = self.gate_activation(z_input_from_x
+                                      + K.dot(hidden_state_at_tm1,
+                                         self.weights_on_hidden_state_for_z))
+
+        hidden_input_from_x = K.dot(x_at_t, self.weights_on_input_for_h)\
+                                                      + self.bias_for_h
+        proposed_hidden = self.hidden_state_activation(
+                               hidden_input_from_x
+                               + K.dot(r_gate*hidden_state_at_tm1,
+                                  self.weights_on_hidden_state_for_h))
+        hidden = z_gate*hidden_state_at_tm1 + (1-z)*proposed_hidden
+        return [hidden]
 
     def backward_pass_multiplier_step_function(self):
         raise NotImplementedError()
