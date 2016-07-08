@@ -225,3 +225,14 @@ def zeropad2d(x, padding):
 def discard_pad2d(x, padding):
     return x[:, :, padding[0]:(x.shape[2]-padding[0]),
                    padding[1]:(x.shape[3]-padding[0])]
+
+
+def for_loop(step_function, inputs, initial_hidden_states, go_backwards):
+    """
+        inputs: time axis must be first
+    """ 
+    return theano.scan(
+        step_function,
+        sequences=inputs,
+        outputs_info=initial_hidden_states,
+        go_backwards=go_backwards)
