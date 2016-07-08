@@ -297,8 +297,6 @@ class Node(Blob):
                 self._get_input_activation_vars())
         self.default_activation_vars =\
          self._build_default_activation_vars()
-        self._gradient_at_default_activation =\
-         self._build_gradient_at_default_activation()
         self._diff_from_default_vars =\
          self._build_diff_from_default_vars()
         self._mxts = B.zeros_like(self._get_default_activation_vars())
@@ -320,12 +318,6 @@ class Node(Blob):
         self._default_activation_vars =\
             self._build_activation_vars(
              self._get_input_default_activation_vars())
-
-    def _build_gradient_at_default_activation(self):
-        raise NotImplementedError("Not implemented for "+str(self.get_name()))
-
-    def _get_gradient_at_default_activation_var(self):
-        return self._gradient_at_default_activation
 
     def _update_mxts_for_inputs(self):
         """
@@ -438,9 +430,6 @@ class NoOp(SingleInputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         return self.get_mxts()
 
-    def _build_gradient_at_default_activation(self):
-        pass #not used
-
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
@@ -464,9 +453,6 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _get_mxts_increments_for_inputs(self):
         return B.dot(self.get_mxts(),self.W.T)
-
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
 
 class Activation(SingleInputMixin, OneDimOutputMixin, Node):
@@ -493,6 +479,14 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _compute_shape(self, input_shape):
         return input_shape
+
+    def _build_fwd_pass_vars(self):
+        super(Activation, self)._build_activation_vars() 
+        self._gradient_at_default_activation =\
+         self._get_gradient_at_activation(self._get_default_activation_vars())
+
+    def _get_gradient_at_default_activation_var(self):
+        return self._gradient_at_default_activation
 
     def _build_activation_vars(self, input_act_vars):
         raise NotImplementedError()
@@ -598,10 +592,6 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             Return the gradients at a specific supplied activation
         """
         raise NotImplementedError()
-
-    def _build_gradient_at_default_activation(self):
-        return self._get_gradient_at_activation(
-                    self._get_default_activation_vars())
 
 
 class PReLU(Activation):
@@ -716,8 +706,6 @@ class Conv2D(SingleInputMixin, Node):
                 border_mode=self.border_mode,
                 subsample=self.strides)
 
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
 class Pool2D(SingleInputMixin, Node):
 
@@ -772,9 +760,6 @@ class Pool2D(SingleInputMixin, Node):
                 pool_mode=self.pool_mode
             )
 
-    def _build_gradient_at_default_activation(self):
-        pass #not used
-
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     
@@ -789,9 +774,6 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
         return B.unflatten_keeping_first(
                 x=self.get_mxts(), like=input_act_vars
             )
-
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
 
 class ZeroPad2D(SingleInputMixin, Node):
@@ -817,9 +799,6 @@ class ZeroPad2D(SingleInputMixin, Node):
 
     def _get_mxts_increments_for_inputs(self):
         return B.discard_pad2d(self.get_mxts(), padding=self.padding)
-
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
 
 class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
@@ -1060,10 +1039,6 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         return B.sum(
                 self.get_mxts()[:,None,:]\
                 *self._get_weighted_active_gradients(), axis=2)
-             
-
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
 
 class BatchNormalization(SingleInputMixin, Node):
@@ -1123,16 +1098,32 @@ class BatchNormalization(SingleInputMixin, Node):
         #self.reshaped_gamma and reshaped_std are created during
         #the call to _build_activation_vars in _built_fwd_pass_vars
         return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
-                    
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
 
-class RNN(SingleInputMixin, Node):                                              
-                                                                                
-    def __init__(self, reverse_input=None, **kwargs):                              
-        self.reverse_input = reverse_input                                      
+class RNN(SingleInputMixin, Node):
+
+    def __init__(self, hidden_states_exposed, reverse_input=None, **kwargs):
+        self.reverse_input = reverse_input 
+        self.hidden_states_exposed = hidden_states_exposed
+        self.initial_hidden_states = self._get_initial_hidden_states()
         super(RNN, self).__init__(**kwargs) 
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(RNN, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['reverse_input'] = self.reverse_input
+        kwargs_dict['hidden_states_exposed'] = self.hidden_states_exposed
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        #assumes there's an attribute called W_h
+        if (hidden_states_exposed):
+            return (input_shape[0], self.W_h.shape[1])
+        else:
+            return (self.W_h.shape[1],)
+
+    def _get_initial_hidden_states(self):
+        return [B.zeros_like(self.W_h[1],)]
 
     def forward_pass_step_function(self):
         """
@@ -1190,22 +1181,63 @@ class RNN(SingleInputMixin, Node):
         """
         raise NotImplementedError()
 
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(RNN, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['reverse_input'] = self.reverse_input
-        return kwargs_dict
-
-    def _compute_shape(self, input_shape):
-        raise NotImplementedError()
-
     def _build_activation_vars(self, input_act_vars):
-        return B.dot(input_act_vars, self.W) + self.b
+        #input_act_vars are assumed to have dims:
+        # samples, time, ...
+        axes = [1, 0]+[x for x in xrange(2, input_act_vars.ndim)]
+        time_axis_first_inputs = B.dimshuffle(input_act_vars, axes)
+        hidden_states_through_time =\
+                        B.for_loop(
+                         step_function=self.forward_pass_step_function,
+                         inputs=[input_act_vars],
+                         initial_hidden_states=self.initial_hidden_states,
+                         go_backwards=self.reverse_input)
+        return self.get_final_output_from_output_of_for_loop(
+                     hidden_states_through_time) 
+
+    def get_final_output_from_output_of_for_loop(self, output_of_for_loop):
+        if (self.hidden_states_exposed):
+            return output_of_for_loop[0] 
+        else:
+            return output_of_for_loop[0][-1]
 
     def _get_mxts_increments_for_inputs(self):
         return B.dot(self.get_mxts(),self.W.T)
 
-    def _build_gradient_at_default_activation(self):
-        pass #not used
 
-     
+class GRU(RNN):
+ 
+    def __init__(self, weights_lookup):
+
+        self.W_z = weights_lookup['W_z']
+        self.U_z = weights_lookup['U_z']
+        self.b_z = weights_lookup['b_z']
+        
+        self.W_r = weights_lookup['W_r'] 
+        self.U_r = weights_lookup['U_r']
+        self.b_r = weights_lookup['b_r']
+
+        self.W_h = weights_lookup['W_h']
+        self.U_h = weights_lookup['U_h']
+        self.b_h = weights_lookup['b_h']
+        super(GRU, self).__init__(**kwargs) 
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(GRU, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['weights_lookup'] = OrderedDict([('W_z', self.W_z),
+                                                     ('U_z', self.U_z),
+                                                     ('b_z', self.b_z),
+                                                     ('W_r', self.W_r),
+                                                     ('U_r', self.U_r),
+                                                     ('b_r', self.b_r),
+                                                     ('W_h', self.W_h),
+                                                     ('U_h', self.U_h),
+                                                     ('b_h', self.b_h)])
+        return kwargs_dict
+
+    def forward_pass_step_function(self):
+        raise NotImplementedError() 
+
+    def backward_pass_multiplier_step_function(self):
+        raise NotImplementedError()
