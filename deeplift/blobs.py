@@ -287,18 +287,21 @@ class Node(Blob):
         """ 
         raise NotImplementedError();
 
+    def _build_fwd_pass_vars_core(self):
+        self._build_fwd_pass_vars_for_all_inputs()
+        self._shape = self._compute_shape(self._get_input_shape())
+
     def _build_fwd_pass_vars(self):
         """
            It is important that all the outputs of the Node have been
             built before the node is built, otherwise the value of
             mxts will not be correct 
         """
-        self._build_fwd_pass_vars_for_all_inputs()
-        self._shape = self._compute_shape(self._get_input_shape())
+        super(Node, self)._build_fwd_pass_vars_core()
         self._activation_vars =\
             self._build_activation_vars(
                 self._get_input_activation_vars())
-        self.default_activation_vars =\
+        self._default_activation_vars =\
          self._build_default_activation_vars()
         self._diff_from_default_vars =\
          self._build_diff_from_default_vars()
@@ -318,9 +321,8 @@ class Node(Blob):
         raise NotImplementedError()
 
     def _build_default_activation_vars(self):
-        self._default_activation_vars =\
-            self._build_activation_vars(
-             self._get_input_default_activation_vars())
+        return self._build_activation_vars(
+                self._get_input_default_activation_vars())
 
     def _update_mxts_for_inputs(self):
         """
@@ -1125,6 +1127,94 @@ class RNN(SingleInputMixin, Node):
         else:
             return (self.W_h.shape[1],)
 
+    def _build_fwd_pass_vars(self):
+        """
+           It is important that all the outputs of the Node have been
+            built before the node is built, otherwise the value of
+            mxts will not be correct 
+        """
+        super(Node, self)._build_fwd_pass_vars_core()
+        #all the _through_time variables should be a list of tensors
+        self._activation_vars,\
+         self._activation_vars_through_time =\
+          self._build_activation_vars(self._get_input_activation_vars())
+
+        self._default_activation_vars,\
+         self._default_activation_through_time =\
+          self._build_default_activation_vars()
+
+        self._diff_from_default_vars = self._activation_vars\
+                                        - self._default_activation_vars
+        self._diff_from_default_hidden_vars_through_time =\
+         [x - y for (x, y) in\
+          zip(self._activation_vars_through_time,
+              self._diff_from_default_hidden_vars_through_time)]
+        self._mxts = B.zeros_like(self._default_activation_vars)
+        if (self.hidden_states_exposed):        
+            self._mxts_through_time = self._mxts 
+        else:
+            self._mxts_through_time =\
+              [B.zeros_like(x) for x in
+                self._diff_from_default_hidden_vars_through_time]
+
+    def _build_activation_vars(self, input_act_vars):
+        #input_act_vars are assumed to have dims:
+        # samples, time, ...
+        axes = [1, 0]+[x for x in xrange(2, input_act_vars.ndim)]
+        time_axis_first_inputs = B.dimshuffle(input_act_vars, axes)
+        hidden_states_activation_vars_through_time =\
+                        B.for_loop(
+                         step_function=self.forward_pass_step_function,
+                         inputs=[input_act_vars],
+                         initial_hidden_states=self.initial_hidden_states,
+                         go_backwards=self.reverse_input)
+        return self.get_final_output_from_output_of_for_loop(
+                     hidden_states_activation_vars_through_time),\
+               self.hidden_states_activation_vars_through_time 
+
+    def _get_mxts_increments_for_inputs(self):
+        #the first hidden state in the loop is
+        #the multipliers on the hidden state at time t
+        if (self.hidden_states_activation_vars_through_time):
+            backward_pass_initial_hidden_states = [self.get_mxts()[:,-1]] 
+        else:
+            backward_pass_initial_hidden_states = [self.get_mxts()]
+        #the other hidden state in the for loop is the multipliers
+        #on the inputs to the RNN at time t; in the first iteration
+        #of the loop, this refers to a time that doesn't exist, so
+        #the initial hidden state can be set as all zeros.
+        backward_pass_initial_hidden_states +=\
+         [B.zeros_like(self._get_input_diff_from_default_vars()[:,0])]
+        #shuffle dimensions to put the time axis first, then reverse the
+        #order for the backwards pass
+        slice_to_all_before_last = slice((1 if self.reverse_input else None),
+                                         (None if self.reverse_input else -1))
+        slice_to_all_after_first = slice((None if self.reverse_input else 1),
+                                         (-1 if self.reverse_input else None))
+        inputs = [B.dimshuffle(
+                   x, [1,0]+[x for x in xrange(2, x.ndim)])[::-1] for x in
+                   #multipliers flowing to hidden states at time t-1
+                   #TODO: pad this in the front with all zeros to get right len
+                   self.multipliers_on_hidden_states\
+                        [:,slice_to_all_before_last]+\
+                   #diff from default of hidden vars at time t-1
+                   #TODO: pad this in the front with all zeros to get right len
+                   #self._diff_from_default_hidden_vars_through_time\
+                        [:,slice_to_all_before_last]+\
+                   #diff from default of input vars at time t
+                   self._get_input_diff_from_default_vars()+\
+                   #diff from default of the hidden vars at time t
+                   self._diff_from_default_hidden_vars_through_time]
+                   
+        (multipliers_on_hidden_states,
+         multipliers_on_inputs) =\
+                B.for_loop(
+                 step_function=self.backward_pass_multiplier_step_function,
+                 inputs=inputs,
+                 initial_hidden_states=backward_pass_initial_hidden_states,
+                 go_backwards=self.reverse_input)
+        raise NotImplementedError()
+
     def _get_initial_hidden_states(self):
         return [B.zeros_like(self.W_h[1],)]
 
@@ -1150,14 +1240,14 @@ class RNN(SingleInputMixin, Node):
 
     def backward_pass_multiplier_step_function(self):
         """
-            Reminder of the API: if the internal hidden states were
-             exposed to the rest of the net during the forward pass,
-             then the first arguments are the multipliers of the
-             forward-pass hidden state at time t-1 that flow from the
-             rest of the net. The subsequent arguments are:
+            Reminder of the API: the first arguments are the
+             multipliers of the forward-pass hidden state at
+             time t-1 that flow from the rest of the net (if the hidden
+             states of the net are not exposed, then these multipliers
+             are all zeros). The subsequent arguments are:
               the diff-from-default of the forward-pass hidden state at
               time t-1, diff-from-default of the inputs to the RNN
-              at time t-1, the diff-from-default of the forward-pass
+              at time t, the diff-from-default of the forward-pass
               hidden state at time t, the multipliers of the
               forward-pass hidden state at time t, and (this last one is
               not used in subsequent calculations but comes up because of
@@ -1193,28 +1283,11 @@ class RNN(SingleInputMixin, Node):
         """
         raise NotImplementedError()
 
-    def _build_activation_vars(self, input_act_vars):
-        #input_act_vars are assumed to have dims:
-        # samples, time, ...
-        axes = [1, 0]+[x for x in xrange(2, input_act_vars.ndim)]
-        time_axis_first_inputs = B.dimshuffle(input_act_vars, axes)
-        hidden_states_through_time =\
-                        B.for_loop(
-                         step_function=self.forward_pass_step_function,
-                         inputs=[input_act_vars],
-                         initial_hidden_states=self.initial_hidden_states,
-                         go_backwards=self.reverse_input)
-        return self.get_final_output_from_output_of_for_loop(
-                     hidden_states_through_time) 
-
     def get_final_output_from_output_of_for_loop(self, output_of_for_loop):
         if (self.hidden_states_exposed):
             return output_of_for_loop[0] 
         else:
             return output_of_for_loop[0][-1]
-
-    def _get_mxts_increments_for_inputs(self):
-        raise NotImplementedError()
 
 
 class RNNActivationsMixin(object):
@@ -1316,47 +1389,6 @@ class GRU(RNN, RNNActivationsMixin):
         hidden = z_gate*hidden_state_at_tm1 + (1-z)*proposed_hidden
         return [hidden]
 
-    def backward_pass_multiplier_step_function(self):
-        """
-            Reminder of the API: if the internal hidden states were
-             exposed to the rest of the net during the forward pass,
-             then the first arguments are the multipliers of the
-             forward-pass hidden state at time t-1 that flow from the
-             rest of the net. The subsequent arguments are:
-              the diff-from-default of the forward-pass hidden state at
-              time t-1, diff-from-default of the inputs to the RNN
-              at time t-1, the diff-from-default of the forward-pass
-              hidden state at time t, the multipliers of the
-              forward-pass hidden state at time t, and (this last one is
-              not used in subsequent calculations but comes up because of
-              how theano.scan works) the multipliers on the inputs to the
-              net at time t+1. All but the last two
-              are provided as "inputs" to the for loop (i.e. the
-              'sequences' argument to theano.scan) - the second last
-              (multipliers on the hidden states at time t)  is the
-              equivalent of the 'hidden state' during the backwards pass
-              and is computed iteratively. The last (multipliers on the input
-              to the net at time t+1) is the equivalent of the 'outputs'
-              during the backwards pass. 
-             The output of this function should be a list, with the first
-              element being the multipliers of the forward-pass
-              hidden state at time t-1, and the second element being
-              the multipliers on the inputs at time t.
-
-        More details for why I set it up this way:
-        The hidden 'states' of the loop are now the importance assigned to
-         what was the hidden state at that time during the forward pass.
-         There is a bit of trickiness here because if the intermediate hidden
-         state has been exposed, then it acquires some multiplier flowing from
-         operations of the rest of the net directly on it. So, when computing
-         the multiplier of the previous hidden state of the forward pass
-         (which will be the next hidden state of the backward pass), it is
-         necessary to add the multiplier coming from the rest of the net.
-         Thus, the multipliers coming from the rest of the net
-         *at the previous timestep* will form
-         the inputs ('sequences' argument for theano.scan) to the current
-         timestep, and these need to be added to the multiplier flow
-         calculated as coming from the current hidden states to the previous
-         hidden states
-        """
+    def backward_pass_multiplier_step_function(
+         self):
         raise NotImplementedError()
