@@ -1110,7 +1110,6 @@ class RNN(SingleInputMixin, Node):
     def __init__(self, hidden_states_exposed, reverse_input=False, **kwargs):
         self.reverse_input = reverse_input 
         self.hidden_states_exposed = hidden_states_exposed
-        self._initial_hidden_states = self._get_initial_hidden_states()
         super(RNN, self).__init__(**kwargs) 
 
     def get_yaml_compatible_object_kwargs(self):
@@ -1156,6 +1155,7 @@ class RNN(SingleInputMixin, Node):
         self._mxts = B.zeros_like(self._default_activation_vars)
 
     def _build_activation_vars(self, input_act_vars):
+        self._initial_hidden_states = self._get_initial_hidden_states()
         #input_act_vars are assumed to have dims:
         # samples, time, ...
         hidden_states_activation_vars_through_time =\
@@ -1247,7 +1247,8 @@ class RNN(SingleInputMixin, Node):
         raise NotImplementedError()
 
     def _get_initial_hidden_states(self):
-        return [B.zeros_like(self.W_h[1],)]
+        return [B.zeros((self._get_input_activation_vars().shape[0], #batch len
+                         self.W_h.shape[1]))] #num hidden units
 
     def forward_pass_step_function(self):
         """
@@ -1270,6 +1271,19 @@ class RNN(SingleInputMixin, Node):
         raise NotImplementedError() 
 
     def backward_pass_multiplier_step_function(self):
+        """
+            API: the arguments provided are in the following order:
+             - multipliers flowing to hidden state at time t from rest of net 
+             - activation of hidden vars at time t-1
+             - default value of hidden vars at time t-1
+             - input activation vars at time t
+             - default value of input activation vars at time t
+             ^ (those are all passed in as inputs)
+             - multipliers on hidden state at time t+1
+             - multipliers on inputs at time t+1 (on next timestep; not
+                used in computing the next interval)
+             ^ (those are the outputs of the loop)
+        """
         raise NotImplementedError()
 
     def get_final_output_from_output_of_for_loop(self, output_of_for_loop):
@@ -1414,6 +1428,89 @@ class GRU(RNN, RNNActivationsMixin):
                 r_input_from_h,
                 r_input_from_x) 
 
-    def backward_pass_multiplier_step_function(
-         self):
+    def backward_pass_multiplier_step_function(self,
+                                               mult_flowing_to_h_t,
+                                               act_hidden_vars_tm1,
+                                               def_act_hidden_vars_tm1,
+                                               act_inp_vars_t,
+                                               def_act_inp_t,
+                                               mult_h_tp1,
+                                               mult_inp_tp1):
+        """
+            API: the arguments provided are in the following order:
+             - multipliers flowing to hidden state at time t from rest of net 
+             - activation of hidden vars at time t-1
+             - default value of hidden vars at time t-1
+             - input activation vars at time t
+             - default value of input activation vars at time t
+             ^ (those are all passed in as inputs)
+             - multipliers on hidden state at time t+1
+             - multipliers on inputs at time t+1 (on next timestep; not
+                used in computing the next interval)
+             ^ (those are the outputs of the loop)
+        """
+        (act_hidden,
+         act_proposed_hidden_state_through_1_minus_z_gate,
+         act_hidden_state_at_tm1_through_z_gate,
+         act_proposed_hidden,
+         act_hidden_input_from_h,
+         act_hidden_state_at_tm1_through_reset_gate,
+         act_hidden_input_from_x,
+         act_z_gate,
+         act_z_input_from_h,
+         act_z_input_from_x,
+         act_r_gate,
+         act_r_input_from_h,
+         act_r_input_from_x) =\
+         self.get_all_intermediate_nodes_during_forward_pass(
+          x_at_t=act_inp_vars_t,
+          hidden_state_at_tm1=act_hidden_vars_tm1) 
+
+        (def_act_hidden,
+         def_act_proposed_hidden_state_through_1_minus_z_gate,
+         def_act_hidden_state_at_tm1_through_z_gate,
+         def_act_proposed_hidden,
+         def_act_hidden_input_from_h,
+         def_act_hidden_state_at_tm1_through_reset_gate,
+         def_act_hidden_input_from_x,
+         def_act_z_gate,
+         def_act_z_input_from_h,
+         def_act_z_input_from_x,
+         def_act_r_gate,
+         def_act_r_input_from_h,
+         def_act_r_input_from_x) =\
+         self.get_all_intermediate_nodes_during_forward_pass(
+          x_at_t=def_act_inp_vars_t,
+          hidden_state_at_tm1=def_act_hidden_vars_tm1) 
+        
+        (diff_def_act_hidden,
+         diff_def_act_proposed_hidden_state_through_1_minus_z_gate,
+         diff_def_act_hidden_state_at_tm1_through_z_gate,
+         diff_def_act_proposed_hidden,
+         diff_def_act_hidden_input_from_h,
+         diff_def_act_hidden_state_at_tm1_through_reset_gate,
+         diff_def_act_hidden_input_from_x,
+         diff_def_act_z_gate,
+         diff_def_act_z_input_from_h,
+         diff_def_act_z_input_from_x,
+         diff_def_act_r_gate,
+         diff_def_act_r_input_from_h,
+         diff_def_act_r_input_from_x) =\
+         (act_hidden - def_act_hidden,
+          act_proposed_hidden_state_through_1_minus_z_gate -\
+           def_act_proposed_hidden_state_through_1_minus_z_gate,
+          act_hidden_state_at_tm1_through_z_gate -\
+           def_act_hidden_state_at_tm1_through_z_gate,
+          act_proposed_hidden - def_act_proposed_hidden,
+          act_hidden_input_from_h - def_act_hidden_input_from_h,
+          act_hidden_state_at_tm1_through_reset_gate -\
+           def_act_hidden_state_at_tm1_through_reset_gate,
+          act_hidden_input_from_x - def_act_hidden_input_from_x,
+          act_z_gate - def_act_z_gate,
+          act_z_input_from_h - def_act_z_input_from_h,
+          act_z_input_from_x - def_act_z_input_from_x,
+          act_r_gate - def_act_r_gate,
+          act_r_input_from_h - def_act_r_input_from_h,
+          act_r_input_from_x - def_act_r_input_from_x)
+
         raise NotImplementedError()
