@@ -10,6 +10,7 @@ from collections import OrderedDict
 import json
 import deeplift
 
+NEAR_ZERO_THRESHOLD = 10**(-7)
 
 def enum(**enums):
     class Enum(object):
@@ -210,4 +211,4 @@ def connect_list_of_layers(deeplift_layers):
 
 
 def format_json_dump(json_data, indent=2):
-    return json.dumps(jsonData, indent=indent, separators=(',', ': '))  
+    return json.dumps(jsonData, indent=indent, separators=(',', ': ')) 
