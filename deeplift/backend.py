@@ -7,9 +7,14 @@ if (scripts_dir is None):
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
 import deeplift.util
+from deeplift.util import NEAR_ZERO_THRESHOLD
 
 PoolMode = deeplift.util.enum(max='max', avg='avg')
 BorderMode = deeplift.util.enum(same='same', half='half', valid='valid')
+
+
+def pseudocount_near_zero(tensor):
+    return tensor + NEAR_ZERO_THRESHOLD*(T.abs(tensor) < NEAR_ZERO_THRESHOLD)
 
 
 def reshape(tensor, shape):
@@ -62,6 +67,10 @@ def ones_like(x):
 
 def zeros_like(x):
     return T.zeros_like(x)
+
+
+def zeros(shape):
+    return T.zeros(shape=shape)
 
 
 def set_subtensor(subtensor, amnt):
