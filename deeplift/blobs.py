@@ -13,7 +13,9 @@ if (scripts_dir is None):
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
 import deeplift.util  
+from deeplift.util import NEAR_ZERO_THRESHOLD
 import deeplift.backend as B
+
 
 ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
@@ -32,7 +34,6 @@ ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      relu="relu",
                                      linear="linear")
 
-NEAR_ZERO_THRESHOLD = 10**(-7)
 
 class Blob(object):
     """
@@ -1177,14 +1178,27 @@ class RNN(SingleInputMixin, Node):
         return RNN.flip_dimensions_and_reverse(tensor)[::-1]
 
     def _get_mxts_increments_for_inputs(self):
+
+        #First, prepare the initial hidden states for the backward pass
+
+        #the first hidden variables for the backwards pass are the multipliers
+        #flowing to the hidden state at t from the hidden state at t+1
+        #in the beginning, this is zero as the hidden state at t+1 does not
+        #exist
         backward_pass_initial_hidden_states =\
          [B.zeros_like(var) for var in self.initial_hidden_states]
-        #the other hidden state in the for loop is the multipliers
-        #on the inputs to the RNN at time t+1; in the first iteration
-        #of the loop, this refers to a time that doesn't exist, so
-        #the initial hidden state can be set as all zeros.
+        #the next hidden variables for the backwards pass are the multipliers
+        #on the hidden state at time t+1, as well as the multipliers on the
+        #inputs at time t+1. These are just outputs and are not used
+        #in computation, and in the first iteration of the loop this also
+        #refers to a time that does not exist, so we initialize with zeros  
+        backward_pass_initial_hidden_states =\
+         [B.zeros_like(var) for var in self.initial_hidden_states]
         backward_pass_initial_hidden_states +=\
          [B.zeros_like(self._get_input_diff_from_default_vars()[:,0])]
+
+        #Now prepare the inputs for the backward pass
+
         #shuffle dimensions to put the time axis first, then reverse the
         #order for the backwards pass
         slice_to_all_before_last = slice((1 if self.reverse_input else None),
@@ -1193,12 +1207,12 @@ class RNN(SingleInputMixin, Node):
                                          (-1 if self.reverse_input else None))
 
         if (self.hidden_states_exposed):
-            multipliers_flowing_to_hidden_states = self.get_mxts()
+            multipliers_from_above_to_hidden_states = self.get_mxts()
         else:
             #if the hidden state was not exposed, then it's only the last
             #timepoint that will have multipliers flowing into it. The rest
             #will be all zeros
-            multipliers_flowing_to_hidden_states =\
+            multipliers_from_above_to_hidden_states =\
              B.zeros(self.input_act_vars().shape[0:2]    #samples, time
                            +self.get_mxts().shape[1:])   #hidden vars shape
             B.set_subtensor(self.multipliers_on_hidden_states[:,-1]) =\
@@ -1231,7 +1245,7 @@ class RNN(SingleInputMixin, Node):
                             
         inputs = [B.dimshuffle(
                    x, [1,0]+[x for x in xrange(2, x.ndim)])[::-1] for x in
-                   [self.multipliers_flowing_to_hidden_states]+
+                   [multipliers_from_above_to_hidden_states]+
                    activation_hidden_vars_tm1_list+
                    default_hidden_vars_tm1_list+
                    [self._get_input_activation_vars()]+
@@ -1244,7 +1258,9 @@ class RNN(SingleInputMixin, Node):
                  inputs=inputs,
                  initial_hidden_states=backward_pass_initial_hidden_states,
                  go_backwards=self.reverse_input)
-        raise NotImplementedError()
+
+        self.multipliers_on_hidden_states = multipliers_on_hidden_states
+        return multipliers_on_inputs
 
     def _get_initial_hidden_states(self):
         return [B.zeros((self._get_input_activation_vars().shape[0], #batch len
@@ -1279,10 +1295,16 @@ class RNN(SingleInputMixin, Node):
              - input activation vars at time t
              - default value of input activation vars at time t
              ^ (those are all passed in as inputs)
-             - multipliers on hidden state at time t+1
-             - multipliers on inputs at time t+1 (on next timestep; not
-                used in computing the next interval)
-             ^ (those are the outputs of the loop)
+             - multipliers flowing to hidden state at time t from
+               the hidden state at time t+1
+             - multipliers on the hidden state at time t+1 (not used; output)
+             - multipliers on inputs at time t+1 (not used; output)
+             ^ (multipliers flowing to the hidden state at t-1,
+                multipliers on the hidden state at time t (computed as a
+                simple sum of the multipliers flowing from the next timestep
+                and the multipliers flowing from the net above), and
+                the multipliers on the input at time t are the outputs
+                of the loop)
         """
         raise NotImplementedError()
 
@@ -1331,16 +1353,16 @@ class GRU(RNN, RNNActivationsMixin):
                  gate_activation_name,
                  hidden_state_activation_name, **kwargs):
 
-        self.weights_on_input_for_z = weights_lookup['input_weights_for_z']
-        self.weights_on_input_for_r = weights_lookup['weights_on_input_for_r'] 
-        self.weights_on_input_for_h = weights_lookup['weights_on_input_for_h']
+        self.weights_on_x_for_z = weights_lookup['weights_on_x_for_z']
+        self.weights_on_x_for_r = weights_lookup['weights_on_x_for_r'] 
+        self.weights_on_x_for_h = weights_lookup['weights_on_x_for_h']
         
-        self.weights_on_hidden_state_for_z =\
-         weights_lookup['weights_on_hidden_state_for_z']
-        self.weights_on_hidden_state_for_r =\
-         weights_lookup['weights_on_hidden_state_for_r']
-        self.weights_on_hidden_state_for_h =\
-         weights_lookup['weights_on_hidden_state_for_h']
+        self.weights_on_hidden_for_z =\
+         weights_lookup['weights_on_hidden_for_z']
+        self.weights_on_hidden_for_r =\
+         weights_lookup['weights_on_hidden_for_r']
+        self.weights_on_hidden_for_h =\
+         weights_lookup['weights_on_hidden_for_h']
 
         self.bias_for_h = weights_lookup['bias_for_h']
         self.bias_for_z = weights_lookup['bias_for_z']
@@ -1356,27 +1378,27 @@ class GRU(RNN, RNNActivationsMixin):
                        get_yaml_compatible_object_kwargs()
         super(GRU, self).add_activation_kwargs_to_dict(self, kwargs_dict)
         kwargs_dict['weights_lookup'] = OrderedDict([
-            ('weights_on_input_for_z', self.weights_on_input_for_z),
-            ('weights_on_input_for_r', self.weights_on_input_for_r),
-            ('weights_on_input_for_h', self.weights_on_input_for_h),
-            ('weights_on_hidden_state_for_z',
-              self.weights_on_hidden_state_for_z),
-            ('weights_on_hidden_state_for_r',
-              self.weights_on_hidden_state_for_r),
-            ('weights_on_hidden_state_for_h',
-              self.weights_on_hidden_state_for_h),
+            ('weights_on_x_for_z', self.weights_on_x_for_z),
+            ('weights_on_x_for_r', self.weights_on_x_for_r),
+            ('weights_on_x_for_h', self.weights_on_x_for_h),
+            ('weights_on_hidden_for_z',
+              self.weights_on_hidden_for_z),
+            ('weights_on_hidden_for_r',
+              self.weights_on_hidden_for_r),
+            ('weights_on_hidden_for_h',
+              self.weights_on_hidden_for_h),
             ('bias_for_z', self.bias_for_z),
             ('bias_for_r', self.bias_for_r),
             ('bias_for_h', self.bias_for_h)])
         return kwargs_dict
 
-    def forward_pass_step_function(self, x_at_t, hidden_state_at_tm1):
+    def forward_pass_step_function(self, x_at_t, hidden_at_tm1):
         (hidden,
-         proposed_hidden_state_through_1_minus_z_gate,
-         hidden_state_at_tm1_through_z_gate,
+         proposed_hidden_through_1_minus_z_gate,
+         hidden_at_tm1_through_z_gate,
          proposed_hidden,
          hidden_input_from_h,
-         hidden_state_at_tm1_through_reset_gate,
+         hidden_at_tm1_through_reset_gate,
          hidden_input_from_x,
          z_gate,
          z_input_from_h,
@@ -1384,42 +1406,42 @@ class GRU(RNN, RNNActivationsMixin):
          r_gate,
          r_input_from_h,
          r_input_from_x) = get_all_intermediate_nodes_during_forward_pass(
-                            self, x_at_t, hidden_state_at_tm1)
+                            self, x_at_t, hidden_at_tm1)
         return [hidden]
 
     def get_all_intermediate_nodes_during_forward_pass(self, x_at_t,
-                                                       hidden_state_at_tm1):
-        r_input_from_x = K.dot(x_at_t, self.weights_on_input_for_r)
-        r_input_from_h = K.dot(hidden_state_at_tm1,
-                               self.weights_on_hidden_state_for_r
+                                                       hidden_at_tm1):
+        r_input_from_x = B.dot(x_at_t, self.weights_on_x_for_r)
+        r_input_from_h = B.dot(hidden_at_tm1,
+                               self.weights_on_hidden_for_r
         r_gate = self.gate_activation(r_input_from_x
                                       + r_input_from_h
                                       + self.bias_for_r)
 
-        z_input_from_x = K.dot(x_at_t, self.weights_on_input_for_z) 
-        z_input_from_h = K.dot(hidden_state_at_tm1,
-                               self.weights_on_hidden_state_for_z)
+        z_input_from_x = B.dot(x_at_t, self.weights_on_x_for_z) 
+        z_input_from_h = B.dot(hidden_at_tm1,
+                               self.weights_on_hidden_for_z)
         z_gate = self.gate_activation(z_input_from_x
                                       + z_input_from_h 
                                       + self.bias_for_z)
 
-        hidden_input_from_x = K.dot(x_at_t, self.weights_on_input_for_h)\
+        hidden_input_from_x = B.dot(x_at_t, self.weights_on_x_for_h)\
                                                       + self.bias_for_h
-        hidden_state_at_tm1_through_reset_gate = r_gate*hidden_state_at_tm1
-        hidden_input_from_h = K.dot(hidden_state_at_tm1_through_reset_gate,
-                                    self.weights_on_hidden_state_for_h)
+        hidden_at_tm1_through_reset_gate = r_gate*hidden_at_tm1
+        hidden_input_from_h = B.dot(hidden_at_tm1_through_reset_gate,
+                                    self.weights_on_hidden_for_h)
         proposed_hidden = self.hidden_state_activation(
                                hidden_input_from_x + hidden_input_from_h)
-        hidden_state_at_tm1_through_z_gate = z_gate*hidden_state_at_tm1
-        proposed_hidden_state_through_1_minus_z_gate = (1-z)*proposed_hidden
-        hidden = hidden_state_at_tm1_through_z_gate +\
-                 proposed_hidden_state_through_1_minus_z_gate 
+        hidden_at_tm1_through_z_gate = z_gate*hidden_at_tm1
+        proposed_hidden_through_1_minus_z_gate = (1-z)*proposed_hidden
+        hidden = hidden_at_tm1_through_z_gate +\
+                 proposed_hidden_through_1_minus_z_gate 
         return (hidden,
-                proposed_hidden_state_through_1_minus_z_gate,
-                hidden_state_at_tm1_through_z_gate,
+                proposed_hidden_through_1_minus_z_gate,
+                hidden_at_tm1_through_z_gate,
                 proposed_hidden,
                 hidden_input_from_h,
-                hidden_state_at_tm1_through_reset_gate,
+                hidden_at_tm1_through_reset_gate,
                 hidden_input_from_x,
                 z_gate,
                 z_input_from_h,
@@ -1429,12 +1451,13 @@ class GRU(RNN, RNNActivationsMixin):
                 r_input_from_x) 
 
     def backward_pass_multiplier_step_function(self,
-                                               mult_flowing_to_h_t,
-                                               act_hidden_vars_tm1,
-                                               def_act_hidden_vars_tm1,
+                                               mult_flowing_to_h_t_from_above,
+                                               act_hidden_tm1,
+                                               def_act_hidden_tm1,
                                                act_inp_vars_t,
                                                def_act_inp_t,
-                                               mult_h_tp1,
+                                               mult_flowing_to_h_t_from_h_tp1,
+                                               mult_h_tp1
                                                mult_inp_tp1):
         """
             API: the arguments provided are in the following order:
@@ -1444,17 +1467,23 @@ class GRU(RNN, RNNActivationsMixin):
              - input activation vars at time t
              - default value of input activation vars at time t
              ^ (those are all passed in as inputs)
-             - multipliers on hidden state at time t+1
-             - multipliers on inputs at time t+1 (on next timestep; not
-                used in computing the next interval)
-             ^ (those are the outputs of the loop)
+             - multipliers flowing to hidden state at time t from
+               the hidden state at time t+1
+             - multipliers on the hidden state at time t+1 (not used; output)
+             - multipliers on inputs at time t+1 (not used; output)
+             ^ (multipliers flowing to the hidden state at t-1,
+                multipliers on the hidden state at time t (computed as a
+                simple sum of the multipliers flowing from the next timestep
+                and the multipliers flowing from the net above), and
+                the multipliers on the input at time t are the outputs
+                of the loop)
         """
         (act_hidden,
-         act_proposed_hidden_state_through_1_minus_z_gate,
-         act_hidden_state_at_tm1_through_z_gate,
+         act_proposed_hidden_through_1_minus_z_gate,
+         act_hidden_at_tm1_through_z_gate,
          act_proposed_hidden,
          act_hidden_input_from_h,
-         act_hidden_state_at_tm1_through_reset_gate,
+         act_hidden_at_tm1_through_reset_gate,
          act_hidden_input_from_x,
          act_z_gate,
          act_z_input_from_h,
@@ -1464,14 +1493,14 @@ class GRU(RNN, RNNActivationsMixin):
          act_r_input_from_x) =\
          self.get_all_intermediate_nodes_during_forward_pass(
           x_at_t=act_inp_vars_t,
-          hidden_state_at_tm1=act_hidden_vars_tm1) 
+          hidden_at_tm1=act_hidden_tm1) 
 
         (def_act_hidden,
-         def_act_proposed_hidden_state_through_1_minus_z_gate,
-         def_act_hidden_state_at_tm1_through_z_gate,
+         def_act_proposed_hidden_through_1_minus_z_gate,
+         def_act_hidden_at_tm1_through_z_gate,
          def_act_proposed_hidden,
          def_act_hidden_input_from_h,
-         def_act_hidden_state_at_tm1_through_reset_gate,
+         def_act_hidden_at_tm1_through_reset_gate,
          def_act_hidden_input_from_x,
          def_act_z_gate,
          def_act_z_input_from_h,
@@ -1481,14 +1510,14 @@ class GRU(RNN, RNNActivationsMixin):
          def_act_r_input_from_x) =\
          self.get_all_intermediate_nodes_during_forward_pass(
           x_at_t=def_act_inp_vars_t,
-          hidden_state_at_tm1=def_act_hidden_vars_tm1) 
+          hidden_at_tm1=def_act_hidden_tm1) 
         
         (diff_def_act_hidden,
-         diff_def_act_proposed_hidden_state_through_1_minus_z_gate,
-         diff_def_act_hidden_state_at_tm1_through_z_gate,
+         diff_def_act_proposed_hidden_through_1_minus_z_gate,
+         diff_def_act_hidden_at_tm1_through_z_gate,
          diff_def_act_proposed_hidden,
          diff_def_act_hidden_input_from_h,
-         diff_def_act_hidden_state_at_tm1_through_reset_gate,
+         diff_def_act_hidden_at_tm1_through_reset_gate,
          diff_def_act_hidden_input_from_x,
          diff_def_act_z_gate,
          diff_def_act_z_input_from_h,
@@ -1497,14 +1526,14 @@ class GRU(RNN, RNNActivationsMixin):
          diff_def_act_r_input_from_h,
          diff_def_act_r_input_from_x) =\
          (act_hidden - def_act_hidden,
-          act_proposed_hidden_state_through_1_minus_z_gate -\
-           def_act_proposed_hidden_state_through_1_minus_z_gate,
-          act_hidden_state_at_tm1_through_z_gate -\
-           def_act_hidden_state_at_tm1_through_z_gate,
+          act_proposed_hidden_through_1_minus_z_gate -\
+           def_act_proposed_hidden_through_1_minus_z_gate,
+          act_hidden_at_tm1_through_z_gate -\
+           def_act_hidden_at_tm1_through_z_gate,
           act_proposed_hidden - def_act_proposed_hidden,
           act_hidden_input_from_h - def_act_hidden_input_from_h,
-          act_hidden_state_at_tm1_through_reset_gate -\
-           def_act_hidden_state_at_tm1_through_reset_gate,
+          act_hidden_at_tm1_through_reset_gate -\
+           def_act_hidden_at_tm1_through_reset_gate,
           act_hidden_input_from_x - def_act_hidden_input_from_x,
           act_z_gate - def_act_z_gate,
           act_z_input_from_h - def_act_z_input_from_h,
@@ -1513,4 +1542,133 @@ class GRU(RNN, RNNActivationsMixin):
           act_r_input_from_h - def_act_r_input_from_h,
           act_r_input_from_x - def_act_r_input_from_x)
 
-        raise NotImplementedError()
+        diff_def_act_hidden_tm1 = act_hidden_tm1 -\
+                                        def_act_hidden_tm1
+
+        m_h_at_t = mult_flowing_to_h_t_from_h_tp1 +\
+                   mult_flowing_to_h_t_from_above
+
+        #hidden = hidden_at_tm1_through_z_gate +\
+        #         proposed_hidden_through_1_minus_z_gate 
+        #Therefore:
+        m_proposed_hidden_through_1_minus_z_gate = m_h_at_t
+        m_hidden_at_tm1_through_z_gate = m_h_at_t
+
+        #proposed_hidden_through_1_minus_z_gate = (1-z)*proposed_hidden
+        #Therefore, as per rule for products in the paper
+        m_1_minus_z, m_proposed_hidden =\
+                         distribute_over_product(
+                          act_var1=(1-act_z_gate),
+                          diff_def_act_var1=-1*diff_def_act_z_gate,
+                          act_var2=act_proposed_hidden,
+                          diff_def_act_var2=diff_def_act_proposed_hidden,
+                          mult_output=m_proposed_hidden_through_1_minus_z_gate) 
+
+        m_z_gate = -1*m_1_minus_z #this will be incremented later on
+
+        #hidden_at_tm1_through_z_gate = z_gate*hidden_at_tm1
+        #Therefore:
+        #m_hidden_at_tm1 is going to get incremented later on, a lot
+        incr_m_z_gate, m_hidden_at_tm1 =\
+                         distribute_over_product(
+                          act_var1=act_z_gate,
+                          diff_def_act_var1=diff_def_act_z_gate,
+                          act_var2=act_hidden_tm1,
+                          diff_def_act_var2=diff_def_act_hidden_tm1,
+                          mult_output=m_hidden_at_tm1_through_z_gate)
+        m_z_gate += incr_m_z_gate
+        
+        #proposed_hidden = self.hidden_state_activation(
+        #                       hidden_input_from_x + hidden_input_from_h)
+        #Therefore:
+        (m_hidden_input_from_x, m_hidden_input_from_h) =\
+         compute_mult_for_sum_then_transform(
+          diff_def_act_input_vars_list=[diff_def_act_hidden_input_from_x,
+                                        diff_def_act_hidden_input_from_h],
+          diff_def_act_output=diff_def_act_proposed_hidden,
+          mult_output=m_proposed_hidden)
+
+        #hidden_input_from_x = B.dot(x_at_t, self.weights_on_x_for_h)\
+        #                                              + self.bias_for_h
+        #Therefore:
+        m_x_at_t = B.dot(m_hidden_input_from_x, self.weights_on_x_for_h.T) 
+
+        #hidden_input_from_h = B.dot(hidden_at_tm1_through_reset_gate,
+        #                            self.weights_on_hidden_for_h)
+        #Therefore:
+        m_hidden_at_tm1_through_reset_gate =\
+         B.dot(m_hidden_input_from_h , self.weights_on_hidden_for_h.T)
+        
+        #hidden_at_tm1_through_reset_gate = r_gate*hidden_at_tm1
+        #Therefore:
+        m_r_gate, incr_m_hidden_at_tm1 =\
+                         distribute_over_product(
+                          act_var1=act_r_gate,
+                          diff_def_act_var1=diff_def_act_r_gate,
+                          act_var2=act_hidden_tm1,
+                          diff_def_act_var2=diff_def_act_hidden_tm1,
+                          mult_output=m_hidden_at_tm1_through_reset_gate)
+        m_hidden_at_tm1 += incr_m_hidden_at_tm1
+
+        #r_gate = self.gate_activation(r_input_from_x
+        #                              + r_input_from_h
+        #                              + self.bias_for_r)
+        #Therefore:
+        (m_r_input_from_x, m_r_input_from_h) =\
+         compute_mult_for_sum_then_transform(
+          diff_def_act_input_vars_list=[diff_def_act_r_input_from_x,
+                                        diff_def_act_r_input_from_h],
+          diff_def_act_output=diff_def_act_r_gate,
+          mult_output=m_r_gate)
+        
+        #r_input_from_x = B.dot(x_at_t, self.weights_on_x_for_r)
+        #Therefore:
+        #+= is because m_x_at_t has been initialized before
+        m_x_at_t += B.dot(m_r_input_from_x, self.weights_on_x_for_r.T)
+        
+        #r_input_from_h = B.dot(hidden_at_tm1,
+        #                       self.weights_on_hidden_for_r
+        #Therefore:
+        m_hidden_at_tm1 += B.dot(m_r_input_from_h,
+                                  self.weights_on_hidden_for_r.T)
+
+        #z_gate = self.gate_activation(z_input_from_x
+        #                              + z_input_from_h 
+        #                              + self.bias_for_z)
+        (m_z_input_from_x, m_z_input_from_h) =\
+         compute_mult_for_sum_then_transform(
+          diff_def_act_input_vars_list=[diff_def_act_z_input_from_x,
+                                        diff_def_act_z_input_from_h],
+          diff_def_act_output=diff_def_act_z_gate,
+          mult_output=m_z_gate)
+
+        #z_input_from_x = B.dot(x_at_t, self.weights_on_x_for_z) 
+        #Therefore:
+        m_x_at_t += B.dot(m_z_input_from_x, self.weights_on_x_for_z.T)
+
+        #z_input_from_h = B.dot(hidden_at_tm1,
+        #                       self.weights_on_hidden_for_z)
+        #Therefore:
+        m_hidden_at_tm1 += B.dot(m_x_at_t, self.weights_on_hidden_for_h.T) 
+
+        return [m_hidden_at_tm1, m_h_at_t, m_x_at_t]
+
+def compute_mult_for_sum_then_transform(
+    diff_def_act_input_vars_list, diff_def_act_output, mult_output):
+    sum_diff_def_input_vars = diff_def_act_input_vars_list[0]
+    if (len(diff_def_act_input_vars_list) > 1):
+        for diff_def_act_var in diff_def_act_input_vars_list[1:]:
+            sum_diff_def_input_vars += diff_def_act_var 
+    pc_sum_diff_def_input_vars = B.pseudocount_near_zero(
+                                  sum_diff_def_input_vars)
+    scale_factor = diff_def_act_output/pc_sum_diff_def_input_vars
+    #the multiplier ends up being the same for all the inputs, as
+    #they were just summed
+    multiplier_inp = scale_factor*mult_output
+    return [multiplier_inp for x in diff_def_act_input_vars_list]
+
+def distribute_over_product(act_var1, diff_def_var1,
+                            act_var2, diff_def_var2, mult_output):
+    mult_var1 = mult_output*(act_var2 + 0.5*diff_def_var2)
+    mult_var2 = mult_output*(act_var1 + 0.5*diff_def_var1)
+    return (mult_var1, mult_var2)
