@@ -29,6 +29,25 @@ ActivationTypes = deeplift.util.enum(relu='relu',
                                      softmax='softmax',
                                      linear='linear')
 
+def gru_conversion(layer, name, **kwargs):
+    return [blobs.GRU(
+              name=name,
+              hidden_states_exposed=layer.get_config()['return_sequences'],
+              weights_lookup=OrderedDict([
+                ('weights_on_x_for_z', layer.W_z.copy()),
+                ('weights_on_x_for_r', layer.W_r.copy()),
+                ('weights_on_x_for_h', layer.W_h.copy()),
+                ('weights_on_h_for_z', layer.U_z.copy()),
+                ('weights_on_h_for_r', layer.U_r.copy()),
+                ('weights_on_h_for_h', layer.U_h.copy()),
+                ('bias_for_z', layer.b_z.copy()),
+                ('bias_for_r', layer.b_r.copy()),
+                ('bias_for_h', layer.b_h.copy()),
+              ]),
+              gate_activation_name=layer.get_config()['inner_activation'],
+              hidden_state_activation_name=layer.get_config()['activation'])
+            ]
+
 
 def batchnorm_conversion(layer, name, **kwargs):
    return [blobs.BatchNormalization(
