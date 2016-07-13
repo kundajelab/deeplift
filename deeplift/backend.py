@@ -17,10 +17,6 @@ def dimshuffle(tensor, new_shape):
     return tensor.dimshuffle(new_shape)
 
 
-def pseudocount_near_zero(tensor):
-    return tensor + NEAR_ZERO_THRESHOLD*(T.abs(tensor) < NEAR_ZERO_THRESHOLD)
-
-
 def reshape(tensor, shape):
     return T.reshape(tensor, shape)
 
@@ -259,4 +255,8 @@ def for_loop(step_function, inputs, initial_hidden_states, go_backwards):
         go_backwards=go_backwards)[0] #screw the updates
     #when results has length 1, it is not returned as a list. wrap it
     if (isinstance(results, list)==False):
-        return [results]
+        results = [results]
+    #put the batch axis back in front
+    results = [dimshuffle(tensor, [1,0]+[x for x in xrange(2, tensor.ndim)])
+               for tensor in results]
+    return results
