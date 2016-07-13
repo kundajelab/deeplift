@@ -13,6 +13,10 @@ PoolMode = deeplift.util.enum(max='max', avg='avg')
 BorderMode = deeplift.util.enum(same='same', half='half', valid='valid')
 
 
+def dimshuffle(tensor, new_shape):
+    return tensor.dimshuffle(new_shape)
+
+
 def pseudocount_near_zero(tensor):
     return tensor + NEAR_ZERO_THRESHOLD*(T.abs(tensor) < NEAR_ZERO_THRESHOLD)
 
@@ -101,6 +105,14 @@ def relu(inp):
 
 def sigmoid(inp):
     return T.nnet.sigmoid(inp)
+
+
+def hard_sigmoid(inp):
+    return T.nnet.hard_sigmoid(inp)
+
+
+def tanh(inp):
+    return T.tanh(inp)
 
 
 def softmax(inp):
@@ -240,8 +252,11 @@ def for_loop(step_function, inputs, initial_hidden_states, go_backwards):
     """
         inputs: time axis must be first
     """ 
-    return theano.scan(
+    results = theano.scan(
         step_function,
         sequences=inputs,
         outputs_info=initial_hidden_states,
-        go_backwards=go_backwards)
+        go_backwards=go_backwards)[0] #screw the updates
+    #when results has length 1, it is not returned as a list. wrap it
+    if (isinstance(results, list)==False):
+        return [results]

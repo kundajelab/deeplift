@@ -31,6 +31,8 @@ MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                     GuidedBackpropDeepLIFT4=\
                                      "GuidedBackpropDeepLIFT4")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
+                                     hard_sigmoid="hard_sigmoid",
+                                     tanh="tanh",
                                      relu="relu",
                                      linear="linear")
 
@@ -298,7 +300,7 @@ class Node(Blob):
             built before the node is built, otherwise the value of
             mxts will not be correct 
         """
-        super(Node, self)._build_fwd_pass_vars_core()
+        self._build_fwd_pass_vars_core()
         self._activation_vars =\
             self._build_activation_vars(
                 self._get_input_activation_vars())
@@ -487,7 +489,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         return input_shape
 
     def _build_fwd_pass_vars(self):
-        super(Activation, self)._build_activation_vars() 
+        super(Activation, self)._build_fwd_pass_vars() 
         self._gradient_at_default_activation =\
          self._get_gradient_at_activation(self._get_default_activation_vars())
 
@@ -1121,11 +1123,11 @@ class RNN(SingleInputMixin, Node):
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
-        #assumes there's an attribute called W_h
-        if (hidden_states_exposed):
-            return (input_shape[0], self.W_h.shape[1])
+        #assumes there's an attribute called weights_on_x_for_h
+        if (self.hidden_states_exposed):
+            return (input_shape[0], self.weights_on_x_for_h.shape[1])
         else:
-            return (self.W_h.shape[1],)
+            return (self.weights_on_x_for_h.shape[1],)
 
     def _build_fwd_pass_vars(self):
         """
@@ -1133,23 +1135,23 @@ class RNN(SingleInputMixin, Node):
             built before the node is built, otherwise the value of
             mxts will not be correct 
         """
-        super(Node, self)._build_fwd_pass_vars_core()
+        self._build_fwd_pass_vars_core()
 
         #all the _through_time variables should be a list of tensors
         self._activation_vars,\
-         self._activation_hidden_vars_through_time =\
+         self._hidden_state_activation_vars_through_time =\
           self._build_activation_vars(self._get_input_activation_vars())
 
         self._default_activation_vars,\
-         self._default_activation_hidden_vars_through_time =\
+         self._default_hidden_state_activation_vars_through_time =\
           self._build_default_activation_vars()
 
         self._diff_from_default_vars = self._activation_vars\
                                         - self._default_activation_vars
         self._diff_from_default_hidden_vars_through_time =\
          [x - y for (x, y) in\
-          zip(self._activation_vars_through_time,
-              self._diff_from_default_hidden_vars_through_time)]
+          zip(self._hidden_state_activation_vars_through_time,
+              self._default_hidden_state_activation_vars_through_time)]
 
         #if the net's hidden vars were exposed,
         #then self._mxts has a time axis
@@ -1167,7 +1169,7 @@ class RNN(SingleInputMixin, Node):
                          go_backwards=self.reverse_input)
         return self.get_final_output_from_output_of_for_loop(
                      hidden_states_activation_vars_through_time),\
-               self.hidden_states_activation_vars_through_time 
+               hidden_states_activation_vars_through_time 
 
     @staticmethod
     def flip_dimensions(tensor):
@@ -1215,14 +1217,14 @@ class RNN(SingleInputMixin, Node):
             multipliers_from_above_to_hidden_states =\
              B.zeros(self.input_act_vars().shape[0:2]    #samples, time
                            +self.get_mxts().shape[1:])   #hidden vars shape
-            B.set_subtensor(self.multipliers_on_hidden_states[:,-1]) =\
-                                                                self.get_mxts()
+            B.set_subtensor(multipliers_from_above_to_hidden_states[:,-1],
+                            self.get_mxts())
 
         default_hidden_vars_tm1_list = []
         activation_hidden_vars_tm1_list = []
         for default_hidden_var, activation_hidden_var, initial_hidden_state in\
-            zip(self._default_activation_hidden_vars_through_time,
-                self._activation_hidden_vars_through_time,
+            zip(self._default_hidden_state_activation_vars_through_time,
+                self._hidden_state_activation_vars_through_time,
                 self._initial_hidden_states):
             assert self.reverse_input==False,\
              "The slicing code below is incorrect for reverse_input=True;"+\
@@ -1264,7 +1266,7 @@ class RNN(SingleInputMixin, Node):
 
     def _get_initial_hidden_states(self):
         return [B.zeros((self._get_input_activation_vars().shape[0], #batch len
-                         self.W_h.shape[1]))] #num hidden units
+                         self.weights_on_x_for_h.shape[1]))] #num hidden units
 
     def forward_pass_step_function(self):
         """
@@ -1325,8 +1327,8 @@ class RNNActivationsMixin(object):
                               **kwargs):
         self.gate_activation_name = gate_activation_name
         self.hidden_state_activation_name = hidden_state_activation_name
-        self.gate_activation = self.map_name_to_activation(
-                                     gate_activation_name)
+        self.gate_activation = RNNActivationsMixin.map_name_to_activation(
+                                                   gate_activation_name)
         self.hidden_state_activation =\
                            RNNActivationsMixin.map_name_to_activation(
                             hidden_state_activation_name)
@@ -1336,9 +1338,14 @@ class RNNActivationsMixin(object):
         kwargs_dict[self.hidden_state_activation_name] =\
                         self.hidden_state_activation_name
 
-    def map_name_to_activation(self, activation_name):
+    @staticmethod
+    def map_name_to_activation(activation_name):
         if (activation_name==ActivationNames.sigmoid):
             return B.sigmoid
+        elif (activation_name==ActivationNames.hard_sigmoid):
+            return B.hard_sigmoid
+        elif (activation_name==ActivationNames.tanh):
+            return B.tanh
         elif (activation_name==ActivationNames.relu):
             return B.relu
         elif (activation_name==ActivationNames.linear):
@@ -1357,12 +1364,12 @@ class GRU(RNN, RNNActivationsMixin):
         self.weights_on_x_for_r = weights_lookup['weights_on_x_for_r'] 
         self.weights_on_x_for_h = weights_lookup['weights_on_x_for_h']
         
-        self.weights_on_hidden_for_z =\
-         weights_lookup['weights_on_hidden_for_z']
-        self.weights_on_hidden_for_r =\
-         weights_lookup['weights_on_hidden_for_r']
-        self.weights_on_hidden_for_h =\
-         weights_lookup['weights_on_hidden_for_h']
+        self.weights_on_h_for_z =\
+         weights_lookup['weights_on_h_for_z']
+        self.weights_on_h_for_r =\
+         weights_lookup['weights_on_h_for_r']
+        self.weights_on_h_for_h =\
+         weights_lookup['weights_on_h_for_h']
 
         self.bias_for_h = weights_lookup['bias_for_h']
         self.bias_for_z = weights_lookup['bias_for_z']
@@ -1371,7 +1378,8 @@ class GRU(RNN, RNNActivationsMixin):
         super(GRU, self).__init__(**kwargs) 
         super(GRU, self).set_activations(
                           gate_activation_name=gate_activation_name,
-                          activation_name=activation_name)
+                          hidden_state_activation_name=
+                           hidden_state_activation_name)
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(GRU, self).\
@@ -1381,12 +1389,12 @@ class GRU(RNN, RNNActivationsMixin):
             ('weights_on_x_for_z', self.weights_on_x_for_z),
             ('weights_on_x_for_r', self.weights_on_x_for_r),
             ('weights_on_x_for_h', self.weights_on_x_for_h),
-            ('weights_on_hidden_for_z',
-              self.weights_on_hidden_for_z),
-            ('weights_on_hidden_for_r',
-              self.weights_on_hidden_for_r),
-            ('weights_on_hidden_for_h',
-              self.weights_on_hidden_for_h),
+            ('weights_on_h_for_z',
+              self.weights_on_h_for_z),
+            ('weights_on_h_for_r',
+              self.weights_on_h_for_r),
+            ('weights_on_h_for_h',
+              self.weights_on_h_for_h),
             ('bias_for_z', self.bias_for_z),
             ('bias_for_r', self.bias_for_r),
             ('bias_for_h', self.bias_for_h)])
@@ -1405,22 +1413,22 @@ class GRU(RNN, RNNActivationsMixin):
          z_input_from_x,
          r_gate,
          r_input_from_h,
-         r_input_from_x) = get_all_intermediate_nodes_during_forward_pass(
-                            self, x_at_t, hidden_at_tm1)
+         r_input_from_x) = self.get_all_intermediate_nodes_during_forward_pass(
+                            x_at_t=x_at_t, hidden_at_tm1=hidden_at_tm1)
         return [hidden]
 
     def get_all_intermediate_nodes_during_forward_pass(self, x_at_t,
                                                        hidden_at_tm1):
         r_input_from_x = B.dot(x_at_t, self.weights_on_x_for_r)
         r_input_from_h = B.dot(hidden_at_tm1,
-                               self.weights_on_hidden_for_r
+                               self.weights_on_h_for_r)
         r_gate = self.gate_activation(r_input_from_x
                                       + r_input_from_h
                                       + self.bias_for_r)
 
         z_input_from_x = B.dot(x_at_t, self.weights_on_x_for_z) 
         z_input_from_h = B.dot(hidden_at_tm1,
-                               self.weights_on_hidden_for_z)
+                               self.weights_on_h_for_z)
         z_gate = self.gate_activation(z_input_from_x
                                       + z_input_from_h 
                                       + self.bias_for_z)
@@ -1429,11 +1437,11 @@ class GRU(RNN, RNNActivationsMixin):
                                                       + self.bias_for_h
         hidden_at_tm1_through_reset_gate = r_gate*hidden_at_tm1
         hidden_input_from_h = B.dot(hidden_at_tm1_through_reset_gate,
-                                    self.weights_on_hidden_for_h)
+                                    self.weights_on_h_for_h)
         proposed_hidden = self.hidden_state_activation(
                                hidden_input_from_x + hidden_input_from_h)
         hidden_at_tm1_through_z_gate = z_gate*hidden_at_tm1
-        proposed_hidden_through_1_minus_z_gate = (1-z)*proposed_hidden
+        proposed_hidden_through_1_minus_z_gate = (1-z_gate)*proposed_hidden
         hidden = hidden_at_tm1_through_z_gate +\
                  proposed_hidden_through_1_minus_z_gate 
         return (hidden,
@@ -1457,7 +1465,7 @@ class GRU(RNN, RNNActivationsMixin):
                                                act_inp_vars_t,
                                                def_act_inp_t,
                                                mult_flowing_to_h_t_from_h_tp1,
-                                               mult_h_tp1
+                                               mult_h_tp1,
                                                mult_inp_tp1):
         """
             API: the arguments provided are in the following order:
@@ -1594,10 +1602,10 @@ class GRU(RNN, RNNActivationsMixin):
         m_x_at_t = B.dot(m_hidden_input_from_x, self.weights_on_x_for_h.T) 
 
         #hidden_input_from_h = B.dot(hidden_at_tm1_through_reset_gate,
-        #                            self.weights_on_hidden_for_h)
+        #                            self.weights_on_h_for_h)
         #Therefore:
         m_hidden_at_tm1_through_reset_gate =\
-         B.dot(m_hidden_input_from_h , self.weights_on_hidden_for_h.T)
+         B.dot(m_hidden_input_from_h , self.weights_on_h_for_h.T)
         
         #hidden_at_tm1_through_reset_gate = r_gate*hidden_at_tm1
         #Therefore:
@@ -1627,10 +1635,10 @@ class GRU(RNN, RNNActivationsMixin):
         m_x_at_t += B.dot(m_r_input_from_x, self.weights_on_x_for_r.T)
         
         #r_input_from_h = B.dot(hidden_at_tm1,
-        #                       self.weights_on_hidden_for_r
+        #                       self.weights_on_h_for_r
         #Therefore:
         m_hidden_at_tm1 += B.dot(m_r_input_from_h,
-                                  self.weights_on_hidden_for_r.T)
+                                  self.weights_on_h_for_r.T)
 
         #z_gate = self.gate_activation(z_input_from_x
         #                              + z_input_from_h 
@@ -1647,9 +1655,9 @@ class GRU(RNN, RNNActivationsMixin):
         m_x_at_t += B.dot(m_z_input_from_x, self.weights_on_x_for_z.T)
 
         #z_input_from_h = B.dot(hidden_at_tm1,
-        #                       self.weights_on_hidden_for_z)
+        #                       self.weights_on_h_for_z)
         #Therefore:
-        m_hidden_at_tm1 += B.dot(m_x_at_t, self.weights_on_hidden_for_h.T) 
+        m_hidden_at_tm1 += B.dot(m_x_at_t, self.weights_on_h_for_h.T) 
 
         return [m_hidden_at_tm1, m_h_at_t, m_x_at_t]
 
