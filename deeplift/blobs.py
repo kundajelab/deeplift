@@ -1177,7 +1177,7 @@ class RNN(SingleInputMixin, Node):
 
     @staticmethod
     def flip_dimensions_and_reverse(tensor):
-        return RNN.flip_dimensions_and_reverse(tensor)[::-1]
+        return RNN.flip_dimensions(tensor)[::-1]
 
     def _get_mxts_increments_for_inputs(self):
 
@@ -1188,14 +1188,14 @@ class RNN(SingleInputMixin, Node):
         #in the beginning, this is zero as the hidden state at t+1 does not
         #exist
         backward_pass_initial_hidden_states =\
-         [B.zeros_like(var) for var in self.initial_hidden_states]
+         [B.zeros_like(var) for var in self._initial_hidden_states]
         #the next hidden variables for the backwards pass are the multipliers
         #on the hidden state at time t+1, as well as the multipliers on the
         #inputs at time t+1. These are just outputs and are not used
         #in computation, and in the first iteration of the loop this also
         #refers to a time that does not exist, so we initialize with zeros  
-        backward_pass_initial_hidden_states =\
-         [B.zeros_like(var) for var in self.initial_hidden_states]
+        backward_pass_initial_hidden_states +=\
+         [B.zeros_like(var) for var in self._initial_hidden_states]
         backward_pass_initial_hidden_states +=\
          [B.zeros_like(self._get_input_diff_from_default_vars()[:,0])]
 
@@ -1214,9 +1214,11 @@ class RNN(SingleInputMixin, Node):
             #if the hidden state was not exposed, then it's only the last
             #timepoint that will have multipliers flowing into it. The rest
             #will be all zeros
+            #It is assumed that the first entry in
+            #self._hidden_state_activation_vars_through_time is the one
+            #exposed to the rest of the net
             multipliers_from_above_to_hidden_states =\
-             B.zeros(self.input_act_vars().shape[0:2]    #samples, time
-                           +self.get_mxts().shape[1:])   #hidden vars shape
+             B.zeros_like(self._hidden_state_activation_vars_through_time[0])
             B.set_subtensor(multipliers_from_above_to_hidden_states[:,-1],
                             self.get_mxts())
 
@@ -1245,15 +1247,15 @@ class RNN(SingleInputMixin, Node):
             default_hidden_vars_tm1_list.append(default_hidden_var_tm1)
             activation_hidden_vars_tm1_list.append(activation_hidden_var_tm1)
                             
-        inputs = [B.dimshuffle(
-                   x, [1,0]+[x for x in xrange(2, x.ndim)])[::-1] for x in
-                   [multipliers_from_above_to_hidden_states]+
+        inputs = [RNN.flip_dimensions_and_reverse(x) for x in
+                   ([multipliers_from_above_to_hidden_states]+
                    activation_hidden_vars_tm1_list+
                    default_hidden_vars_tm1_list+
                    [self._get_input_activation_vars()]+
-                   [self._get_input_default_activation_vars()]]
+                   [self._get_input_default_activation_vars()])]
                    
-        (multipliers_on_hidden_states,
+        (multipliers_flowing_to_hidden_states,
+         multipliers_on_hidden_states,
          multipliers_on_inputs) =\
                 B.for_loop(
                  step_function=self.backward_pass_multiplier_step_function,
@@ -1275,7 +1277,8 @@ class RNN(SingleInputMixin, Node):
                  arguments are the hidden states after t-1
                  This is the function that will be passed
                  *directly* to theano.scan. Should return an array
-                 of the hidden states after time t.
+                 of the hidden states after time t. If there are multiple
+                 hidden states, the first one returned should be the output
         """
         raise NotImplementedError() 
 
@@ -1314,7 +1317,7 @@ class RNN(SingleInputMixin, Node):
         if (self.hidden_states_exposed):
             return output_of_for_loop[0] 
         else:
-            return output_of_for_loop[0][-1]
+            return output_of_for_loop[0][:,-1]
 
 
 class RNNActivationsMixin(object):
@@ -1463,7 +1466,7 @@ class GRU(RNN, RNNActivationsMixin):
                                                act_hidden_tm1,
                                                def_act_hidden_tm1,
                                                act_inp_vars_t,
-                                               def_act_inp_t,
+                                               def_act_inp_vars_t,
                                                mult_flowing_to_h_t_from_h_tp1,
                                                mult_h_tp1,
                                                mult_inp_tp1):
@@ -1657,9 +1660,10 @@ class GRU(RNN, RNNActivationsMixin):
         #z_input_from_h = B.dot(hidden_at_tm1,
         #                       self.weights_on_h_for_z)
         #Therefore:
-        m_hidden_at_tm1 += B.dot(m_x_at_t, self.weights_on_h_for_h.T) 
+        m_hidden_at_tm1 += B.dot(m_z_input_from_h, self.weights_on_h_for_z.T) 
 
         return [m_hidden_at_tm1, m_h_at_t, m_x_at_t]
+
 
 def compute_mult_for_sum_then_transform(
     diff_def_act_input_vars_list, diff_def_act_output, mult_output):
@@ -1667,7 +1671,7 @@ def compute_mult_for_sum_then_transform(
     if (len(diff_def_act_input_vars_list) > 1):
         for diff_def_act_var in diff_def_act_input_vars_list[1:]:
             sum_diff_def_input_vars += diff_def_act_var 
-    pc_sum_diff_def_input_vars = B.pseudocount_near_zero(
+    pc_sum_diff_def_input_vars = pseudocount_near_zero(
                                   sum_diff_def_input_vars)
     scale_factor = diff_def_act_output/pc_sum_diff_def_input_vars
     #the multiplier ends up being the same for all the inputs, as
@@ -1675,8 +1679,13 @@ def compute_mult_for_sum_then_transform(
     multiplier_inp = scale_factor*mult_output
     return [multiplier_inp for x in diff_def_act_input_vars_list]
 
-def distribute_over_product(act_var1, diff_def_var1,
-                            act_var2, diff_def_var2, mult_output):
-    mult_var1 = mult_output*(act_var2 + 0.5*diff_def_var2)
-    mult_var2 = mult_output*(act_var1 + 0.5*diff_def_var1)
+
+def distribute_over_product(act_var1, diff_def_act_var1,
+                            act_var2, diff_def_act_var2, mult_output):
+    mult_var1 = mult_output*(act_var2 + 0.5*diff_def_act_var2)
+    mult_var2 = mult_output*(act_var1 + 0.5*diff_def_act_var1)
     return (mult_var1, mult_var2)
+
+
+def pseudocount_near_zero(tensor):
+    return tensor + NEAR_ZERO_THRESHOLD*(B.abs(tensor) < NEAR_ZERO_THRESHOLD)
