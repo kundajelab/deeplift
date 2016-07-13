@@ -1219,7 +1219,8 @@ class RNN(SingleInputMixin, Node):
             #exposed to the rest of the net
             multipliers_from_above_to_hidden_states =\
              B.zeros_like(self._hidden_state_activation_vars_through_time[0])
-            B.set_subtensor(multipliers_from_above_to_hidden_states[:,-1],
+            multipliers_from_above_to_hidden_states =\
+             B.set_subtensor(multipliers_from_above_to_hidden_states[:,-1],
                             self.get_mxts())
 
         default_hidden_vars_tm1_list = []
@@ -1234,15 +1235,19 @@ class RNN(SingleInputMixin, Node):
             #prepare default at t-1
             #the first position is fixed at the initial hidden states 
             default_hidden_var_tm1 = B.zeros_like(default_hidden_var)
-            B.set_subtensor(default_hidden_var_tm1[:,1:],
-                            default_hidden_var[:,:-1])
-            B.set_subtensor(default_hidden_var_tm1[:,0], initial_hidden_state)
+            default_hidden_var_tm1 =\
+             B.set_subtensor(default_hidden_var_tm1[:,1:],
+                             default_hidden_var[:,:-1])
+            default_hidden_var_tm1 =\
+             B.set_subtensor(default_hidden_var_tm1[:,0], initial_hidden_state)
             #prepare activations at t-1
             activation_hidden_var_tm1 = B.zeros_like(activation_hidden_var)
-            B.set_subtensor(activation_hidden_var_tm1[:,1:],
-                            activation_hidden_var[:,:-1])
-            B.set_subtensor(activation_hidden_var_tm1[:,0],
-                            initial_hidden_state)
+            activation_hidden_var_tm1 =\
+             B.set_subtensor(activation_hidden_var_tm1[:,1:],
+                             activation_hidden_var[:,:-1])
+            activation_hidden_var_tm1 =\
+             B.set_subtensor(activation_hidden_var_tm1[:,0],
+                             initial_hidden_state)
             #add to the list
             default_hidden_vars_tm1_list.append(default_hidden_var_tm1)
             activation_hidden_vars_tm1_list.append(activation_hidden_var_tm1)
