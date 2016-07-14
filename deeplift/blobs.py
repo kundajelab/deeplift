@@ -1511,6 +1511,47 @@ class GRU(RNN, RNNActivationsMixin):
           x_at_t=act_inp_vars_t,
           hidden_at_tm1=act_hidden_tm1) 
 
+        m_h_at_t = mult_flowing_to_h_t_from_h_tp1 +\
+                   mult_flowing_to_h_t_from_above
+
+        compute_multipliers_kwargs = {
+            'm_h_at_t':m_h_at_t,
+            'act_r_gate':act_r_gate,
+            'act_z_gate':act_z_gate,
+            'act_proposed_hidden':act_proposed_hidden,
+            'act_hidden_tm1':act_hidden_tm1,
+            'act_r_input_from_x':act_r_input_from_x,
+            'act_r_input_from_h':act_r_input_from_h
+            'act_z_input_from_x':act_z_input_from_x,
+            'act_z_input_from_h':act_z_input_from_h,
+            'act_hidden_input_from_x':act_hidden_input_from_x,
+            'act_hidden_input_from_h':act_hidden_input_from_h
+        }
+
+        (same_x_m_hidden_at_tm1,
+         same_x_m_h_at_t,
+         same_x_m_x_at_t) = self.compute_multipliers(
+            def_x_at_t=act_inp_vars_t,
+            def_act_hidden_tm1=def_act_hidden_tm1,
+            **compute_multipliers_kwargs)
+
+        (same_h_m_hidden_at_tm1,
+         same_h_m_h_at_t,
+         same_h_m_x_at_t) = self.compute_multipliers(
+            def_x_at_t=def_act_inp_vars_t,
+            def_act_hidden_tm1=act_hidden_tm1,
+            **compute_multipliers_kwargs)
+
+        return [same_x_m_hidden_at_tm1, same_x_m_h_at_t, same_h_m_x_at_t]
+
+    def compute_multipliers(self,
+        def_x_at_t, def_act_hidden_tm1, 
+        m_h_at_t, act_r_gate, act_z_gate,
+        act_proposed_hidden, act_hidden_tm1,
+        act_r_input_from_x, act_r_input_from_h,
+        act_z_input_from_x, act_z_input_from_h,
+        act_hidden_input_from_x, act_hidden_input_from_h):
+        
         (def_act_hidden,
          def_act_proposed_hidden_through_1_minus_z_gate,
          def_act_hidden_at_tm1_through_z_gate,
@@ -1525,44 +1566,26 @@ class GRU(RNN, RNNActivationsMixin):
          def_act_r_input_from_h,
          def_act_r_input_from_x) =\
          self.get_all_intermediate_nodes_during_forward_pass(
-          x_at_t=def_act_inp_vars_t,
+          x_at_t=def_x_at_t,
           hidden_at_tm1=def_act_hidden_tm1) 
         
-        (diff_def_act_hidden,
-         diff_def_act_proposed_hidden_through_1_minus_z_gate,
-         diff_def_act_hidden_at_tm1_through_z_gate,
-         diff_def_act_proposed_hidden,
-         diff_def_act_hidden_input_from_h,
-         diff_def_act_hidden_at_tm1_through_reset_gate,
-         diff_def_act_hidden_input_from_x,
-         diff_def_act_z_gate,
-         diff_def_act_z_input_from_h,
-         diff_def_act_z_input_from_x,
-         diff_def_act_r_gate,
-         diff_def_act_r_input_from_h,
-         diff_def_act_r_input_from_x) =\
-         (act_hidden - def_act_hidden,
-          act_proposed_hidden_through_1_minus_z_gate -\
-           def_act_proposed_hidden_through_1_minus_z_gate,
-          act_hidden_at_tm1_through_z_gate -\
-           def_act_hidden_at_tm1_through_z_gate,
-          act_proposed_hidden - def_act_proposed_hidden,
-          act_hidden_input_from_h - def_act_hidden_input_from_h,
-          act_hidden_at_tm1_through_reset_gate -\
-           def_act_hidden_at_tm1_through_reset_gate,
-          act_hidden_input_from_x - def_act_hidden_input_from_x,
-          act_z_gate - def_act_z_gate,
-          act_z_input_from_h - def_act_z_input_from_h,
-          act_z_input_from_x - def_act_z_input_from_x,
-          act_r_gate - def_act_r_gate,
-          act_r_input_from_h - def_act_r_input_from_h,
-          act_r_input_from_x - def_act_r_input_from_x)
-
-        diff_def_act_hidden_tm1 = act_hidden_tm1 -\
-                                        def_act_hidden_tm1
-
-        m_h_at_t = mult_flowing_to_h_t_from_h_tp1 +\
-                   mult_flowing_to_h_t_from_above
+        diff_def_act_r_gate=(act_r_gate-def_act_r_gate)
+        diff_def_act_z_gate=(act_z_gate-def_act_z_gate),
+        diff_def_act_proposed_hidden=\
+              (act_proposed_hidden-def_act_proposed_hidden)
+        diff_def_act_hidden_tm1=(act_hidden_tm1-def_act_hidden_tm1)
+        diff_def_act_r_input_from_x=\
+             (act_r_input_from_x-def_act_r_input_from_x)
+        diff_def_act_r_input_from_h=\
+         (act_r_input_from_h-def_act_r_input_from_h),
+        diff_def_act_hidden_input_from_x=\
+         (act_hidden_input_from_x-def_act_hidden_input_from_x),
+        diff_def_act_hidden_input_from_h=\
+         (act_hidden_input_from_h-def_act_hidden_input_from_h), 
+        diff_def_act_z_input_from_x=\
+         (act_z_input_from_x-def_act_z_input_from_x),
+        diff_def_act_z_input_from_h=\
+         (act_z_input_from_h-def_act_z_input_from_h)
 
         #hidden = hidden_at_tm1_through_z_gate +\
         #         proposed_hidden_through_1_minus_z_gate 
