@@ -104,6 +104,15 @@ def mean_normalise_weights_for_sequence_convolution(weights,
     return renormalised_weights, new_bias
 
 
+def mean_normalise_rnn_weights(weights, bias):
+    assert len(weights.shape)==2
+    assert weights.shape[0]==4
+    mean_per_unit = np.mean(weights, axis=0) 
+    new_weights = weights-mean_per_unit[None,:]
+    new_bias = bias + mean_per_unit
+    return new_weights, new_bias
+
+
 def get_mean_normalised_softmax_weights(weights, biases):
     new_weights = weights - np.mean(weights, axis=1)[:,None]
     new_biases = biases - np.mean(biases)
