@@ -1268,6 +1268,11 @@ class RNN(SingleInputMixin, Node):
                  initial_hidden_states=backward_pass_initial_hidden_states,
                  go_backwards=self.reverse_input)
 
+        #reverse them through time
+        multipliers_on_hidden_states = multipliers_on_hidden_states[:,::-1]
+        multipliers_on_hidden_states = multipliers_on_hidden_states[:,::-1]
+        multipliers_on_inputs = multipliers_on_inputs[:,::-1]
+
         self.multipliers_on_hidden_states = multipliers_on_hidden_states
         return multipliers_on_inputs
 
@@ -1521,17 +1526,20 @@ class GRU(RNN, RNNActivationsMixin):
             'act_proposed_hidden':act_proposed_hidden,
             'act_hidden_tm1':act_hidden_tm1,
             'act_r_input_from_x':act_r_input_from_x,
-            'act_r_input_from_h':act_r_input_from_h
+            'act_r_input_from_h':act_r_input_from_h,
             'act_z_input_from_x':act_z_input_from_x,
             'act_z_input_from_h':act_z_input_from_h,
             'act_hidden_input_from_x':act_hidden_input_from_x,
             'act_hidden_input_from_h':act_hidden_input_from_h
         }
 
+        use_conditional = True
+
         (same_x_m_hidden_at_tm1,
          same_x_m_h_at_t,
          same_x_m_x_at_t) = self.compute_multipliers(
-            def_x_at_t=act_inp_vars_t,
+            def_x_at_t=(act_inp_vars_t if use_conditional
+                        else def_act_inp_vars_t),
             def_act_hidden_tm1=def_act_hidden_tm1,
             **compute_multipliers_kwargs)
 
@@ -1539,7 +1547,8 @@ class GRU(RNN, RNNActivationsMixin):
          same_h_m_h_at_t,
          same_h_m_x_at_t) = self.compute_multipliers(
             def_x_at_t=def_act_inp_vars_t,
-            def_act_hidden_tm1=act_hidden_tm1,
+            def_act_hidden_tm1=(act_hidden_tm1 if use_conditional else
+                                 def_act_hidden_tm1),
             **compute_multipliers_kwargs)
 
         return [same_x_m_hidden_at_tm1, same_x_m_h_at_t, same_h_m_x_at_t]
@@ -1568,22 +1577,30 @@ class GRU(RNN, RNNActivationsMixin):
          self.get_all_intermediate_nodes_during_forward_pass(
           x_at_t=def_x_at_t,
           hidden_at_tm1=def_act_hidden_tm1) 
+
+        #experimental:
+        #def_act_r_gate = 0.5*B.ones_like(def_act_r_gate)
+        #def_act_z_gate = 0.5*B.ones_like(def_act_z_gate)
+        #def_act_r_input_from_x = B.zeros_like(def_act_r_input_from_x)
+        #def_act_r_input_from_h = B.zeros_like(def_act_r_input_from_h)
+        #def_act_z_input_from_x = B.zeros_like(def_act_z_input_from_x)
+        #def_act_z_input_from_h = B.zeros_like(def_act_z_input_from_h)
         
         diff_def_act_r_gate=(act_r_gate-def_act_r_gate)
-        diff_def_act_z_gate=(act_z_gate-def_act_z_gate),
+        diff_def_act_z_gate=(act_z_gate-def_act_z_gate)
         diff_def_act_proposed_hidden=\
               (act_proposed_hidden-def_act_proposed_hidden)
         diff_def_act_hidden_tm1=(act_hidden_tm1-def_act_hidden_tm1)
         diff_def_act_r_input_from_x=\
              (act_r_input_from_x-def_act_r_input_from_x)
         diff_def_act_r_input_from_h=\
-         (act_r_input_from_h-def_act_r_input_from_h),
+         (act_r_input_from_h-def_act_r_input_from_h)
         diff_def_act_hidden_input_from_x=\
-         (act_hidden_input_from_x-def_act_hidden_input_from_x),
+         (act_hidden_input_from_x-def_act_hidden_input_from_x)
         diff_def_act_hidden_input_from_h=\
-         (act_hidden_input_from_h-def_act_hidden_input_from_h), 
+         (act_hidden_input_from_h-def_act_hidden_input_from_h)
         diff_def_act_z_input_from_x=\
-         (act_z_input_from_x-def_act_z_input_from_x),
+         (act_z_input_from_x-def_act_z_input_from_x)
         diff_def_act_z_input_from_h=\
          (act_z_input_from_h-def_act_z_input_from_h)
 
@@ -1695,12 +1712,10 @@ class GRU(RNN, RNNActivationsMixin):
 
 def compute_mult_for_sum_then_transform(
     diff_def_act_input_vars_list, diff_def_act_output, mult_output):
-    sum_diff_def_input_vars = diff_def_act_input_vars_list[0]
-    if (len(diff_def_act_input_vars_list) > 1):
-        for diff_def_act_var in diff_def_act_input_vars_list[1:]:
-            sum_diff_def_input_vars += diff_def_act_var 
-    pc_sum_diff_def_input_vars = pseudocount_near_zero(
-                                  sum_diff_def_input_vars)
+    sum_diff_def_input_vars = B.zeros_like(diff_def_act_input_vars_list[0])
+    for diff_def_act_var in diff_def_act_input_vars_list:
+        sum_diff_def_input_vars += diff_def_act_var 
+    pc_sum_diff_def_input_vars = pseudocount_near_zero(sum_diff_def_input_vars)
     scale_factor = diff_def_act_output/pc_sum_diff_def_input_vars
     #the multiplier ends up being the same for all the inputs, as
     #they were just summed
