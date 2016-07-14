@@ -1614,9 +1614,9 @@ class GRU(RNN, RNNActivationsMixin):
         #Therefore, as per rule for products in the paper
         m_1_minus_z, m_proposed_hidden =\
                          distribute_over_product(
-                          act_var1=(1-act_z_gate),
+                          def_act_var1=(1-def_act_z_gate),
                           diff_def_act_var1=-1*diff_def_act_z_gate,
-                          act_var2=act_proposed_hidden,
+                          def_act_var2=def_act_proposed_hidden,
                           diff_def_act_var2=diff_def_act_proposed_hidden,
                           mult_output=m_proposed_hidden_through_1_minus_z_gate) 
 
@@ -1627,9 +1627,9 @@ class GRU(RNN, RNNActivationsMixin):
         #m_hidden_at_tm1 is going to get incremented later on, a lot
         incr_m_z_gate, m_hidden_at_tm1 =\
                          distribute_over_product(
-                          act_var1=act_z_gate,
+                          def_act_var1=def_act_z_gate,
                           diff_def_act_var1=diff_def_act_z_gate,
-                          act_var2=act_hidden_tm1,
+                          def_act_var2=def_act_hidden_tm1,
                           diff_def_act_var2=diff_def_act_hidden_tm1,
                           mult_output=m_hidden_at_tm1_through_z_gate)
         m_z_gate += incr_m_z_gate
@@ -1659,9 +1659,9 @@ class GRU(RNN, RNNActivationsMixin):
         #Therefore:
         m_r_gate, incr_m_hidden_at_tm1 =\
                          distribute_over_product(
-                          act_var1=act_r_gate,
+                          def_act_var1=def_act_r_gate,
                           diff_def_act_var1=diff_def_act_r_gate,
-                          act_var2=act_hidden_tm1,
+                          def_act_var2=def_act_hidden_tm1,
                           diff_def_act_var2=diff_def_act_hidden_tm1,
                           mult_output=m_hidden_at_tm1_through_reset_gate)
         m_hidden_at_tm1 += incr_m_hidden_at_tm1
@@ -1723,12 +1723,13 @@ def compute_mult_for_sum_then_transform(
     return [multiplier_inp for x in diff_def_act_input_vars_list]
 
 
-def distribute_over_product(act_var1, diff_def_act_var1,
-                            act_var2, diff_def_act_var2, mult_output):
-    mult_var1 = mult_output*(act_var2 + 0.5*diff_def_act_var2)
-    mult_var2 = mult_output*(act_var1 + 0.5*diff_def_act_var1)
+def distribute_over_product(def_act_var1, diff_def_act_var1,
+                            def_act_var2, diff_def_act_var2, mult_output):
+    mult_var1 = mult_output*(def_act_var2 + 0.5*diff_def_act_var2)
+    mult_var2 = mult_output*(def_act_var1 + 0.5*diff_def_act_var1)
     return (mult_var1, mult_var2)
 
 
 def pseudocount_near_zero(tensor):
-    return tensor + NEAR_ZERO_THRESHOLD*(B.abs(tensor) < NEAR_ZERO_THRESHOLD)
+    return tensor + NEAR_ZERO_THRESHOLD*(B.abs(tensor)
+                                         < 0.5*NEAR_ZERO_THRESHOLD)
