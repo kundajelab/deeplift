@@ -1,0 +1,80 @@
+{
+    "metadata": {
+        "bestValidPerf": 0.986156,
+        "numRecords": 1,
+        "bestPerfSavedFiles": [
+            "/Users/avantishrikumar/Research/deeplift/examples/rnn/ctcf_density_gru/modelsDir_rnn///bestModel_record_0_model_lTMfU_modelWeights.h5",
+            "/Users/avantishrikumar/Research/deeplift/examples/rnn/ctcf_density_gru/modelsDir_rnn///bestModel_record_0_model_lTMfU_modelYaml.yaml"
+        ]
+    },
+    "jsonableRecordsHolder": [
+        {
+            "recordNo": 0,
+            "bestValidPerf": 0.986156,
+            "totalEpochsSeen": 77,
+            "bestTrainPerfEpoch": 75.0,
+            "modelCreationClass": "AdhocRNN",
+            "modelCreationClassArgumentsString": {
+                "rnnDims": 100,
+                "inputLen": 150,
+                "numOutputs": 1
+            },
+            "additionalDescription": "",
+            "batchSize": 1000,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "mean_auROC": 0.986156,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.947,
+                "mean_unbalancedAccuracy": 0.947,
+                "mean_recallAtFDR20": 0.984,
+                "all_auROC": {
+                    "label": [
+                        0.986156
+                    ]
+                },
+                "mean_auPRC": 0.987542977309,
+                "mean_recallAtFDR1": 0.862,
+                "mean_recallAtFDR10": 0.964
+            },
+            "trainPerfAtBestValidPerf": 0.98469465625,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_auROC": 0.98469465625,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.934,
+                "mean_unbalancedAccuracy": 0.934,
+                "mean_recallAtFDR20": 0.98775,
+                "mean_auPRC": 0.985899751588,
+                "mean_recallAtFDR1": 0.78375,
+                "mean_recallAtFDR10": 0.9645
+            },
+            "testPerfAtBestValid": 0.981092,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_auROC": 0.981092,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.93,
+                "mean_unbalancedAccuracy": 0.93,
+                "mean_recallAtFDR20": 0.98,
+                "mean_auPRC": 0.982945636449,
+                "mean_recallAtFDR1": 0.7,
+                "mean_recallAtFDR10": 0.958
+            },
+            "bestValidPerfEpoch": 74.0,
+            "bestTrainPerf": 0.98509,
+            "otherBestTrainStats": {
+                "mean_auROC": 0.98509,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9375,
+                "mean_unbalancedAccuracy": 0.9375,
+                "mean_recallAtFDR20": 0.98775,
+                "mean_auPRC": 0.986306167138,
+                "mean_recallAtFDR1": 0.7795,
+                "mean_recallAtFDR10": 0.96575
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/rnn/ctcf_density_gru/modelsDir_rnn//record_0_model_lTMfU_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/rnn/ctcf_density_gru/modelsDir_rnn//record_0_model_lTMfU_modelYaml.yaml"
+            ]
+        }
+    ]
+}
