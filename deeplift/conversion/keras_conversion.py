@@ -194,7 +194,8 @@ layer_name_to_conversion_function = {
 
 def convert_sequential_model(model, num_dims=None,
                                     mxts_mode=MxtsMode.DeepLIFT,
-                                    expo_upweight_factor=0):
+                                    expo_upweight_factor=0,
+                                    default=0.0):
     converted_layers = []
     if (model.layers[0].input_shape is not None):
         input_shape = model.layers[0].input_shape
@@ -209,7 +210,7 @@ def convert_sequential_model(model, num_dims=None,
     else:
         input_shape = None
     converted_layers.append(
-        blobs.Input_FixedDefault(default=0.0,
+        blobs.Input_FixedDefault(default=default,
                                  num_dims=num_dims,
                                  shape=input_shape,
                                  name="input"))
@@ -229,7 +230,8 @@ def convert_sequential_model(model, num_dims=None,
 def convert_graph_model(model,
                         mxts_mode=MxtsMode.DeepLIFT,
                         expo_upweight_factor=0,
-                        auto_build_outputs=True):
+                        auto_build_outputs=True,
+                        default=0.0):
     name_to_blob = OrderedDict()
     keras_layer_to_deeplift_blobs = OrderedDict() 
     keras_non_input_layers = []
@@ -242,7 +244,7 @@ def convert_graph_model(model,
             input_shape = input_shape[1:]
         deeplift_input_layer =\
          blobs.Input_FixedDefault(
-          default=0.0,
+          default=default,
           shape=input_shape,
           num_dims=None,
           name=keras_input_layer_name)

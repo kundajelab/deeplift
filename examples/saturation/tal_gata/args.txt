@@ -1,0 +1,13 @@
+[
+    {"args": {"inputLen": 250
+              ,"seed":1234
+              ,"numOutputs":3
+              ,"finalLayerActivation":"sigmoid"
+              ,"convLayers_numFilters": [10]
+              ,"convLayers_kernelWidths": [10]
+              ,"maxPool_width": 60
+              ,"maxPool_stride_width": 60
+              ,"fcLayers_sizes": [2]
+              ,"optimizerType": "adam"}
+     ,"description": "blah blah"}
+]
