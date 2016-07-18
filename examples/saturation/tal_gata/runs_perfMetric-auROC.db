@@ -1,0 +1,99 @@
+{
+    "metadata": {
+        "bestValidPerf": 0.987509027778,
+        "numRecords": 1,
+        "bestPerfSavedFiles": [
+            "/Users/avantishrikumar/Research/deeplift/examples/saturation/modelsDir_runs///bestModel_record_0_model_uSmpK_modelWeights.h5",
+            "/Users/avantishrikumar/Research/deeplift/examples/saturation/modelsDir_runs///bestModel_record_0_model_uSmpK_modelYaml.yaml"
+        ]
+    },
+    "jsonableRecordsHolder": [
+        {
+            "recordNo": 0,
+            "bestValidPerf": 0.987509027778,
+            "totalEpochsSeen": 85,
+            "bestTrainPerfEpoch": 85.0,
+            "modelCreationClass": "ConvForSequenceModelCreator",
+            "modelCreationClassArgumentsString": {
+                "convLayers_kernelWidths": [
+                    10
+                ],
+                "inputLen": 250,
+                "finalLayerActivation": "sigmoid",
+                "maxPool_width": 60,
+                "maxPool_stride_width": 60,
+                "fcLayers_sizes": [
+                    2
+                ],
+                "seed": 1234,
+                "numOutputs": 3,
+                "optimizerType": "adam",
+                "convLayers_numFilters": [
+                    10
+                ]
+            },
+            "additionalDescription": "blah blah",
+            "batchSize": 200,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "mean_auROC": 0.987509027778,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.935694444444,
+                "mean_unbalancedAccuracy": 0.950416666667,
+                "mean_recallAtFDR20": 0.966666666667,
+                "all_auROC": {
+                    "tal": [
+                        0.993475
+                    ],
+                    "gata": [
+                        0.99151875
+                    ],
+                    "gataAndTal": [
+                        0.977533333333
+                    ]
+                },
+                "mean_auPRC": 0.975431137831,
+                "mean_recallAtFDR1": 0.4825,
+                "mean_recallAtFDR10": 0.933333333333
+            },
+            "trainPerfAtBestValidPerf": 0.992931608073,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_auROC": 0.992931608073,
+                "mean_recallAtFDR50": 0.999375,
+                "mean_balancedAccuracy": 0.953975694444,
+                "mean_unbalancedAccuracy": 0.964947916667,
+                "mean_recallAtFDR20": 0.9896875,
+                "mean_auPRC": 0.985558056127,
+                "mean_recallAtFDR1": 0.624791666667,
+                "mean_recallAtFDR10": 0.974375
+            },
+            "testPerfAtBestValid": 0.990253472222,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_auROC": 0.990253472222,
+                "mean_recallAtFDR50": 0.998333333333,
+                "mean_balancedAccuracy": 0.941805555556,
+                "mean_unbalancedAccuracy": 0.955833333333,
+                "mean_recallAtFDR20": 0.9875,
+                "mean_auPRC": 0.980468040452,
+                "mean_recallAtFDR1": 0.486666666667,
+                "mean_recallAtFDR10": 0.9625
+            },
+            "bestValidPerfEpoch": 75.0,
+            "bestTrainPerf": 0.993295247396,
+            "otherBestTrainStats": {
+                "mean_auROC": 0.993295247396,
+                "mean_recallAtFDR50": 0.999375,
+                "mean_balancedAccuracy": 0.959878472222,
+                "mean_unbalancedAccuracy": 0.968333333333,
+                "mean_recallAtFDR20": 0.990520833333,
+                "mean_auPRC": 0.986252853935,
+                "mean_recallAtFDR1": 0.624583333333,
+                "mean_recallAtFDR10": 0.975208333333
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/modelsDir_runs//record_0_model_uSmpK_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/modelsDir_runs//record_0_model_uSmpK_modelYaml.yaml"
+            ]
+        }
+    ]
+}
