@@ -1,0 +1,374 @@
+{
+    "metadata": {
+        "bestValidPerf": 0.996026666667,
+        "numRecords": 2,
+        "bestPerfSavedFiles": [
+            "/Users/avantishrikumar/Research/deeplift/examples/saturation/1d_input/modelsDir_100Kruns///bestModel_record_0_model_jFhL6_modelWeights.h5",
+            "/Users/avantishrikumar/Research/deeplift/examples/saturation/1d_input/modelsDir_100Kruns///bestModel_record_0_model_jFhL6_modelYaml.yaml"
+        ]
+    },
+    "jsonableRecordsHolder": [
+        {
+            "recordNo": 0,
+            "bestValidPerf": 0.996026666667,
+            "totalEpochsSeen": 134,
+            "bestTrainPerfEpoch": 130.0,
+            "modelCreationClass": "DnnSequentialModelCreator",
+            "modelCreationClassArgumentsString": {
+                "finalLayerActivation": "sigmoid",
+                "numOutputs": 45,
+                "optimizerType": "adam",
+                "fcLayers_sizes": [
+                    20
+                ],
+                "seed": 1234,
+                "numInputs": 50
+            },
+            "additionalDescription": "",
+            "batchSize": 200,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "all_unbalancedAccuracy": {
+                    "task23": [
+                        0.9963
+                    ],
+                    "task22": [
+                        0.9965
+                    ],
+                    "task21": [
+                        0.9957
+                    ],
+                    "task20": [
+                        0.9958
+                    ],
+                    "task27": [
+                        0.9957
+                    ],
+                    "task26": [
+                        0.9957
+                    ],
+                    "task25": [
+                        0.9962
+                    ],
+                    "task24": [
+                        0.9962
+                    ],
+                    "task29": [
+                        0.9962
+                    ],
+                    "task28": [
+                        0.9962
+                    ],
+                    "task44": [
+                        0.9967
+                    ],
+                    "task41": [
+                        0.9961
+                    ],
+                    "task40": [
+                        0.9964
+                    ],
+                    "task43": [
+                        0.995
+                    ],
+                    "task42": [
+                        0.9961
+                    ],
+                    "task0": [
+                        0.9953
+                    ],
+                    "task1": [
+                        0.9961
+                    ],
+                    "task2": [
+                        0.9961
+                    ],
+                    "task3": [
+                        0.9954
+                    ],
+                    "task4": [
+                        0.9949
+                    ],
+                    "task5": [
+                        0.996
+                    ],
+                    "task6": [
+                        0.9959
+                    ],
+                    "task7": [
+                        0.9958
+                    ],
+                    "task8": [
+                        0.9958
+                    ],
+                    "task9": [
+                        0.9964
+                    ],
+                    "task34": [
+                        0.9969
+                    ],
+                    "task35": [
+                        0.9963
+                    ],
+                    "task36": [
+                        0.9965
+                    ],
+                    "task37": [
+                        0.9969
+                    ],
+                    "task30": [
+                        0.996
+                    ],
+                    "task31": [
+                        0.9958
+                    ],
+                    "task32": [
+                        0.9949
+                    ],
+                    "task33": [
+                        0.9971
+                    ],
+                    "task38": [
+                        0.996
+                    ],
+                    "task39": [
+                        0.9957
+                    ],
+                    "task18": [
+                        0.9955
+                    ],
+                    "task19": [
+                        0.996
+                    ],
+                    "task12": [
+                        0.9957
+                    ],
+                    "task13": [
+                        0.9953
+                    ],
+                    "task10": [
+                        0.9963
+                    ],
+                    "task11": [
+                        0.9972
+                    ],
+                    "task16": [
+                        0.996
+                    ],
+                    "task17": [
+                        0.9964
+                    ],
+                    "task14": [
+                        0.9964
+                    ],
+                    "task15": [
+                        0.9958
+                    ]
+                },
+                "mean_balancedAccuracy": 0.994866549704,
+                "mean_unbalancedAccuracy": 0.996026666667
+            },
+            "trainPerfAtBestValidPerf": 0.996445277778,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_balancedAccuracy": 0.995429969765,
+                "mean_unbalancedAccuracy": 0.996445277778
+            },
+            "testPerfAtBestValid": 0.995822222222,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_balancedAccuracy": 0.994659769687,
+                "mean_unbalancedAccuracy": 0.995822222222
+            },
+            "bestValidPerfEpoch": 124.0,
+            "bestTrainPerf": 0.996532777778,
+            "otherBestTrainStats": {
+                "mean_balancedAccuracy": 0.995337165171,
+                "mean_unbalancedAccuracy": 0.996532777778
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/1d_input/modelsDir_100Kruns//record_0_model_jFhL6_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/1d_input/modelsDir_100Kruns//record_0_model_jFhL6_modelYaml.yaml"
+            ]
+        },
+        {
+            "recordNo": 1,
+            "bestValidPerf": 0.995606666667,
+            "totalEpochsSeen": 61,
+            "bestTrainPerfEpoch": 60.0,
+            "modelCreationClass": "DnnSequentialModelCreator",
+            "modelCreationClassArgumentsString": {
+                "finalLayerActivation": "sigmoid",
+                "numOutputs": 45,
+                "optimizerType": "adam",
+                "fcLayers_sizes": [
+                    200
+                ],
+                "seed": 1234,
+                "numInputs": 50
+            },
+            "additionalDescription": "",
+            "batchSize": 200,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "all_unbalancedAccuracy": {
+                    "task23": [
+                        0.9966
+                    ],
+                    "task22": [
+                        0.9954
+                    ],
+                    "task21": [
+                        0.9958
+                    ],
+                    "task20": [
+                        0.995
+                    ],
+                    "task27": [
+                        0.996
+                    ],
+                    "task26": [
+                        0.9953
+                    ],
+                    "task25": [
+                        0.9957
+                    ],
+                    "task24": [
+                        0.9962
+                    ],
+                    "task29": [
+                        0.9961
+                    ],
+                    "task28": [
+                        0.9951
+                    ],
+                    "task44": [
+                        0.9958
+                    ],
+                    "task41": [
+                        0.995
+                    ],
+                    "task40": [
+                        0.9953
+                    ],
+                    "task43": [
+                        0.9954
+                    ],
+                    "task42": [
+                        0.9955
+                    ],
+                    "task0": [
+                        0.995
+                    ],
+                    "task1": [
+                        0.9957
+                    ],
+                    "task2": [
+                        0.9967
+                    ],
+                    "task3": [
+                        0.9942
+                    ],
+                    "task4": [
+                        0.9947
+                    ],
+                    "task5": [
+                        0.9952
+                    ],
+                    "task6": [
+                        0.9958
+                    ],
+                    "task7": [
+                        0.9951
+                    ],
+                    "task8": [
+                        0.9953
+                    ],
+                    "task9": [
+                        0.9961
+                    ],
+                    "task34": [
+                        0.9962
+                    ],
+                    "task35": [
+                        0.9958
+                    ],
+                    "task36": [
+                        0.9957
+                    ],
+                    "task37": [
+                        0.9961
+                    ],
+                    "task30": [
+                        0.9956
+                    ],
+                    "task31": [
+                        0.9954
+                    ],
+                    "task32": [
+                        0.9946
+                    ],
+                    "task33": [
+                        0.9963
+                    ],
+                    "task38": [
+                        0.9964
+                    ],
+                    "task39": [
+                        0.9954
+                    ],
+                    "task18": [
+                        0.9952
+                    ],
+                    "task19": [
+                        0.996
+                    ],
+                    "task12": [
+                        0.9957
+                    ],
+                    "task13": [
+                        0.9943
+                    ],
+                    "task10": [
+                        0.9955
+                    ],
+                    "task11": [
+                        0.9964
+                    ],
+                    "task16": [
+                        0.9957
+                    ],
+                    "task17": [
+                        0.997
+                    ],
+                    "task14": [
+                        0.9957
+                    ],
+                    "task15": [
+                        0.9953
+                    ]
+                },
+                "mean_balancedAccuracy": 0.99452123269,
+                "mean_unbalancedAccuracy": 0.995606666667
+            },
+            "trainPerfAtBestValidPerf": 0.9965,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_balancedAccuracy": 0.99552195017,
+                "mean_unbalancedAccuracy": 0.9965
+            },
+            "testPerfAtBestValid": 0.995446666667,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_balancedAccuracy": 0.994151307604,
+                "mean_unbalancedAccuracy": 0.995446666667
+            },
+            "bestValidPerfEpoch": 51.0,
+            "bestTrainPerf": 0.996634166667,
+            "otherBestTrainStats": {
+                "mean_balancedAccuracy": 0.995605842468,
+                "mean_unbalancedAccuracy": 0.996634166667
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/1d_input/modelsDir_100Kruns//record_1_model_ZjpRd_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/1d_input/modelsDir_100Kruns//record_1_model_ZjpRd_modelYaml.yaml"
+            ]
+        }
+    ]
+}
