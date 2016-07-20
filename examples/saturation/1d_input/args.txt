@@ -1,0 +1,9 @@
+[
+    {"args": {"numInputs": 50
+              ,"seed":1234
+              ,"numOutputs": 45
+              ,"finalLayerActivation":"sigmoid"
+              ,"fcLayers_sizes": [20]
+              ,"optimizerType": "adam"}
+     ,"description": ""}
+]

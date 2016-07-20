@@ -1,0 +1,12 @@
+{
+    "splits": {
+        "splitNameToSplitFiles": {
+            "train": "splits_10K/train.gz"
+            ,"valid": "splits_10K/valid.gz"
+            ,"test": "splits_10K/test.gz"
+            #"train": "splits_10K/train.gz"
+            #,"valid": "splits_10K/valid.gz"
+            #,"test": "splits_10K/test.gz"
+        }
+    }
+}
