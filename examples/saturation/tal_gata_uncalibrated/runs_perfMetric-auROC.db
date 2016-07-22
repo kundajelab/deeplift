@@ -1,0 +1,186 @@
+{
+    "metadata": {
+        "bestValidPerf": 0.995754166667,
+        "numRecords": 2,
+        "bestPerfSavedFiles": [
+            "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs///bestModel_record_0_model_vpX4b_modelWeights.h5",
+            "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs///bestModel_record_0_model_vpX4b_modelYaml.yaml"
+        ]
+    },
+    "jsonableRecordsHolder": [
+        {
+            "recordNo": 0,
+            "bestValidPerf": 0.995754166667,
+            "totalEpochsSeen": 191,
+            "bestTrainPerfEpoch": 191.0,
+            "modelCreationClass": "ConvForSequenceModelCreator",
+            "modelCreationClassArgumentsString": {
+                "convLayers_kernelWidths": [
+                    10
+                ],
+                "inputLen": 250,
+                "finalLayerActivation": "sigmoid",
+                "maxPool_width": 60,
+                "maxPool_stride_width": 60,
+                "fcLayers_sizes": [
+                    10
+                ],
+                "seed": 1234,
+                "numOutputs": 3,
+                "optimizerType": "adam",
+                "convLayers_numFilters": [
+                    10
+                ]
+            },
+            "additionalDescription": "blah blah",
+            "batchSize": 200,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "all_auROC": {
+                    "tal": [
+                        0.9975375
+                    ],
+                    "gata": [
+                        0.997775
+                    ],
+                    "gataAndTal": [
+                        0.99195
+                    ]
+                },
+                "mean_auROC": 0.995754166667,
+                "mean_auPRC": 0.993858725377,
+                "mean_recallAtFDR1": 0.873333333333,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9675,
+                "mean_recallAtFDR20": 0.996666666667,
+                "mean_unbalancedAccuracy": 0.971666666667,
+                "mean_recallAtFDR10": 0.988333333333
+            },
+            "trainPerfAtBestValidPerf": 0.998543522135,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_auROC": 0.998543522135,
+                "mean_auPRC": 0.997999123224,
+                "mean_recallAtFDR1": 0.964791666667,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9828125,
+                "mean_recallAtFDR20": 0.999479166667,
+                "mean_unbalancedAccuracy": 0.984930555556,
+                "mean_recallAtFDR10": 0.998229166667
+            },
+            "testPerfAtBestValid": 0.996758333333,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_auROC": 0.996758333333,
+                "mean_auPRC": 0.995223053259,
+                "mean_recallAtFDR1": 0.884166666667,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.972916666667,
+                "mean_recallAtFDR20": 0.996666666667,
+                "mean_unbalancedAccuracy": 0.976666666667,
+                "mean_recallAtFDR10": 0.993333333333
+            },
+            "bestValidPerfEpoch": 181.0,
+            "bestTrainPerf": 0.998683463542,
+            "otherBestTrainStats": {
+                "mean_auROC": 0.998683463542,
+                "mean_auPRC": 0.998170655516,
+                "mean_recallAtFDR1": 0.963333333333,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.982864583333,
+                "mean_recallAtFDR20": 0.999479166667,
+                "mean_unbalancedAccuracy": 0.984861111111,
+                "mean_recallAtFDR10": 0.998645833333
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_0_model_vpX4b_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_0_model_vpX4b_modelYaml.yaml"
+            ]
+        },
+        {
+            "recordNo": 1,
+            "bestValidPerf": 0.995754166667,
+            "totalEpochsSeen": 191,
+            "bestTrainPerfEpoch": 191.0,
+            "modelCreationClass": "ConvForSequenceModelCreator",
+            "modelCreationClassArgumentsString": {
+                "convLayers_kernelWidths": [
+                    10
+                ],
+                "inputLen": 250,
+                "finalLayerActivation": "sigmoid",
+                "maxPool_width": 60,
+                "maxPool_stride_width": 60,
+                "fcLayers_sizes": [
+                    10
+                ],
+                "seed": 1234,
+                "numOutputs": 3,
+                "optimizerType": "adam",
+                "convLayers_numFilters": [
+                    10
+                ]
+            },
+            "additionalDescription": "blah blah",
+            "batchSize": 200,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "mean_auROC": 0.995754166667,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9675,
+                "mean_unbalancedAccuracy": 0.971666666667,
+                "mean_recallAtFDR20": 0.996666666667,
+                "all_auROC": {
+                    "tal": [
+                        0.9975375
+                    ],
+                    "gata": [
+                        0.997775
+                    ],
+                    "gataAndTal": [
+                        0.99195
+                    ]
+                },
+                "mean_auPRC": 0.993858725377,
+                "mean_recallAtFDR1": 0.873333333333,
+                "mean_recallAtFDR10": 0.988333333333
+            },
+            "trainPerfAtBestValidPerf": 0.998543522135,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_auROC": 0.998543522135,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9828125,
+                "mean_unbalancedAccuracy": 0.984930555556,
+                "mean_recallAtFDR20": 0.999479166667,
+                "mean_auPRC": 0.997999123224,
+                "mean_recallAtFDR1": 0.964791666667,
+                "mean_recallAtFDR10": 0.998229166667
+            },
+            "testPerfAtBestValid": 0.996758333333,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_auROC": 0.996758333333,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.972916666667,
+                "mean_unbalancedAccuracy": 0.976666666667,
+                "mean_recallAtFDR20": 0.996666666667,
+                "mean_auPRC": 0.995223053259,
+                "mean_recallAtFDR1": 0.884166666667,
+                "mean_recallAtFDR10": 0.993333333333
+            },
+            "bestValidPerfEpoch": 181.0,
+            "bestTrainPerf": 0.998683463542,
+            "otherBestTrainStats": {
+                "mean_auROC": 0.998683463542,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.982864583333,
+                "mean_unbalancedAccuracy": 0.984861111111,
+                "mean_recallAtFDR20": 0.999479166667,
+                "mean_auPRC": 0.998170655516,
+                "mean_recallAtFDR1": 0.963333333333,
+                "mean_recallAtFDR10": 0.998645833333
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_1_model_owCbQ_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_1_model_owCbQ_modelYaml.yaml"
+            ]
+        }
+    ]
+}

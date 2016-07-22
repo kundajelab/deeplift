@@ -1,0 +1,17 @@
+{
+   "features": {
+       "featuresFormat": "fastaInCol"
+        ,"opts": {
+            "fileNames": [
+"DensityEmbedding_prefix-gataAndTal_motifs-GATA_disc1+TAL1_known1_min-1_max-6_mean-3_zeroProb-0_seqLength-250_numSeqs-2000.simdata.gz",
+"DensityEmbedding_prefix-gataOnly_motifs-GATA_disc1_min-1_max-6_mean-3_zeroProb-0_seqLength-250_numSeqs-2000.simdata.gz",
+"DensityEmbedding_prefix-talOnly_motifs-TAL1_known1_min-1_max-6_mean-3_zeroProb-0_seqLength-250_numSeqs-2000.simdata.gz"
+#"EmptyBackground_seqLength-250_numSeqs-2000.simdata.gz",
+#"AllNs.gz"
+]
+            ,"seqNameCol":0
+            ,"seqCol":1
+            ,"titlePresent":True 
+        }
+    } 
+}
