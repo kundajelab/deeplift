@@ -2,8 +2,7 @@
    "features": {
        "featuresFormat": "rowsAndColumns"
         ,"opts": {
-            "fileNames": ["features_10K.gz"]
-            #"fileNames": ["features_100K.gz"]
+            "fileNames": ["features.gz"]
             ,"contentType": "float"
         }
     } 

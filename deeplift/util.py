@@ -27,11 +27,22 @@ def enum(**enums):
 
 
 def assert_is_type(instance, the_class, instance_var_name):
-    if (not superclass_in_base_classes(
-             instance.__class__.__bases__, the_class)):
-        raise RuntimeError(instance_var_name+" should be an instance of "
-                +the_class.__name__+" but is "+str(instance.__class__)); 
+    return assert_type(instance, the_class, instance_var_name, True)
+
+
+def assert_is_not_type(instance, the_class, instance_var_name):
+    return assert_type(instance, the_class, instance_var_name, False)
+
+
+def assert_type(instance, the_class, instance_var_name, is_type_result):
+    assert (is_type(instance, the_class) == is_type_result),\
+            instance_var_name+" should be an instance of "\
+            +the_class.__name__+" but is "+str(instance.__class__) 
     return True
+
+
+def is_type(instance, the_class):
+    return superclass_in_base_classes(instance.__class__.__bases__, the_class)
 
 
 def superclass_in_base_classes(base_classes, the_class):
