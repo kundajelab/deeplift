@@ -35,7 +35,7 @@ class Model(object):
                         target_layer,
                         input_layers, func_type):
         find_scores_layer.reset_mxts_updated()
-        self._set_scoring_mode_for_pre_activation_target_layer(target_layer)
+        self._set_scoring_mode_for_target_layer(target_layer)
         find_scores_layer.update_mxts()
         if (func_type == FuncType.contribs):
             output_symbolic_vars = find_scores_layer.get_target_contrib_vars()
@@ -67,44 +67,64 @@ class Model(object):
     def get_target_multipliers_func(self, *args, **kwargs):
         return self._get_func(*args, func_type=FuncType.multipliers, **kwargs)
 
-    def _set_scoring_mode_for_pre_activation_target_layer(self, target_layer):
-        assert len(target_layer.get_output_layers())==1,\
-               "there should be exactly one output layer for"\
-               +str(target_layer.get_name())+" but got: "+\
-               str(target_layer.get_output_layers())
-        final_activation_layer = target_layer.get_output_layers()[0]
-        deeplift.util.assert_is_type(final_activation_layer, blobs.Activation,
-                                     "final_activation_layer")
-        final_activation_type = type(final_activation_layer).__name__
-
-        if (final_activation_type == "Sigmoid"):
-            scoring_mode=ScoringMode.OneAndZeros
-        elif (final_activation_type == "Softmax"):
-            new_W, new_b =\
-             deeplift.util.get_mean_normalised_softmax_weights(
-              target_layer.W, target_layer.b)
-            #The weights need to be mean normalised before they are passed in
-            #because build_fwd_pass_vars() has already been called
-            #before this function is called, because get_output_layers()
-            #(used in this function) is updated during the
-            #build_fwd_pass_vars() call - that is why
-            #I can't simply mean-normalise the weights right here :-(
-            #(It is a pain and a recipe for bugs to rebuild the forward pass
-            #vars after they have already been built - in particular for a
-            #model that branches because where the branches unify you need
-            #really want them to be using the same symbolic variables - no
-            #use having needlessly complicated/redundant graphs and if a node
-            #is common to two outputs, so should its symbolic vars
-            #TODO: I should put in a 'reset_fwd_pass' function and use
-            #it to invalidate the _built_fwd_pass_vars cache and recompile
-            assert np.allclose(target_layer.W, new_W),\
-                   "Please mean-normalise weights and biases of softmax layer" 
-            assert np.allclose(target_layer.b, new_b),\
-                   "Please mean-normalise weights and biases of softmax layer"
+    def _set_scoring_mode_for_target_layer(self, target_layer):
+        if (deeplift.util.is_type(target_layer,
+                                  blobs.Activation)):
+            raise RuntimeError("You set the target layer to an"
+                  +" activation layer, which is unusual so I am"
+                  +" throwing an error - did you mean"
+                  +" to set the target layer to the layer *before*"
+                  +" the activation layer instead? (recommended for "
+                  +" classification)")
+        if (len(target_layer.get_output_layers())==0):
             scoring_mode=ScoringMode.OneAndZeros
         else:
-            raise RuntimeError("Unsupported final_activation_type: "
-                               +final_activation_type)
+            assert len(target_layer.get_output_layers())==1,\
+                   "at most one output was expected for target layer "\
+                   +str(target_layer.get_name())+" but got: "+\
+                   str(target_layer.get_output_layers())
+            final_activation_layer = target_layer.get_output_layers()[0]
+            if (deeplift.util.is_type(final_activation_layer,
+                                      blobs.Activation)==False):
+                raise RuntimeError("There is a layer after your target"
+                      +" layer but it is not an activation layer"
+                      +", which seems odd...if doing regression, make"
+                      +" sure to set the target layer to the last layer")
+            deeplift.util.assert_is_type(final_activation_layer,
+                                         blobs.Activation,
+                                         "final_activation_layer")
+            final_activation_type = type(final_activation_layer).__name__
+
+            if (final_activation_type == "Sigmoid"):
+                scoring_mode=ScoringMode.OneAndZeros
+            elif (final_activation_type == "Softmax"):
+                new_W, new_b =\
+                 deeplift.util.get_mean_normalised_softmax_weights(
+                  target_layer.W, target_layer.b)
+                    #The weights need to be mean normalised before they are
+                    #passed in because build_fwd_pass_vars() has already
+                    #been called before this function is called,
+                    #because get_output_layers() (used in this function)
+                    #is updated during the build_fwd_pass_vars()
+                    #call - that is why I can't simply mean-normalise
+                    #the weights right here :-( (It is a pain and a
+                    #recipe for bugs to rebuild the forward pass
+                    #vars after they have already been built - in
+                    #particular for a model that branches because where
+                    #the branches unify you need really want them to be
+                    #using the same symbolic variables - no use having
+                    #needlessly complicated/redundant graphs and if a node
+                    #is common to two outputs, so should its symbolic vars
+                    #TODO: I should put in a 'reset_fwd_pass' function and use
+                    #it to invalidate the _built_fwd_pass_vars cache and recompile
+                assert np.allclose(target_layer.W, new_W),\
+                       "Please mean-normalise weights and biases of softmax layer" 
+                assert np.allclose(target_layer.b, new_b),\
+                       "Please mean-normalise weights and biases of softmax layer"
+                scoring_mode=ScoringMode.OneAndZeros
+            else:
+                raise RuntimeError("Unsupported final_activation_type: "
+                                   +final_activation_type)
         target_layer.set_scoring_mode(scoring_mode)    
     
     def save_to_yaml_only(self, file_name):
