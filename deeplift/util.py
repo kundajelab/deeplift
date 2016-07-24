@@ -93,6 +93,7 @@ def mean_normalise_weights_for_sequence_convolution(weights,
                                                     bias,
                                                     normalise_across_rows,
                                                     weightsHeight=4):
+    assert normalise_across_rows is not None, "argument should not be None"
     #weights: outputchannels, inputChannels, windowDims
     assert len(weights.shape)==4
     assert weights.shape[1]==1, weights.shape
