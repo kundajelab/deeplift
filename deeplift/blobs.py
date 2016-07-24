@@ -7,11 +7,6 @@ import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
 import deeplift.util  
 from deeplift.util import NEAR_ZERO_THRESHOLD
 import deeplift.backend as B
@@ -775,7 +770,7 @@ class ZeroPad2D(SingleInputMixin, Node):
 
     def _compute_shape(self, input_shape):
         shape_to_return = [input_shape[0]] #channel axis the same
-        for dim_inp_len, dim_pad in zip(inpu_shape[1:], self.padding):
+        for dim_inp_len, dim_pad in zip(input_shape[1:], self.padding):
             shape_to_return.append(dim_inp_len + 2*dim_pad) 
         return shape_to_return
 

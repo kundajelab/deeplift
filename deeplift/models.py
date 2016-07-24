@@ -8,11 +8,6 @@ import yaml
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
 import deeplift.util
 from deeplift import blobs
 from deeplift.blobs import *
@@ -33,7 +28,8 @@ class Model(object):
 
     def _get_func(self, find_scores_layer, 
                         target_layer,
-                        input_layers, func_type):
+                        input_layers, func_type,
+                        slice_objects=None):
         find_scores_layer.reset_mxts_updated()
         self._set_scoring_mode_for_target_layer(target_layer)
         find_scores_layer.update_mxts()
@@ -43,6 +39,8 @@ class Model(object):
             output_symbolic_vars = find_scores_layer.get_mxts()
         else:
             raise RuntimeError("Unsupported func_type: "+func_type)
+        if (slice_objects is not None):
+            output_symbolic_vars = output_symbolic_vars[slice_objects]
         core_function = B.function([input_layer.get_activation_vars()
                                     for input_layer in input_layers],
                           output_symbolic_vars)

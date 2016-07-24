@@ -54,9 +54,9 @@ def VGG_16(weights_path=None):
     model.add(Dropout(0.75))
     model.add(Dense(4096, activation='relu',W_regularizer=WeightRegularizer(l1=1e-4,l2=1e-4),activity_regularizer=ActivityRegularizer(l1=1e-5,l2=1e-5)))
     model.add(Dropout(0.75))
-    #model.add(Dense(200, activation='softmax'))
-    model.add(Dense(200))
-    model.add(Activation('softmax')) 
+    model.add(Dense(200, activation='softmax'))
+    #model.add(Dense(201))
+    #model.add(Activation('softmax')) 
     if weights_path:
         model.load_weights(weights_path)
 
