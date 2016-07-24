@@ -22,14 +22,8 @@ ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
 MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                     DeconvNet="DeconvNet",
                                     GuidedBackprop="GuidedBackprop",
-                                    GuidedBackpropDeepLIFT1=\
-                                     "GuidedBackpropDeepLIFT1",
-                                    GuidedBackpropDeepLIFT2=\
-                                     "GuidedBackpropDeepLIFT2",
-                                    GuidedBackpropDeepLIFT3=\
-                                     "GuidedBackpropDeepLIFT3",
-                                    GuidedBackpropDeepLIFT4=\
-                                     "GuidedBackpropDeepLIFT4")
+                                    GuidedBackpropDeepLIFT=\
+                                     "GuidedBackpropDeepLIFT")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -533,7 +527,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             # scale_factor*self.get_mxts()
             if (self.mxts_mode == MxtsMode.DeepLIFT): 
                 scale_factor = self._deeplift_get_scale_factor()
-            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT1):
+            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT):
                 deeplift_scale_factor = self._deeplift_get_scale_factor() 
                 scale_factor = deeplift_scale_factor*(self.get_mxts() > 0)
             elif (self.mxts_mode == MxtsMode.Gradient):
@@ -541,23 +535,6 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             elif (self.mxts_mode == MxtsMode.GuidedBackprop):
                 scale_factor = self._gradients_get_scale_factor()\
                                 *(self.get_mxts() > 0)
-            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT2):
-                gtezero_activation_mask = (self.get_activation_vars() > 0)
-                deeplift_scale_factor = self._deeplift_get_scale_factor() 
-                #intention: mask out all negative contribs for active relus
-                scale_factor = deeplift_mxts*\
-                                (1-(deeplift_mxts*gtezero_activation_mask< 0))
-            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT3):
-                gtezero_activation_mask = (self.get_activation_vars() > 0)
-                deeplift_scale_factor =\
-                 self._deeplift_get_scale_factor() 
-                #mask out contributions where relu inactive
-                scale_factor = deeplift_scale_factor*(gtezero_activation_mask)
-            elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT4):
-                gtezero_activation_mask = (self.get_activation_vars() > 0)
-                deeplift_scale_factor = self._deeplift_get_scale_factor() 
-                scale_factor = deeplift_scale_factor\
-                               *B.pow(B.abs(deeplift_scale_factor),1)
             else: 
                 raise RuntimeError("Unsupported mxts_mode: "
                                    +str(self.mxts_mode))
