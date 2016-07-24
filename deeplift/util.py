@@ -71,6 +71,7 @@ def superclass_in_base_classes(base_classes, the_class):
 
 def run_function_in_batches(func,
                             input_data_list,
+                            learning_phase=None,
                             batch_size=10,
                             progress_update=1000):
     #func has a return value such that the first index is the
@@ -84,7 +85,10 @@ def run_function_in_batches(func,
         if (progress_update is not None):
             if (i%progress_update == 0):
                 print("Done",i)
-        to_return.extend(func(*[x[i:i+batch_size] for x in input_data_list]));
+        to_return.extend(func(*([x[i:i+batch_size] for x in input_data_list]
+                                +([] if learning_phase is
+                                   None else [learning_phase])
+                        )))
         i += batch_size;
     return to_return
 
