@@ -1,0 +1,95 @@
+class_mode: categorical
+layers:
+- W_constraint: null
+  W_learning_rate_multiplier: 1.0
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: null
+  b_constraint: null
+  b_learning_rate_multiplier: 1.0
+  b_regularizer: null
+  border_mode: valid
+  cache_enabled: true
+  custom_name: convolution2d
+  dim_ordering: th
+  init: glorot_uniform
+  input_shape: !!python/tuple [1, 4, 250]
+  name: Convolution2D
+  nb_col: 6
+  nb_filter: 100
+  nb_row: 4
+  subsample: &id001 !!python/tuple [1, 1]
+  trainable: true
+- {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+- W_constraint: null
+  W_learning_rate_multiplier: 1.0
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: null
+  b_constraint: null
+  b_learning_rate_multiplier: 1.0
+  b_regularizer: null
+  border_mode: valid
+  cache_enabled: true
+  custom_name: convolution2d
+  dim_ordering: th
+  init: glorot_uniform
+  input_shape: !!python/tuple [100, 1, 245]
+  name: Convolution2D
+  nb_col: 6
+  nb_filter: 100
+  nb_row: 1
+  subsample: *id001
+  trainable: true
+- {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+- border_mode: valid
+  cache_enabled: true
+  custom_name: maxpooling2d
+  dim_ordering: th
+  name: MaxPooling2D
+  pool_size: !!python/tuple [1, 60]
+  strides: !!python/tuple [1, 60]
+  trainable: true
+- {cache_enabled: true, custom_name: flatten, name: Flatten, trainable: true}
+- W_constraint: null
+  W_learning_rate_multiplier: 1.0
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: null
+  b_constraint: null
+  b_learning_rate_multiplier: 1.0
+  b_regularizer: null
+  cache_enabled: true
+  custom_name: dense
+  init: glorot_uniform
+  input_dim: null
+  input_shape: !!python/tuple [400]
+  name: Dense
+  output_dim: 100
+  trainable: true
+- {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+- W_constraint: null
+  W_learning_rate_multiplier: 1.0
+  W_regularizer: null
+  activation: linear
+  activity_regularizer: null
+  b_constraint: null
+  b_learning_rate_multiplier: 1.0
+  b_regularizer: null
+  cache_enabled: true
+  custom_name: dense
+  init: glorot_uniform
+  input_dim: null
+  input_shape: !!python/tuple [100]
+  name: Dense
+  output_dim: 3
+  trainable: true
+- {activation: sigmoid, cache_enabled: true, custom_name: activation, name: Activation,
+  trainable: true}
+loss: binary_crossentropy
+name: Sequential
+optimizer: {beta_1: 0.8999999761581421, beta_2: 0.9990000128746033, epsilon: 1.0e-08,
+  lr: 0.0010000000474974513, name: Adam}
