@@ -43,9 +43,9 @@ layers:
   custom_name: dense
   init: glorot_uniform
   input_dim: null
-  input_shape: !!python/tuple [2]
+  input_shape: !!python/tuple [40]
   name: Dense
-  output_dim: 2
+  output_dim: 10
   trainable: true
 - {activation: relu, cache_enabled: true, custom_name: activation, name: Activation,
   trainable: true}
@@ -61,7 +61,7 @@ layers:
   custom_name: dense
   init: glorot_uniform
   input_dim: null
-  input_shape: !!python/tuple [2]
+  input_shape: !!python/tuple [10]
   name: Dense
   output_dim: 3
   trainable: true

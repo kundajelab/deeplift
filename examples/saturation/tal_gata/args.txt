@@ -3,11 +3,12 @@
               ,"seed":1234
               ,"numOutputs":3
               ,"finalLayerActivation":"sigmoid"
-              ,"convLayers_numFilters": [10]
-              ,"convLayers_kernelWidths": [10]
+              ,"convLayers_numFilters": [100,100]
+              ,"convLayers_kernelWidths": [6,6]
               ,"maxPool_width": 60
               ,"maxPool_stride_width": 60
-              ,"fcLayers_sizes": [2]
+              ,"fcLayers_sizes": [100]
+              ,"fcLayers_sizes": [100]
               ,"optimizerType": "adam"}
      ,"description": "blah blah"}
 ]
