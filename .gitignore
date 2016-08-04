@@ -1,1 +1,3 @@
 **/*.pyc
+**/*.png
+**/*.ipynb_checkpoints
