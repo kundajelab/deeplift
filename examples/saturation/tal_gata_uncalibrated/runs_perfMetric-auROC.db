@@ -1,7 +1,7 @@
 {
     "metadata": {
         "bestValidPerf": 0.995754166667,
-        "numRecords": 2,
+        "numRecords": 3,
         "bestPerfSavedFiles": [
             "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs///bestModel_record_0_model_vpX4b_modelWeights.h5",
             "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs///bestModel_record_0_model_vpX4b_modelYaml.yaml"
@@ -123,11 +123,6 @@
             "batchSize": 200,
             "classWeightsString": null,
             "otherBestValidStats": {
-                "mean_auROC": 0.995754166667,
-                "mean_recallAtFDR50": 1.0,
-                "mean_balancedAccuracy": 0.9675,
-                "mean_unbalancedAccuracy": 0.971666666667,
-                "mean_recallAtFDR20": 0.996666666667,
                 "all_auROC": {
                     "tal": [
                         0.9975375
@@ -139,47 +134,137 @@
                         0.99195
                     ]
                 },
+                "mean_auROC": 0.995754166667,
                 "mean_auPRC": 0.993858725377,
                 "mean_recallAtFDR1": 0.873333333333,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9675,
+                "mean_recallAtFDR20": 0.996666666667,
+                "mean_unbalancedAccuracy": 0.971666666667,
                 "mean_recallAtFDR10": 0.988333333333
             },
             "trainPerfAtBestValidPerf": 0.998543522135,
             "otherTrainStatsAtBestValidPerf": {
                 "mean_auROC": 0.998543522135,
-                "mean_recallAtFDR50": 1.0,
-                "mean_balancedAccuracy": 0.9828125,
-                "mean_unbalancedAccuracy": 0.984930555556,
-                "mean_recallAtFDR20": 0.999479166667,
                 "mean_auPRC": 0.997999123224,
                 "mean_recallAtFDR1": 0.964791666667,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.9828125,
+                "mean_recallAtFDR20": 0.999479166667,
+                "mean_unbalancedAccuracy": 0.984930555556,
                 "mean_recallAtFDR10": 0.998229166667
             },
             "testPerfAtBestValid": 0.996758333333,
             "otherTestStatsAtBestValidPerf": {
                 "mean_auROC": 0.996758333333,
-                "mean_recallAtFDR50": 1.0,
-                "mean_balancedAccuracy": 0.972916666667,
-                "mean_unbalancedAccuracy": 0.976666666667,
-                "mean_recallAtFDR20": 0.996666666667,
                 "mean_auPRC": 0.995223053259,
                 "mean_recallAtFDR1": 0.884166666667,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.972916666667,
+                "mean_recallAtFDR20": 0.996666666667,
+                "mean_unbalancedAccuracy": 0.976666666667,
                 "mean_recallAtFDR10": 0.993333333333
             },
             "bestValidPerfEpoch": 181.0,
             "bestTrainPerf": 0.998683463542,
             "otherBestTrainStats": {
                 "mean_auROC": 0.998683463542,
-                "mean_recallAtFDR50": 1.0,
-                "mean_balancedAccuracy": 0.982864583333,
-                "mean_unbalancedAccuracy": 0.984861111111,
-                "mean_recallAtFDR20": 0.999479166667,
                 "mean_auPRC": 0.998170655516,
                 "mean_recallAtFDR1": 0.963333333333,
+                "mean_recallAtFDR50": 1.0,
+                "mean_balancedAccuracy": 0.982864583333,
+                "mean_recallAtFDR20": 0.999479166667,
+                "mean_unbalancedAccuracy": 0.984861111111,
                 "mean_recallAtFDR10": 0.998645833333
             },
             "savedFiles": [
                 "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_1_model_owCbQ_modelWeights.h5",
                 "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_1_model_owCbQ_modelYaml.yaml"
+            ]
+        },
+        {
+            "recordNo": 2,
+            "bestValidPerf": 0.975695833333,
+            "totalEpochsSeen": 275,
+            "bestTrainPerfEpoch": 274.0,
+            "modelCreationClass": "ConvForSequenceModelCreator",
+            "modelCreationClassArgumentsString": {
+                "convLayers_kernelWidths": [
+                    10
+                ],
+                "inputLen": 250,
+                "finalLayerActivation": "sigmoid",
+                "maxPool_width": 60,
+                "maxPool_stride_width": 60,
+                "fcLayers_sizes": [
+                    10
+                ],
+                "seed": 1234,
+                "numOutputs": 3,
+                "optimizerType": "adam",
+                "convLayers_numFilters": [
+                    10
+                ]
+            },
+            "additionalDescription": "blah blah",
+            "batchSize": 1000,
+            "classWeightsString": null,
+            "otherBestValidStats": {
+                "mean_auROC": 0.975695833333,
+                "mean_recallAtFDR50": 0.998333333333,
+                "mean_balancedAccuracy": 0.915416666667,
+                "mean_unbalancedAccuracy": 0.927222222222,
+                "mean_recallAtFDR20": 0.958333333333,
+                "all_auROC": {
+                    "tal": 0.9887625,
+                    "gata": 0.9779,
+                    "gataAndTal": 0.960425
+                },
+                "mean_recallAtFDR10": 0.920833333333,
+                "mean_auPRC": 0.974006132464,
+                "mean_recallAtFDR1": 0.754166666667,
+                "mean_auPRG": 0.965335838724
+            },
+            "trainPerfAtBestValidPerf": 0.989050390625,
+            "otherTrainStatsAtBestValidPerf": {
+                "mean_auROC": 0.989050390625,
+                "mean_recallAtFDR50": 0.99875,
+                "mean_balancedAccuracy": 0.945833333333,
+                "mean_unbalancedAccuracy": 0.953125,
+                "mean_recallAtFDR20": 0.986354166667,
+                "mean_recallAtFDR10": 0.968125,
+                "mean_auPRC": 0.987836811354,
+                "mean_recallAtFDR1": 0.8421875,
+                "mean_auPRG": 0.985260106866
+            },
+            "testPerfAtBestValid": 0.9841875,
+            "otherTestStatsAtBestValidPerf": {
+                "mean_auROC": 0.9841875,
+                "mean_recallAtFDR50": 0.998333333333,
+                "mean_balancedAccuracy": 0.935833333333,
+                "mean_unbalancedAccuracy": 0.944444444444,
+                "mean_recallAtFDR20": 0.978333333333,
+                "mean_recallAtFDR10": 0.954166666667,
+                "mean_auPRC": 0.981791289885,
+                "mean_recallAtFDR1": 0.803333333333,
+                "mean_auPRG": 0.979881071728
+            },
+            "bestValidPerfEpoch": 265.0,
+            "bestTrainPerf": 0.989272135417,
+            "otherBestTrainStats": {
+                "mean_auROC": 0.989272135417,
+                "mean_recallAtFDR50": 0.998541666667,
+                "mean_balancedAccuracy": 0.945625,
+                "mean_unbalancedAccuracy": 0.953402777778,
+                "mean_recallAtFDR20": 0.987916666667,
+                "mean_recallAtFDR10": 0.969270833333,
+                "mean_auPRC": 0.988043981396,
+                "mean_recallAtFDR1": 0.841770833333,
+                "mean_auPRG": 0.985548057779
+            },
+            "savedFiles": [
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_2_model_fQbec_modelWeights.h5",
+                "/Users/avantishrikumar/Research/deeplift/examples/saturation/tal_gata_uncalibrated/modelsDir_runs//record_2_model_fQbec_modelYaml.yaml"
             ]
         }
     ]
