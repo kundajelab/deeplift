@@ -11,14 +11,16 @@ if (scripts_dir is None):
     raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
                     +" the deeplift directory")
 sys.path.insert(0, scripts_dir)
-import blobs
+import deeplift.blobs as blobs
 import theano
 
 
 class TestMaxout(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer = blobs.Input_FixedDefault(default=-2, num_dims=2)
+        self.input_layer = blobs.Input_FixedDefault(default=-2,
+                                                    num_dims=None,
+                                                    shape=(2,))
         W = np.array([[[-1.0, 0.0],
                        [-1.0, 0.0],
                        [-1.0, 0.0],
@@ -45,6 +47,7 @@ class TestMaxout(unittest.TestCase):
         self.maxout_layer.build_fwd_pass_vars()
         self.maxout_layer.set_scoring_mode(
                           scoring_mode=blobs.ScoringMode.OneAndZeros)
+        self.maxout_layer.set_active()
         self.input_layer.update_mxts()
         
     def test_maxout_fprop(self): 
