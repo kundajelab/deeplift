@@ -336,7 +336,6 @@ class Node(Blob):
         raise NotImplementedError()
     
 
-
 class SingleInputMixin(object):
     """
         Mixin for blobs that just have one Blob as their input;
@@ -781,6 +780,65 @@ class ZeroPad2D(SingleInputMixin, Node):
         return B.discard_pad2d(self.get_mxts(), padding=self.padding)
 
 
+class BatchNormalization(SingleInputMixin, Node):
+
+    def __init__(self, gamma, beta, axis,
+                 mean, std, epsilon,**kwargs):
+        """
+            'axis' is the axis along which the normalization is conducted
+             for dense layers, this should be -1 (which works for dense layers
+             where the input looks like: (batch, node index)
+            for things like batch normalization over channels (where the input
+             looks like: batch, channel, rows, columns), an axis=1 will
+             normalize over channels
+        """
+        super(BatchNormalization, self).__init__(**kwargs)
+        #in principle they could be more than one-dimensional, but
+        #the current code I have written, consistent with the Keras
+        #implementation, seems to support these only being one dimensional
+        assert len(mean.shape)==1
+        assert len(std.shape)==1
+        self.gamma = gamma
+        self.beta = beta
+        self.axis = axis
+        self.mean = mean
+        self.std = std
+        self.epsilon = epsilon
+    
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(BatchNormalization, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['gamma'] = self.gamma
+        kwargs_dict['beta'] = self.beta
+        kwargs_dict['axis'] = self.axis
+        kwargs_dict['mean'] = self.mean
+        kwargs_dict['std'] = self.std
+        kwargs_dict['epsilon'] = self.epsilon
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        return input_shape
+
+    def _build_activation_vars(self, input_act_vars):
+        new_shape = [(1 if (i != self.axis\
+                        and i != (len(self._shape)+self.axis))
+                        else self._shape[i])
+                       for i in range(len(self._shape))] 
+        new_shape = [1]+new_shape #add a batch axis
+        self.reshaped_mean = self.mean.reshape(new_shape)
+        self.reshaped_std = self.std.reshape(new_shape)
+        self.reshaped_gamma = self.gamma.reshape(new_shape)
+        self.reshaped_beta = self.beta.reshape(new_shape)
+        return self.reshaped_gamma*\
+               ((input_act_vars - self.reshaped_mean)/self.reshaped_std)\
+               + self.reshaped_beta
+
+    def _get_mxts_increments_for_inputs(self):
+        #self.reshaped_gamma and reshaped_std are created during
+        #the call to _build_activation_vars in _built_fwd_pass_vars
+        return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
+
+
 class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, **kwargs):
@@ -1019,65 +1077,6 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         return B.sum(
                 self.get_mxts()[:,None,:]\
                 *self._get_weighted_active_gradients(), axis=2)
-
-
-class BatchNormalization(SingleInputMixin, Node):
-
-    def __init__(self, gamma, beta, axis,
-                 mean, std, epsilon,**kwargs):
-        """
-            'axis' is the axis along which the normalization is conducted
-             for dense layers, this should be -1 (which works for dense layers
-             where the input looks like: (batch, node index)
-            for things like batch normalization over channels (where the input
-             looks like: batch, channel, rows, columns), an axis=1 will
-             normalize over channels
-        """
-        super(BatchNormalization, self).__init__(**kwargs)
-        #in principle they could be more than one-dimensional, but
-        #the current code I have written, consistent with the Keras
-        #implementation, seems to support these only being one dimensional
-        assert len(mean.shape)==1
-        assert len(std.shape)==1
-        self.gamma = gamma
-        self.beta = beta
-        self.axis = axis
-        self.mean = mean
-        self.std = std
-        self.epsilon = epsilon
-    
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(BatchNormalization, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['gamma'] = self.gamma
-        kwargs_dict['beta'] = self.beta
-        kwargs_dict['axis'] = self.axis
-        kwargs_dict['mean'] = self.mean
-        kwargs_dict['std'] = self.std
-        kwargs_dict['epsilon'] = self.epsilon
-        return kwargs_dict
-
-    def _compute_shape(self, input_shape):
-        return input_shape
-
-    def _build_activation_vars(self, input_act_vars):
-        new_shape = [(1 if (i != self.axis\
-                        and i != (len(self._shape)+self.axis))
-                        else self._shape[i])
-                       for i in range(len(self._shape))] 
-        new_shape = [1]+new_shape #add a batch axis
-        self.reshaped_mean = self.mean.reshape(new_shape)
-        self.reshaped_std = self.std.reshape(new_shape)
-        self.reshaped_gamma = self.gamma.reshape(new_shape)
-        self.reshaped_beta = self.beta.reshape(new_shape)
-        return self.reshaped_gamma*\
-               ((input_act_vars - self.reshaped_mean)/self.reshaped_std)\
-               + self.reshaped_beta
-
-    def _get_mxts_increments_for_inputs(self):
-        #self.reshaped_gamma and reshaped_std are created during
-        #the call to _build_activation_vars in _built_fwd_pass_vars
-        return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
 
 
 class RNN(SingleInputMixin, Node):
