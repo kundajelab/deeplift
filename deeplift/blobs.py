@@ -729,15 +729,30 @@ class Pool2D(SingleInputMixin, Node):
 
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
-        return B.pool2d_grad(
-                pool_out=self.get_mxts(),
-                pool_in=input_act_vars,
-                pool_size=self.pool_size,
-                strides=self.strides,
-                border_mode=self.border_mode,
-                ignore_border=self.ignore_border,
-                pool_mode=self.pool_mode
-            )
+
+        out_grads = self.get_mxts()
+        if (self.pool_mode == B.PoolMode.max):
+            #For maxpooling, an addiitonal scale factor may be needed
+            #in case all the inputs don't have the same reference.
+            #multiply by diff-from-default of output here,
+            #and divide by diff-from-default of output later
+            out_grads = out_grads*self._get_diff_from_default_vars()
+
+        to_return = B.pool2d_grad(
+                        out_grad=out_grads,
+                        pool_in=input_act_vars,
+                        pool_size=self.pool_size,
+                        strides=self.strides,
+                        border_mode=self.border_mode,
+                        ignore_border=self.ignore_border,
+                        pool_mode=self.pool_mode)
+
+        if (self.pool_mode == B.PoolMode.max):
+            #rescale back down according to diff-from-default of inputs
+            pseudocounted_inp_diff_default = pseudocount_near_zero(to_return)
+            to_return = to_return/pseudocounted_inp_diff_default 
+
+        return to_return
 
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):

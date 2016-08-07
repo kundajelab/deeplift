@@ -198,7 +198,7 @@ def pool2d(inp, pool_size, strides, border_mode, ignore_border, pool_mode):
     return to_return
 
 
-def pool2d_grad(pool_out, pool_in,
+def pool2d_grad(out_grad, pool_in,
                    pool_size, strides, border_mode,
                    ignore_border, pool_mode):
     if (border_mode == BorderMode.same):
@@ -212,7 +212,7 @@ def pool2d_grad(pool_out, pool_in,
                                  padding=padding,
                                  mode=pool_mode)
     return pool_op.grad((pool_in,),
-                       (pool_out,))[0]
+                        (out_grad,))[0]
     
 
 def flatten_keeping_first(x):
