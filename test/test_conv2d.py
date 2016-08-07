@@ -14,6 +14,8 @@ import theano
 class TestDense(unittest.TestCase):
 
     def setUp(self):
+        #theano convolutional ordering assumed here...would need to
+        #swap axes for tensorflow
         self.input_layer = blobs.Input_FixedDefault(
                             default=0.0,
                             num_dims=None,
@@ -38,13 +40,14 @@ class TestDense(unittest.TestCase):
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
+        self.input_layer.reset_mxts_updated()
         self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)
         self.dense_layer.set_active()
         self.input_layer.update_mxts()
 
         self.inp = np.arange(64).reshape((2,2,4,4))
         
-    def test_dense_fprop(self): 
+    def test_fprop(self): 
 
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(1,1),
@@ -104,7 +107,7 @@ class TestDense(unittest.TestCase):
                                            [ 20,  44,  44,  24],
                                            [ 12,  26,  26,  14]]]]))
 
-    def test_dense_fprop_stride(self): 
+    def test_fprop_stride(self): 
 
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
