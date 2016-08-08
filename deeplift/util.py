@@ -157,7 +157,12 @@ def get_lengthwise_widths_and_strides(layers):
         if type(layer).__name__ == "Conv2D":
             strides.append(layer.strides[1]) 
             widths.append(layer.W.shape[3])
+        elif isinstance(layer, deeplift.blobs.Pool2D):
+            strides.append(layer.strides[1]) 
+            widths.append(layer.pool_size[1])
         elif isinstance(layer, deeplift.blobs.Activation):
+            pass
+        elif isinstance(layer, deeplift.blobs.NoOp):
             pass
         else:
             raise RuntimeError("Please implement how to extract width and"
