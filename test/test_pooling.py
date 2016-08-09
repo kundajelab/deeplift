@@ -11,12 +11,12 @@ import deeplift.backend as B
 import theano
 
 
-class TestDense(unittest.TestCase):
+class TestPooling(unittest.TestCase):
 
     def setUp(self):
         #theano dimensional ordering assumed here...would need to swap
         #axes for tensorflow
-        self.default_inps=np.array([[[
+        self.default_inps=np.array([[
                                [0,0,2,3],
                                [0,1,0,0],
                                [0,5,4,0],
@@ -24,17 +24,10 @@ class TestDense(unittest.TestCase):
                               [[1,1,3,4],
                                [1,2,1,1],
                                [1,6,5,1],
-                               [7,1,8,9]]],
-                             [[[-1,-1, 1, 2],
-                               [-1, 0,-1,-1],
-                               [-1, 4, 3,-1],
-                               [ 5,-1, 6, 7]],
-                              [[0,0,2,3],
-                               [0,1,0,0],
-                               [0,5,4,0],
-                               [6,0,7,8]]]]) 
+                               [7,1,8,9]]]) 
 
-        self.backprop_test_inps = np.array([[[
+        self.backprop_test_inps = np.array(
+                                  [[[
                                    [2,0,2,3],
                                    [0,1,4,0],
                                    [7,6,5,0],
@@ -42,7 +35,7 @@ class TestDense(unittest.TestCase):
                                   [[1,1,4,5],
                                    [1,3,1,1],
                                    [1,7,5,1],
-                                   [8,1,9,10]],
+                                   [8,1,9,10]]],
                                  [[[1, -1, 1, 2],
                                    [-1, 0, 3,-1],
                                    [ 6, 5, 4,-1],
@@ -80,12 +73,13 @@ class TestDense(unittest.TestCase):
         pool_layer = blobs.Pool2D(pool_size=(2,2),
                                   strides=(1,1),
                                   border_mode=B.BorderMode.valid,
+                                  pool_mode=B.PoolMode.max,
                                   ignore_border=True)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
         func = theano.function([self.input_layer.get_activation_vars()],
-                                self.conv_layer.get_activation_vars(),
+                                self.pool_layer.get_activation_vars(),
                                 allow_input_downcast=True)
         np.testing.assert_almost_equal(func(self.default_inps),
                                        np.array(
@@ -131,17 +125,18 @@ class TestDense(unittest.TestCase):
                                           [11,16,19]]]]))
 
     def test_backprop_maxpool(self):
-        conv_layer = blobs.Conv2D(W=self.conv_W,
-                                  b=self.conv_b,
+        pool_layer = blobs.Pool2D(pool_size=(2,2),
                                   strides=(1,1),
-                                  border_mode=B.BorderMode.valid)
-        self.create_small_net_with_conv_layer(conv_layer,
+                                  border_mode=B.BorderMode.valid,
+                                  pool_mode=B.PoolMode.max,
+                                  ignore_border=True)
+        self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
-
         self.dense_layer.update_task_index(task_index=0)
         func = theano.function([self.input_layer.get_activation_vars()],
                                    self.input_layer.get_mxts(),
                                    allow_input_downcast=True)
+        print(func(self.backprop_test_inps))
         np.testing.assert_almost_equal(func(self.backprop_test_inps),
                                   np.array(
                                   [[[[0.5, 0, 0, 0],
