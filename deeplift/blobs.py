@@ -34,11 +34,12 @@ class Blob(object):
     YamlKeys = deeplift.util.enum(blob_class="blob_class",
                                   blob_kwargs="blob_kwargs")
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, verbose=True):
         self.name = name
         self._built_fwd_pass_vars = False
         self._output_layers = []
         self._mxts_updated = False
+        self.verbose = verbose #used to decide whether to print warnings
 
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
@@ -727,17 +728,10 @@ class Pool2D(SingleInputMixin, Node):
                       ignore_border=self.ignore_border,
                       pool_mode=self.pool_mode)
 
+
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
-
         out_grads = self.get_mxts()
-        if (self.pool_mode == B.PoolMode.max):
-            #For maxpooling, an addiitonal scale factor may be needed
-            #in case all the inputs don't have the same reference.
-            #multiply by diff-from-default of output here,
-            #and divide by diff-from-default of output later
-            out_grads = out_grads*self._get_diff_from_default_vars()
-
         to_return = B.pool2d_grad(
                         out_grad=out_grads,
                         pool_in=input_act_vars,
@@ -746,13 +740,34 @@ class Pool2D(SingleInputMixin, Node):
                         border_mode=self.border_mode,
                         ignore_border=self.ignore_border,
                         pool_mode=self.pool_mode)
-
-        if (self.pool_mode == B.PoolMode.max):
-            #rescale back down according to diff-from-default of inputs
-            pseudocounted_inp_diff_default = pseudocount_near_zero(to_return)
-            to_return = to_return/pseudocounted_inp_diff_default 
-
         return to_return
+
+
+MaxPoolDeepLiftMode = deeplift.util.enum(partial='partial',
+                                         all_or_none = 'all_or_none')
+class MaxPool2D(Pool2D):
+    
+    def __init__(self, max_pool_deeplift_mode, **kwargs):
+        super(MaxPool2D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
+        self.max_pool_deeplift_mode = max_pool_deeplift_mode
+        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.all_or_none):
+            if (self.verbose):
+                print("Heads-up: an all-or-none MaxPoolDeepLiftMode is only"
+                      "appropriate when all inputs falling within a single"
+                      "kernel have the same default value.")
+
+    def _get_mxts_increments_for_inputs(self):
+        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.all_or_none):
+            return super(MaxPool2D, self)._get_mxts_increments_for_inputs()
+        else:
+            raise RuntimeError("Unsupported max_pool_deeplift_mode: "+
+                               str(self.max_pool_deeplift_mode))
+            
+
+class AvgPool2D(Pool2D):
+
+    def __init__(self, avg_pool_deeplift_mode, **kwargs):
+        super(AvgPool2D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
 
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
