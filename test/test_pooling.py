@@ -36,10 +36,10 @@ class TestPooling(unittest.TestCase):
                                    [1,3,1,1],
                                    [1,7,5,1],
                                    [8,1,9,10]]],
-                                 [[[1, -1, 1, 2],
-                                   [-1, 0, 3,-1],
-                                   [ 6, 5, 4,-1],
-                                   [ 5,-1, 7, 8]],
+                                 [[[-1, -1, 1, 2],
+                                   [-1, 0, -1, -1],
+                                   [-1, 4, 3, -1],
+                                   [5, -1, 6, 7]],
                                   [[2,0,2,3],
                                    [0,1,4,0],
                                    [7,6,5,0],
@@ -125,11 +125,11 @@ class TestPooling(unittest.TestCase):
                                           [11,16,19]]]]))
 
     def test_backprop_maxpool(self):
-        pool_layer = blobs.Pool2D(pool_size=(2,2),
-                                  strides=(1,1),
-                                  border_mode=B.BorderMode.valid,
-                                  pool_mode=B.PoolMode.max,
-                                  ignore_border=True)
+        pool_layer = blobs.MaxPool2D(pool_size=(2,2),
+          strides=(1,1),
+          border_mode=B.BorderMode.valid,
+          max_pool_deeplift_mode=blobs.MaxPoolDeepLiftMode.scaled_all_or_none,
+          ignore_border=True)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
         self.dense_layer.update_task_index(task_index=0)
@@ -147,10 +147,10 @@ class TestPooling(unittest.TestCase):
                                      [0, 0, 0, 0],
                                      [0, 2, 1, 0],
                                      [1, 0, 1, 1]]], 
-                                   [[[0.5, 0, 0, 0],
-                                     [0, 0, 2./4 + 1./4, 0],
-                                     [2./7 + 1./7, 1, 1, 0],
-                                     [0, 0, 1, 1]],
+                                   [[[0, 0, 1, 1],
+                                     [0, 0, 0, 0],
+                                     [0, 2, 1, 0],
+                                     [1, 0, 1, 1]],
                                     [[0.5, 0, 0, 0],
                                      [0, 0, 2./4 + 1./4, 0],
                                      [2./7 + 1./7, 1, 1, 0],
