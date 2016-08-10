@@ -728,10 +728,11 @@ class Pool2D(SingleInputMixin, Node):
                       ignore_border=self.ignore_border,
                       pool_mode=self.pool_mode)
 
-
     def _get_mxts_increments_for_inputs(self):
+        raise NotImplementedError()
+
+    def _get_input_grads_given_outgrads(self, out_grads):
         input_act_vars = self._get_input_activation_vars() 
-        out_grads = self.get_mxts()
         to_return = B.pool2d_grad(
                         out_grad=out_grads,
                         pool_in=input_act_vars,
@@ -743,22 +744,72 @@ class Pool2D(SingleInputMixin, Node):
         return to_return
 
 
-MaxPoolDeepLiftMode = deeplift.util.enum(partial='partial',
-                                         all_or_none = 'all_or_none')
+MaxPoolDeepLiftMode = deeplift.util.enum(
+                       gradient = 'gradient',
+                       scaled_gradient = 'scaled_gradient',
+                       partial_credit_softmax = 'partial_credit_softmax')
+
 class MaxPool2D(Pool2D):
     
-    def __init__(self, max_pool_deeplift_mode, **kwargs):
+    def __init__(self, max_pool_deeplift_mode,
+                       #max_pool_partial_credit_temp is only relevant
+                       #when the mode is a partial credit mode.
+                       max_pool_partial_credit_temp,
+                       **kwargs):
         super(MaxPool2D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
         self.max_pool_deeplift_mode = max_pool_deeplift_mode
-        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.all_or_none):
+        self.max_pool_partial_credit_temp = max_pool_partial_credit_temp
+        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
             if (self.verbose):
-                print("Heads-up: an all-or-none MaxPoolDeepLiftMode is only"
-                      "appropriate when all inputs falling within a single"
+                print("Heads-up: an all-or-none MaxPoolDeepLiftMode is only "
+                      "appropriate when all inputs falling within a single "
                       "kernel have the same default value.")
+        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.scaled_gradient):
+            if (self.verbose):
+                print("Heads-up: scaled all-or-none MaxPoolDeepLiftMode can "
+                      "lead to odd results if the inputs falling within a "
+                      "single kernel don't have approx even default vals ")
 
     def _get_mxts_increments_for_inputs(self):
-        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.all_or_none):
-            return super(MaxPool2D, self)._get_mxts_increments_for_inputs()
+        if (max_pool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
+            return (self.
+                    _get_input_grads_given_outgrads(out_grad=self.get_mxts()))
+        elif (max_pool_deeplift_mode==MaxPoolDeepLiftMode.scaled_gradient):
+            grad_times_diff_def = self._get_input_grads_given_outgrads(
+                   out_grad=self.get_mxts()*self._get_diff_from_default_vars()) 
+            pcd_input_diff_default = (pseudocount_near_zero(
+                                     self._get_input_diff_from_default_vars()))
+            return grad_times_diff_def/pcd_input_diff_default
+        elif (max_pool_deeplift_mode==
+              MaxPoolDeepLiftMode.partial_credit_softmax):
+            #should be able to handle ignore_border=False but haven't yet
+            assert self.ignore_border==True,\
+            "Current implementation assumes ignore_border is True"
+            #assert that strides divides pool_size...otherwise would
+            #need to modify the implementation 
+            for (size, stride) in zip(self.pool_size, self.strides):
+                assert size%stride==0,\
+                 "This implementation assumes stride divides pool size" 
+            inp_def_act = self._get_input_default_activation_vars()
+            total_multipliers
+        #    #create reshaped thing of zeros to add multipliers to
+#rows x cols
+#rows x col_stride_no x col_within_kernel
+#row_stride_no x row_within_kernel x col_stride_no x col_within_kernel
+        #    #iterate over stride number
+                 #compute the "stations"
+                 #station = max( max(default < output activation),
+                 #               max(activation < output activation)) 
+        #        #subset the touchpoints corresponding to stride
+        #        #reshape subset of self.input_act_vars accordingly
+        #        #reshape subset of self.default_act_vars accordingly
+        #        #reshape subset of self.diff-from-default accordingly
+        #        #do arithmetic with touchpoints for stride to find the fractional contribs
+        #        #multiply maxpool diff-from-def by fractional contrib to get each positions actual contribs
+        #        #divide by each position's diff-from-default to get multipliers
+        #        #add multipliers to running sum
+
+        #    #reshape multipliers back into input shape
         else:
             raise RuntimeError("Unsupported max_pool_deeplift_mode: "+
                                str(self.max_pool_deeplift_mode))
@@ -768,6 +819,10 @@ class AvgPool2D(Pool2D):
 
     def __init__(self, avg_pool_deeplift_mode, **kwargs):
         super(AvgPool2D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
+
+    def _get_mxts_increments_for_inputs(self):
+        return super(AvgPool2D, self)._get_mxts_increments_for_inputs(
+                                       out_grad=self.get_mxts())
 
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
@@ -869,14 +924,14 @@ class BatchNormalization(SingleInputMixin, Node):
         return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
 
 
-class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
+class MaxoutDense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, **kwargs):
         """
             W: has dimensions: nb_features, input_dim, output_dim
             b: has dimensions: nb_features, output_dim
         """
-        super(Maxout, self).__init__(**kwargs)
+        super(MaxoutDense, self).__init__(**kwargs)
         self.W = W
         if (b is None):
             b = np.zeros((self.W.shape[0], self.W.shape[2]))
@@ -896,7 +951,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
                 self.b[feature_idx,:][None,:] - self.b
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Maxout, self).\
+        kwargs_dict = super(MaxoutDense, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['W'] = self.W
         kwargs_dict['b'] = self.b
