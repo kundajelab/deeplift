@@ -16,7 +16,7 @@ class TestDense(unittest.TestCase):
         self.input_layer = blobs.Input_FixedDefault(
                             default=0.0,
                             num_dims=None,
-                            shape=(4,))
+                            shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]
         self.w2 = [-1.0, -2.0, -3.0, -4.0]
         W = np.array([self.w1, self.w2]).T
