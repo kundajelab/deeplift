@@ -260,3 +260,7 @@ def for_loop(step_function, inputs, initial_hidden_states, go_backwards):
     results = [dimshuffle(tensor, [1,0]+[x for x in xrange(2, tensor.ndim)])
                for tensor in results]
     return results
+
+
+def concat(tensor_list, axis):
+    return T.concatenate(tensor_list=tensor_list, axis=axis)

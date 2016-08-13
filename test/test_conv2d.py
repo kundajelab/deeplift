@@ -11,7 +11,7 @@ import deeplift.backend as B
 import theano
 
 
-class TestDense(unittest.TestCase):
+class TestConv(unittest.TestCase):
 
     def setUp(self):
         #theano convolutional ordering assumed here...would need to
@@ -19,7 +19,7 @@ class TestDense(unittest.TestCase):
         self.input_layer = blobs.Input_FixedDefault(
                             default=0.0,
                             num_dims=None,
-                            shape=(2,4,4))
+                            shape=(None,2,4,4))
         self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
         self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1]
         self.conv_W = np.array([self.w1, self.w2])

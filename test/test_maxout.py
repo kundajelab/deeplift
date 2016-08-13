@@ -20,7 +20,7 @@ class TestMaxout(unittest.TestCase):
     def setUp(self):
         self.input_layer = blobs.Input_FixedDefault(default=-2,
                                                     num_dims=None,
-                                                    shape=(2,))
+                                                    shape=(None,2))
         W = np.array([[[-1.0, 0.0],
                        [-1.0, 0.0],
                        [-1.0, 0.0],
