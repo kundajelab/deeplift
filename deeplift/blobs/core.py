@@ -34,12 +34,13 @@ class Blob(object):
     YamlKeys = deeplift.util.enum(blob_class="blob_class",
                                   blob_kwargs="blob_kwargs")
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, verbose=True):
         self.name = name
         self._built_fwd_pass_vars = False
         self._output_layers = []
         self._mxts_updated = False
         self._mxts_for_inputs_updated = False
+        self.verbose=verbose
 
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
