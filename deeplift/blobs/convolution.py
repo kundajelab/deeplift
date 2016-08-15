@@ -120,14 +120,12 @@ class Pool2D(SingleInputMixin, Node):
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
-        shape_to_return = [None, input_shape[0]] #num channels unchanged 
+        shape_to_return = [input_shape[0]] #num channels unchanged 
         if (self.border_mode != B.BorderMode.valid):
             raise RuntimeError("Please implement shape inference for"
                                " border mode: "+str(self.border_mode))
-        if (input_shape is None):
-            shape_to_return += [None, None]
         for (dim_inp_len, dim_kern_width, dim_stride) in\
-            zip(input_shape[2:], self.pool_size, self.strides):
+            zip(input_shape[1:], self.pool_size, self.strides):
             #assuming that overhangs are excluded
             shape_to_return.append(
              1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
@@ -142,28 +140,76 @@ class Pool2D(SingleInputMixin, Node):
                       pool_mode=self.pool_mode)
 
     def _get_mxts_increments_for_inputs(self):
+        raise NotImplementedError()
+
+    def _get_input_grad_given_outgrad(self, out_grad):
         input_act_vars = self._get_input_activation_vars() 
-
-        out_grads = self.get_mxts()
-        if (self.pool_mode == B.PoolMode.max):
-            #For maxpooling, an addiitonal scale factor may be needed
-            #in case all the inputs don't have the same reference.
-            #multiply by diff-from-default of output here,
-            #and divide by diff-from-default of output later
-            out_grads = out_grads*self._get_diff_from_default_vars()
-
         to_return = B.pool2d_grad(
-                        out_grad=out_grads,
+                        out_grad=out_grad,
                         pool_in=input_act_vars,
                         pool_size=self.pool_size,
                         strides=self.strides,
                         border_mode=self.border_mode,
                         ignore_border=self.ignore_border,
                         pool_mode=self.pool_mode)
-
-        if (self.pool_mode == B.PoolMode.max):
-            #rescale back down according to diff-from-default of inputs
-            pseudocounted_inp_diff_default = pseudocount_near_zero(to_return)
-            to_return = to_return/pseudocounted_inp_diff_default 
-
         return to_return
+
+
+MaxPoolDeepLiftMode = deeplift.util.enum(
+                       gradient = 'gradient',
+                       scaled_gradient = 'scaled_gradient')
+
+class MaxPool2D(Pool2D):
+    """
+    Heads-up: an all-or-none MaxPoolDeepLiftMode is only 
+        appropriate when all inputs falling within a single
+        kernel have the same default value.
+    Heads-up: scaled all-or-none MaxPoolDeepLiftMode can
+        lead to odd results if the inputs falling within a
+        single kernel don't have approx even default vals
+    """ 
+    def __init__(self, max_pool_deeplift_mode,
+                       **kwargs):
+        super(MaxPool2D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
+        self.max_pool_deeplift_mode = max_pool_deeplift_mode
+
+    def _get_mxts_increments_for_inputs(self):
+        if (self.max_pool_deeplift_mode==
+            MaxPoolDeepLiftMode.gradient):
+            return (self.
+                    _get_input_grad_given_outgrad(out_grad=self.get_mxts()))
+        elif (self.max_pool_deeplift_mode==
+              MaxPoolDeepLiftMode.scaled_gradient):
+            grad_times_diff_def = self._get_input_grad_given_outgrad(
+                   out_grad=self.get_mxts()*self._get_diff_from_default_vars()) 
+            pcd_input_diff_default = (pseudocount_near_zero(
+                                     self._get_input_diff_from_default_vars()))
+            return grad_times_diff_def/pcd_input_diff_default
+        else:
+            raise RuntimeError("Unsupported max_pool_deeplift_mode: "+
+                               str(self.max_pool_deeplift_mode))
+            
+
+class AvgPool2D(Pool2D):
+
+    def __init__(self, **kwargs):
+        super(AvgPool2D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
+
+    def _get_mxts_increments_for_inputs(self):
+        return super(AvgPool2D, self)._get_input_grad_given_outgrad(
+                                       out_grad=self.get_mxts())
+
+
+class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
+    
+    def _build_activation_vars(self, input_act_vars):
+        return B.flatten_keeping_first(input_act_vars)
+
+    def _compute_shape(self, input_shape):
+        return np.prod(input_shape)
+
+    def _get_mxts_increments_for_inputs(self):
+        input_act_vars = self._get_input_activation_vars() 
+        return B.unflatten_keeping_first(
+                x=self.get_mxts(), like=input_act_vars
+            )
