@@ -188,7 +188,7 @@ def pool2d(inp, pool_size, strides, border_mode, ignore_border, pool_mode):
                     ignore_border=ignore_border,
                     st=strides,
                     padding=padding,
-                    mode=pool_mode)
+                    mode=theano_pool_mode)
 
     if border_mode==BorderMode.same:
         final_shape = [(inp.shape[2+i] + strides[i] - 1)//strides[i]
@@ -210,7 +210,7 @@ def pool2d_grad(out_grad, pool_in,
                                  st=strides,
                                  ignore_border=ignore_border,
                                  padding=padding,
-                                 mode=pool_mode)
+                                 mode=theano_pool_mode)
     return pool_op.grad((pool_in,),
                         (out_grad,))[0]
     
