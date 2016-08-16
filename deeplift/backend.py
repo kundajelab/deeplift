@@ -264,3 +264,10 @@ def for_loop(step_function, inputs, initial_hidden_states, go_backwards):
 
 def concat(tensor_list, axis):
     return T.concatenate(tensor_list=tensor_list, axis=axis)
+
+
+def batch_normalization(inputs, gamma, beta, mean, std, epsilon):
+    return T.nnet.batch_normalization(inputs=inputs, gamma=gamma,
+                                      beta=beta, mean=mean,
+                                      std=(std + epsilon),
+                                      mode='high_mem')

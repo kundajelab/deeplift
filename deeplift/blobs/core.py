@@ -176,14 +176,10 @@ class Input(Blob):
 
     def __init__(self, num_dims, shape, **kwargs):
         super(Input, self).__init__(**kwargs)
-        #if (shape is None):
-        #else:
-        #    self._activation_vars = B.as_tensor_variable(
-        #                              np.zeros([1]+list(shape)),
-        #                              name="inp_"+str(self.get_name()),
-        #                              ndim=num_dims)
         assert num_dims is not None or shape is not None
         if (shape is not None):
+            if (shape[0] != None): #None in first pos represent batch axis
+                shape = [None]+shape
             shape_num_dims = len(shape)
             if (num_dims is not None):
                 assert shape_num_dims==num_dims,\
@@ -494,7 +490,7 @@ class BatchNormalization(SingleInputMixin, Node):
             'axis' is the axis along which the normalization is conducted
              for dense layers, this should be -1 (which works for dense layers
              where the input looks like: (batch, node index)
-            for things like batch normalization over channels (where the input
+             for things like batch normalization over channels (where the input
              looks like: batch, channel, rows, columns), an axis=1 will
              normalize over channels
         """
@@ -534,9 +530,12 @@ class BatchNormalization(SingleInputMixin, Node):
         self.reshaped_std = self.std.reshape(new_shape)
         self.reshaped_gamma = self.gamma.reshape(new_shape)
         self.reshaped_beta = self.beta.reshape(new_shape)
-        return self.reshaped_gamma*\
-               ((input_act_vars - self.reshaped_mean)/self.reshaped_std)\
-               + self.reshaped_beta
+        return B.batch_normalization(inputs=self._get_input_activation_vars(),
+                                     gamma=self.reshaped_gamma,
+                                     beta=self.reshaped_beta,
+                                     mean=self.reshaped_mean,
+                                     std=self.reshaped_std,
+                                     epsilon=self.epsilon)
 
     def _get_mxts_increments_for_inputs(self):
         #self.reshaped_gamma and reshaped_std are created during
