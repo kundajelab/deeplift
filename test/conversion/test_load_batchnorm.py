@@ -45,6 +45,7 @@ class TestBatchNorm(unittest.TestCase):
         self.model.add(dense_layer)
         dense_layer.set_weights([np.ones((1,8)).T, np.zeros(1)])
         self.model.compile(loss="mse", optimizer="sgd")
+
         keras_fprop_func = theano.function(
                             [self.model.layers[0].input],        
                              self.model.layers[0].get_output(train=False),    
@@ -53,6 +54,12 @@ class TestBatchNorm(unittest.TestCase):
                                 [self.model.layers[0].input],
                                 self.model.layers[0].get_output(train=False),
                                 allow_input_downcast=True) 
+
+        grad = theano.grad(theano.tensor.sum(
+                           self.model.layers[-1].get_output(train=False)[:,0]),
+                           self.model.layers[0].input)
+        self.grad_func = theano.function([self.model.layers[0].input],
+                                         grad, allow_input_downcast=True)
 
 
     def prepare_batch_norm_deeplift_model(self, axis):
@@ -72,21 +79,53 @@ class TestBatchNorm(unittest.TestCase):
         self.flatten_layer = blobs.Flatten()
         self.flatten_layer.set_inputs(self.batch_norm_layer)
         self.dense_layer = blobs.Dense(W=np.ones((1,8)).T, b=np.zeros(1))
-        self.dense_layer.set_inputs(self.batch_norm_layer)
+        self.dense_layer.set_inputs(self.flatten_layer)
         self.dense_layer.build_fwd_pass_vars()
         self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)
         self.dense_layer.set_active()
+        self.dense_layer.update_task_index(0)
         self.input_layer.update_mxts()
          
 
     def test_batch_norm_positive_axis_fwd_prop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis)
-        deeplift_func = theano.function(
-                            [self.input_layer.get_activation_vars()],
-                            self.batch_norm_layer.get_activation_vars(),
-                            allow_input_downcast=True)
-        print(deeplift_func(self.inp))
-        print(self.keras_fprop_func(self.inp))
-        np.testing.assert_almost_equal(deeplift_func(self.inp),
+        deeplift_fprop_func = theano.function(
+                                [self.input_layer.get_activation_vars()],
+                                self.batch_norm_layer.get_activation_vars(),
+                                allow_input_downcast=True)
+        np.testing.assert_almost_equal(deeplift_fprop_func(self.inp),
                                        self.keras_fprop_func(self.inp),
+                                       decimal=6)
+         
+
+    def test_batch_norm_positive_axis_backprop(self):
+        self.prepare_batch_norm_deeplift_model(axis=self.axis)
+        deeplift_multipliers_func = theano.function(
+                                [self.input_layer.get_activation_vars()],
+                                 self.input_layer.get_mxts(),
+                                allow_input_downcast=True)
+        np.testing.assert_almost_equal(deeplift_multipliers_func(self.inp),
+                                       self.grad_func(self.inp),
+                                       decimal=6)
+         
+
+    def test_batch_norm_negative_axis_fwd_prop(self):
+        self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
+        deeplift_fprop_func = theano.function(
+                                  [self.input_layer.get_activation_vars()],
+                                  self.batch_norm_layer.get_activation_vars(),
+                                  allow_input_downcast=True)
+        np.testing.assert_almost_equal(deeplift_fprop_func(self.inp),
+                                       self.keras_fprop_func(self.inp),
+                                       decimal=6)
+         
+
+    def test_batch_norm_negative_axis_backprop(self):
+        self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
+        deeplift_multipliers_func = theano.function(
+                                [self.input_layer.get_activation_vars()],
+                                 self.input_layer.get_mxts(),
+                                allow_input_downcast=True)
+        np.testing.assert_almost_equal(deeplift_multipliers_func(self.inp),
+                                       self.grad_func(self.inp),
                                        decimal=6)
