@@ -19,11 +19,11 @@ class TestConvolutionalModel(unittest.TestCase):
 
     def setUp(self):
          
-        self.inp = np.random.randn(10*11*11*11).reshape(10,11,11,11)
+        self.inp = np.random.randn(10*10*51*51).reshape(10,10,51,51)
         self.keras_model = keras.models.Sequential()
         conv_layer = keras.layers.convolutional.Convolution2D(
                         nb_filter=2, nb_row=4, nb_col=4, subsample=(2,2),
-                        activation="relu", input_shape=(11,11,11))
+                        activation="relu", input_shape=(10,51,51))
         self.keras_model.add(conv_layer)
         #for 1.0, Pooling2D is moved to layers.pooling
         self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
