@@ -594,6 +594,110 @@ class Concat(ListInputMixin, OneDimOutputMixin, Node):
         return mxts_increments_for_inputs
 
 
+class Merge(ListInputMixin, OneDimOutputMixin, Node):
+
+    def __init__(self, axis, merge_function_name, **kwargs):
+        super(Concat, self).__init__(**kwargs)
+        self.axis = axis
+        
+        self.merge_function_name = merge_function_name
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(Concat, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['axis'] = self.axis
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        shape = []
+        input_shapes = [an_input.get_shape() for an_input in self.inputs]
+        assert len(set(len(x) for x in input_shapes))==1,\
+          "all inputs should have the same num"+\
+          " of dims - got: "+str(input_shapes)
+        for dim_idx in range(len(input_shapes[0])):
+            lengths_for_that_dim = [input_shape[dim_idx]
+                                    for input_shape in input_shapes]
+            if (dim_idx != self.concat_axis):
+                assert len(set(lengths_for_that_dim))==1,\
+                       "lengths for dim "+str(dim_idx)\
+                       +" should be the same, got: "+str(lengths_for_that_dim)
+                shape.append(lengths_for_that_dim[0])
+            else:
+                shape.append(sum(lengths_for_that_dim))
+        return shape
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.concat(tensor_list=input_act_vars, axis=self.concat_axis)
+
+    def _get_mxts_increments_for_inputs(self):
+        mxts_increments_for_inputs = []
+        input_shapes = [an_input.get_shape() for an_input in self.inputs]
+        slices = [slice(None,None,None) if i != self.concat_axis
+                    else None for i in range(len(input_shapes[0]))]
+        idx_along_concat_axis = 0
+        for idx, input_shape in enumerate(input_shapes):
+            slices_for_input = [x for x in slices] 
+            slices_for_input[self.concat_axis] =\
+             slice(idx_along_concat_axis,
+                   idx_along_concat_axis+input_shape[self.concat_axis])
+            idx_along_concat_axis += input_shape[self.concat_axis]
+            mxts_increments_for_inputs.append(
+                self.get_mxts()[slices_for_input])
+
+        return mxts_increments_for_inputs
+
+
+class MaxMerge(ListInputMixin, OneDimOutputMixin, Node):
+
+    def __init__(self, max_axis, **kwargs):
+        super(Concat, self).__init__(**kwargs)
+        self.concat_axis = concat_axis
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(Concat, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['concat_axis'] = self.concat_axis
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        shape = []
+        input_shapes = [an_input.get_shape() for an_input in self.inputs]
+        assert len(set(len(x) for x in input_shapes))==1,\
+          "all inputs should have the same num"+\
+          " of dims - got: "+str(input_shapes)
+        for dim_idx in range(len(input_shapes[0])):
+            lengths_for_that_dim = [input_shape[dim_idx]
+                                    for input_shape in input_shapes]
+            if (dim_idx != self.concat_axis):
+                assert len(set(lengths_for_that_dim))==1,\
+                       "lengths for dim "+str(dim_idx)\
+                       +" should be the same, got: "+str(lengths_for_that_dim)
+                shape.append(lengths_for_that_dim[0])
+            else:
+                shape.append(sum(lengths_for_that_dim))
+        return shape
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.concat(tensor_list=input_act_vars, axis=self.concat_axis)
+
+    def _get_mxts_increments_for_inputs(self):
+        mxts_increments_for_inputs = []
+        input_shapes = [an_input.get_shape() for an_input in self.inputs]
+        slices = [slice(None,None,None) if i != self.concat_axis
+                    else None for i in range(len(input_shapes[0]))]
+        idx_along_concat_axis = 0
+        for idx, input_shape in enumerate(input_shapes):
+            slices_for_input = [x for x in slices] 
+            slices_for_input[self.concat_axis] =\
+             slice(idx_along_concat_axis,
+                   idx_along_concat_axis+input_shape[self.concat_axis])
+            idx_along_concat_axis += input_shape[self.concat_axis]
+            mxts_increments_for_inputs.append(
+                self.get_mxts()[slices_for_input])
+
+        return mxts_increments_for_inputs
+
+
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     
     def _build_activation_vars(self, input_act_vars):

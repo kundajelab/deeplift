@@ -96,7 +96,6 @@ def maxpool2d_conversion(layer, name, verbose,
     pool2d_kwargs = prep_pool2d_kwargs(layer=layer, name=name, verbose=verbose)
     return [blobs.MaxPool2D(
              maxpool_deeplift_mode=maxpool_deeplift_mode,
-             pool_mode=B.PoolMode.max,
              **pool2d_kwargs)]
 
 
