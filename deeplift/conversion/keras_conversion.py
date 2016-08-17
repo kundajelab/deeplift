@@ -29,7 +29,7 @@ ActivationTypes = deeplift.util.enum(relu='relu',
                                      softmax='softmax',
                                      linear='linear')
 
-default_maxpool_deeplift_mode = MaxPoolDeepLiftMode.all_or_none
+default_maxpool_deeplift_mode = MaxPoolDeepLiftMode.gradient
 
 def gru_conversion(layer, name, verbose, **kwargs):
     return [blobs.GRU(
@@ -65,7 +65,8 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
     )] 
 
 
-def conv2d_conversion(layer, name, verbose, mxts_mode, expo_upweight_factor):
+def conv2d_conversion(layer, name, verbose,
+                      mxts_mode, expo_upweight_factor, **kwargs):
     #mxts_mode only used for activation
     converted_activation = activation_conversion(
                             layer, name, verbose, mxts_mode=mxts_mode,
@@ -91,10 +92,10 @@ def prep_pool2d_kwargs(layer, name, verbose):
 
 
 def maxpool2d_conversion(layer, name, verbose,
-                         max_pool_deeplift_mode, **kwargs):
+                         maxpool_deeplift_mode, **kwargs):
     pool2d_kwargs = prep_pool2d_kwargs(layer=layer, name=name, verbose=verbose)
     return [blobs.MaxPool2D(
-             max_pool_deeplift_mode=max_pool_deeplift_mode,
+             maxpool_deeplift_mode=maxpool_deeplift_mode,
              pool_mode=B.PoolMode.max,
              **pool2d_kwargs)]
 
@@ -130,7 +131,8 @@ def flatten_conversion(layer, name, verbose, **kwargs):
     return [blobs.Flatten(name=name, verbose=verbose)]
 
 
-def dense_conversion(layer, name, verbose, mxts_mode, expo_upweight_factor):
+def dense_conversion(layer, name, verbose,
+                      mxts_mode, expo_upweight_factor, **kwargs):
     converted_activation = activation_conversion(
                                   layer, name=name, verbose=verbose,
                                   mxts_mode=mxts_mode,
@@ -187,7 +189,7 @@ def activation_conversion(layer, name, verbose,
 
 def sequential_container_conversion(layer, name, verbose,
                                     mxts_mode, expo_upweight_factor,
-                                    max_pool_deeplift_mode,
+                                    maxpool_deeplift_mode,
                                     converted_layers=None):
     if (converted_layers is None):
         converted_layers = []
@@ -204,7 +206,7 @@ def sequential_container_conversion(layer, name, verbose,
                              verbose=verbose,
                              mxts_mode=mxts_mode,
                              expo_upweight_factor=expo_upweight_factor,
-                             max_pool_deeplift_mode=max_pool_deeplift_mode)) 
+                             maxpool_deeplift_mode=maxpool_deeplift_mode)) 
     return converted_layers
      
 
@@ -238,13 +240,12 @@ def convert_sequential_model(model, num_dims=None,
                         expo_upweight_factor=0,
                         default=0.0,
                         verbose=True,
-                        max_pool_deeplift_mode=default_maxpool_deeplift_mode):
+                        maxpool_deeplift_mode=default_maxpool_deeplift_mode):
     converted_layers = []
     if (model.layers[0].input_shape is not None):
         input_shape = model.layers[0].input_shape
-        if input_shape[0] is None: #sometimes is the case for batch axis
-            input_shape = input_shape[1:]
-        num_dims_input = len(input_shape)+1 #+1 for the batch axis
+        assert input_shape[0] is None #batch axis
+        num_dims_input = len(input_shape)
         assert num_dims is None or num_dims_input==num_dims,\
         "num_dims argument of "+str(num_dims)+" is incompatible with"\
         +" the number of dims in layers[0].input_shape which is: "\
@@ -261,10 +262,10 @@ def convert_sequential_model(model, num_dims=None,
     #additional layers so the assignment is not strictly necessary,
     #but whatever
     converted_layers = sequential_container_conversion(
-                layer=model, name="", verbose=verbose
+                layer=model, name="", verbose=verbose,
                 mxts_mode=mxts_mode,
                 expo_upweight_factor=expo_upweight_factor,
-                maxpool_deeplift_mode=maxpool_deeplift_mode
+                maxpool_deeplift_mode=maxpool_deeplift_mode,
                 converted_layers=converted_layers)
     deeplift.util.connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
@@ -275,7 +276,7 @@ def convert_graph_model(model,
                         mxts_mode=MxtsMode.DeepLIFT,
                         expo_upweight_factor=0,
                         verbose=True,
-                        max_pool_deeplift_mode=default_maxpool_deeplift_mode
+                        maxpool_deeplift_mode=default_maxpool_deeplift_mode,
                         auto_build_outputs=True,
                         default=0.0):
     name_to_blob = OrderedDict()
@@ -286,8 +287,7 @@ def convert_graph_model(model,
     for keras_input_layer_name in model.inputs:
         keras_input_layer = model.inputs[keras_input_layer_name]
         input_shape = keras_input_layer.get_config()['input_shape']
-        if input_shape[0] is None: #sometimes is the case for batch axis
-            input_shape = input_shape[1:]
+        assert input_shape[0] is None #for the batch axis
         deeplift_input_layer =\
          blobs.Input_FixedDefault(
           default=default,
