@@ -168,17 +168,17 @@ class MaxPool2D(Pool2D):
         lead to odd results if the inputs falling within a
         single kernel don't have approx even default vals
     """ 
-    def __init__(self, max_pool_deeplift_mode,
+    def __init__(self, maxpool_deeplift_mode,
                        **kwargs):
         super(MaxPool2D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
-        self.max_pool_deeplift_mode = max_pool_deeplift_mode
+        self.maxpool_deeplift_mode = maxpool_deeplift_mode
 
     def _get_mxts_increments_for_inputs(self):
-        if (self.max_pool_deeplift_mode==
+        if (self.maxpool_deeplift_mode==
             MaxPoolDeepLiftMode.gradient):
             return (self.
                     _get_input_grad_given_outgrad(out_grad=self.get_mxts()))
-        elif (self.max_pool_deeplift_mode==
+        elif (self.maxpool_deeplift_mode==
               MaxPoolDeepLiftMode.scaled_gradient):
             grad_times_diff_def = self._get_input_grad_given_outgrad(
                    out_grad=self.get_mxts()*self._get_diff_from_default_vars()) 
@@ -186,8 +186,8 @@ class MaxPool2D(Pool2D):
                                      self._get_input_diff_from_default_vars()))
             return grad_times_diff_def/pcd_input_diff_default
         else:
-            raise RuntimeError("Unsupported max_pool_deeplift_mode: "+
-                               str(self.max_pool_deeplift_mode))
+            raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
+                               str(self.maxpool_deeplift_mode))
             
 
 class AvgPool2D(Pool2D):
