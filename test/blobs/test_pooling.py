@@ -74,7 +74,7 @@ class TestDense(unittest.TestCase):
                           strides=(1,1),
                           border_mode=B.BorderMode.valid,
                           ignore_border=True,
-                          max_pool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -130,7 +130,7 @@ class TestDense(unittest.TestCase):
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
                   ignore_border=True,
-                  max_pool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -163,7 +163,7 @@ class TestDense(unittest.TestCase):
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
                   ignore_border=True,
-                  max_pool_deeplift_mode=MaxPoolDeepLiftMode.scaled_gradient)
+                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.scaled_gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
