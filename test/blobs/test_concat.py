@@ -21,7 +21,7 @@ class TestConcat(unittest.TestCase):
                             default=0.0,
                             num_dims=None,
                             shape=(None,1,1,1))
-        self.concat_layer = blobs.Concat(concat_axis=1)
+        self.concat_layer = blobs.Concat(axis=1)
         self.concat_layer.set_inputs([self.input_layer1, self.input_layer2])
         self.flatten_layer = blobs.Flatten()
         self.flatten_layer.set_inputs(self.concat_layer)
