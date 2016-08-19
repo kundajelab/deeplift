@@ -12,7 +12,7 @@ import deeplift.backend as B
 import theano
 
 
-class TestDense(unittest.TestCase):
+class TestPool(unittest.TestCase):
 
     def setUp(self):
         #theano dimensional ordering assumed here...would need to swap
