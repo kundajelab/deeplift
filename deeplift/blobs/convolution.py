@@ -206,7 +206,7 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
         return B.flatten_keeping_first(input_act_vars)
 
     def _compute_shape(self, input_shape):
-        return np.prod(input_shape)
+        return (None, np.prod(input_shape[1:]))
 
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 

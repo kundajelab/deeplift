@@ -543,64 +543,11 @@ class BatchNormalization(SingleInputMixin, Node):
         return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
 
 
-class Concat(ListInputMixin, OneDimOutputMixin, Node):
+class Merge(ListInputMixin, Node):
 
-    def __init__(self, concat_axis, **kwargs):
-        super(Concat, self).__init__(**kwargs)
-        self.concat_axis = concat_axis
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Concat, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['concat_axis'] = self.concat_axis
-        return kwargs_dict
-
-    def _compute_shape(self, input_shape):
-        shape = []
-        input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        assert len(set(len(x) for x in input_shapes))==1,\
-          "all inputs should have the same num"+\
-          " of dims - got: "+str(input_shapes)
-        for dim_idx in range(len(input_shapes[0])):
-            lengths_for_that_dim = [input_shape[dim_idx]
-                                    for input_shape in input_shapes]
-            if (dim_idx != self.concat_axis):
-                assert len(set(lengths_for_that_dim))==1,\
-                       "lengths for dim "+str(dim_idx)\
-                       +" should be the same, got: "+str(lengths_for_that_dim)
-                shape.append(lengths_for_that_dim[0])
-            else:
-                shape.append(sum(lengths_for_that_dim))
-        return shape
-
-    def _build_activation_vars(self, input_act_vars):
-        return B.concat(tensor_list=input_act_vars, axis=self.concat_axis)
-
-    def _get_mxts_increments_for_inputs(self):
-        mxts_increments_for_inputs = []
-        input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        slices = [slice(None,None,None) if i != self.concat_axis
-                    else None for i in range(len(input_shapes[0]))]
-        idx_along_concat_axis = 0
-        for idx, input_shape in enumerate(input_shapes):
-            slices_for_input = [x for x in slices] 
-            slices_for_input[self.concat_axis] =\
-             slice(idx_along_concat_axis,
-                   idx_along_concat_axis+input_shape[self.concat_axis])
-            idx_along_concat_axis += input_shape[self.concat_axis]
-            mxts_increments_for_inputs.append(
-                self.get_mxts()[slices_for_input])
-
-        return mxts_increments_for_inputs
-
-
-class Merge(ListInputMixin, OneDimOutputMixin, Node):
-
-    def __init__(self, axis, merge_function_name, **kwargs):
-        super(Concat, self).__init__(**kwargs)
+    def __init__(self, axis, **kwargs):
+        super(Merge, self).__init__(**kwargs)
         self.axis = axis
-        
-        self.merge_function_name = merge_function_name
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Concat, self).\
@@ -608,56 +555,8 @@ class Merge(ListInputMixin, OneDimOutputMixin, Node):
         kwargs_dict['axis'] = self.axis
         return kwargs_dict
 
-    def _compute_shape(self, input_shape):
-        shape = []
-        input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        assert len(set(len(x) for x in input_shapes))==1,\
-          "all inputs should have the same num"+\
-          " of dims - got: "+str(input_shapes)
-        for dim_idx in range(len(input_shapes[0])):
-            lengths_for_that_dim = [input_shape[dim_idx]
-                                    for input_shape in input_shapes]
-            if (dim_idx != self.concat_axis):
-                assert len(set(lengths_for_that_dim))==1,\
-                       "lengths for dim "+str(dim_idx)\
-                       +" should be the same, got: "+str(lengths_for_that_dim)
-                shape.append(lengths_for_that_dim[0])
-            else:
-                shape.append(sum(lengths_for_that_dim))
-        return shape
-
-    def _build_activation_vars(self, input_act_vars):
-        return B.concat(tensor_list=input_act_vars, axis=self.concat_axis)
-
-    def _get_mxts_increments_for_inputs(self):
-        mxts_increments_for_inputs = []
-        input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        slices = [slice(None,None,None) if i != self.concat_axis
-                    else None for i in range(len(input_shapes[0]))]
-        idx_along_concat_axis = 0
-        for idx, input_shape in enumerate(input_shapes):
-            slices_for_input = [x for x in slices] 
-            slices_for_input[self.concat_axis] =\
-             slice(idx_along_concat_axis,
-                   idx_along_concat_axis+input_shape[self.concat_axis])
-            idx_along_concat_axis += input_shape[self.concat_axis]
-            mxts_increments_for_inputs.append(
-                self.get_mxts()[slices_for_input])
-
-        return mxts_increments_for_inputs
-
-
-class MaxMerge(ListInputMixin, OneDimOutputMixin, Node):
-
-    def __init__(self, max_axis, **kwargs):
-        super(Concat, self).__init__(**kwargs)
-        self.concat_axis = concat_axis
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Concat, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['concat_axis'] = self.concat_axis
-        return kwargs_dict
+    def compute_shape_for_merge_axis(self, lengths_for_merge_axis_dim):
+        raise NotImplementedError()
 
     def _compute_shape(self, input_shape):
         shape = []
@@ -668,49 +567,127 @@ class MaxMerge(ListInputMixin, OneDimOutputMixin, Node):
         for dim_idx in range(len(input_shapes[0])):
             lengths_for_that_dim = [input_shape[dim_idx]
                                     for input_shape in input_shapes]
-            if (dim_idx != self.concat_axis):
+            if (dim_idx != self.axis):
                 assert len(set(lengths_for_that_dim))==1,\
                        "lengths for dim "+str(dim_idx)\
                        +" should be the same, got: "+str(lengths_for_that_dim)
                 shape.append(lengths_for_that_dim[0])
             else:
-                shape.append(sum(lengths_for_that_dim))
+                shape.append(self.compute_shape_for_merge_axis(
+                                   lengths_for_that_dim))
         return shape
 
     def _build_activation_vars(self, input_act_vars):
-        return B.concat(tensor_list=input_act_vars, axis=self.concat_axis)
+        raise NotImplementedError()
+
+    def _get_mxts_increments_for_inputs(self):
+        raise NotImplementedError()
+
+
+class Concat(OneDimOutputMixin, Merge):
+
+    def compute_shape_for_merge_axis(self, lengths_for_merge_axis_dim):
+        return sum(lengths_for_merge_axis_dim)
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.concat(tensor_list=input_act_vars, axis=self.axis)
 
     def _get_mxts_increments_for_inputs(self):
         mxts_increments_for_inputs = []
         input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        slices = [slice(None,None,None) if i != self.concat_axis
+        slices = [slice(None,None,None) if i != self.axis
                     else None for i in range(len(input_shapes[0]))]
         idx_along_concat_axis = 0
         for idx, input_shape in enumerate(input_shapes):
             slices_for_input = [x for x in slices] 
-            slices_for_input[self.concat_axis] =\
+            slices_for_input[self.axis] =\
              slice(idx_along_concat_axis,
-                   idx_along_concat_axis+input_shape[self.concat_axis])
-            idx_along_concat_axis += input_shape[self.concat_axis]
+                   idx_along_concat_axis+input_shape[self.axis])
+            idx_along_concat_axis += input_shape[self.axis]
             mxts_increments_for_inputs.append(
                 self.get_mxts()[slices_for_input])
 
         return mxts_increments_for_inputs
 
 
-class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
-    
-    def _build_activation_vars(self, input_act_vars):
-        return B.flatten_keeping_first(input_act_vars)
+class MaxMerge(OneDimOutputMixin, Merge):
 
-    def _compute_shape(self, input_shape):
-        return (None, np.prod(input_shape[1:]))
+    def __init__(self, temp, **kwargs):
+        super(MaxMerge, self).__init__(**kwargs)
+        self.temp = temp
+
+    def compute_shape_for_merge_axis(self, lengths_for_merge_axis_dim):
+        assert len(set(lengths_for_merge_axis_dim))==1,\
+               "Not all elements in lengths_for_merge_axis_dim have the"+\
+               " same lengths: "+str(lengths_for_merge_axis_dim)
+        return lengths_for_merge_axis_dim[0]
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.maximum_over_list(the_list=input_act_vars)
 
     def _get_mxts_increments_for_inputs(self):
-        input_act_vars = self._get_input_activation_vars() 
-        return B.unflatten_keeping_first(
-                x=self.get_mxts(), like=input_act_vars
-            )
+        refs = self._get_input_default_activation_vars()
+        inp_acts = self._get_input_activation_vars()
+        output = self.get_activation_vars()
+        #1(a): Compute max(ref s.t. ref < output, -inf if ref >= output)
+        ref_st_ref_lt_output = [B.mask_if_not_condition(
+                                tensor=ref,
+                                mask_val=-np.inf,
+                                condition=(ref < output)) for ref in refs]
+        max_ref_st_ref_lt_output =\
+         B.maximum_over_list(the_list=ref_st_ref_lt_output)
+        #1(b): Compute max(act s.t. ref >= output, -inf if ref < output)
+        act_st_ref_gte_output = [B.mask_if_not_condition(
+                            tensor=inp_act,
+                            mask_val=-np.inf,
+                            condition=(ref >= output)) for (ref, inp_act) in
+                            zip(refs, inp_acts)] 
+        max_act_st_ref_gte_output = B.maximum_over_list(
+                                        act_st_ref_gte_output)
+        #Compute max(1(a), 1(b))
+        stations = B.maximum(max_ref_st_ref_lt_output,
+                             max_act_st_ref_gte_output)
+        #compute the negative rides as max(ref-station,0)
+        negative_rides_arr = [B.maximum(ref-stations, 0) for ref in refs]
+        #compute the positive rides as max(act-station,0)
+        positive_rides_arr = [B.maximum(inp_act-station,0) for inp_act in inp_acts]
+        #compute the max negative ride, max positive ride
+        max_neg_ride = B.maximum_over_list(negative_rides_arr)
+        max_pos_ride = B.maximum_over_list(positive_rides_arr)
+        denom = pseudocount_near_zero(max_pos_ride + max_neg_ride)
+        #allocate total negative and positive importance according to ratio of max ride lengths
+        out_diff_def = self._get_diff_from_default_vars()
+        tot_pos_contrib = max_pos_ride*out_diff_def/denom
+        tot_neg_contrib = max_neg_ride*out_diff_def/denom
+        #distribute importance for individual pos and neg rides according to some function
+        exp_pos_rides_arr = [B.exp(pos_rides/self.temp)-1
+                             for pos_rides in positive_rides_arr]
+        exp_neg_rides_arr = [B.exp(neg_rides/self.temp)-1
+                             for neg_rides in negative_rides_arr]
+        sum_exp_pos_rides = pseudocount_near_zero(
+                             B.apply_iteratively_to_list(exp_pos_rides_arr,
+                                                         lambda x, y: x+y))
+        sum_exp_neg_rides = pseudocount_near_zero(
+                             B.apply_iteratively_to_list(exp_neg_rides_arr,
+                                                         lambda x, y: x+y))
+        contrib_pos_rides_arr = [((exp_pos_rides*tot_pos_contrib)/
+                                   sum_pos_rides) for exp_pos_rides
+                                 in exp_pos_rides_arr]
+        contrib_neg_rides_arr = [((exp_neg_rides*tot_neg_contrib)/
+                                   sum_neg_rides) for exp_neg_rides
+                                 in exp_neg_rides_arr]
+        #compute multipliers as ratio of contrib to inp diff-from-default
+        pcd_inp_diff_def_arr = [pseudocount_near_zero(inp_diff_def) for
+                                inp_diff_def in
+                                self._get_input_diff_from_default_vars()]
+        multipliers_arr = [(contrib_pos_rides+contrib_neg_rides)/
+                            pcd_inp_diff_def for
+                           (contrib_pos_rides,
+                            contrib_neg_rides,
+                            pcd_inp_diff_def) in zip(contrib_pos_rides_arr,
+                                                     contrib_neg_rides_arr,
+                                                     pcd_inp_diff_def_arr)]
+        return multipliers_arr
 
 
 def compute_mult_for_sum_then_transform(
@@ -734,5 +711,10 @@ def distribute_over_product(def_act_var1, diff_def_act_var1,
 
 
 def pseudocount_near_zero(tensor):
-    return tensor + NEAR_ZERO_THRESHOLD*(B.abs(tensor)
-                                         < 0.5*NEAR_ZERO_THRESHOLD)
+    
+    return tensor + (NEAR_ZERO_THRESHOLD*((B.abs(tensor)
+                                          < 0.5*NEAR_ZERO_THRESHOLD)*
+                                          (tensor >= 0)) -
+                     NEAR_ZERO_THRESHOLD*((B.abs(tensor)
+                                          < 0.5*NEAR_ZERO_THRESHOLD)*
+                                          (tensor < 0)))
