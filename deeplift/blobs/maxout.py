@@ -199,6 +199,8 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         # batch x num_features x num_features x num_outputs
         #'When do you transition into feature on first axis FROM
         #feature on second axis
+        self._debug_positive_change_vec_mask = positive_change_vec_mask
+        self._debug_negative_change_vec_mask = negative_change_vec_mask
         transition_in_thetas =\
          (equal_pairs_mask\
            *transition_in_equality_vals[None,:,:,None])\
