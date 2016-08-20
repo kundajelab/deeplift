@@ -647,18 +647,16 @@ class MaxMerge(OneDimOutputMixin, Merge):
         #Compute max(1(a), 1(b))
         stations = B.maximum(max_ref_st_ref_lt_output,
                              max_act_st_ref_gte_output)
-        #compute the negative rides as max(ref-station,0)
+        #compute the negative rides as max(ref-stations,0)
         negative_rides_arr = [B.maximum(ref-stations, 0) for ref in refs]
-        #compute the positive rides as max(act-station,0)
-        positive_rides_arr = [B.maximum(inp_act-station,0) for inp_act in inp_acts]
+        #compute the positive rides as max(act-stations,0)
+        positive_rides_arr = [B.maximum(inp_act-stations,0)
+                              for inp_act in inp_acts]
         #compute the max negative ride, max positive ride
         max_neg_ride = B.maximum_over_list(negative_rides_arr)
         max_pos_ride = B.maximum_over_list(positive_rides_arr)
-        denom = pseudocount_near_zero(max_pos_ride + max_neg_ride)
         #allocate total negative and positive importance according to ratio of max ride lengths
         out_diff_def = self._get_diff_from_default_vars()
-        tot_pos_contrib = max_pos_ride*out_diff_def/denom
-        tot_neg_contrib = max_neg_ride*out_diff_def/denom
         #distribute importance for individual pos and neg rides according to some function
         exp_pos_rides_arr = [B.exp(pos_rides/self.temp)-1
                              for pos_rides in positive_rides_arr]
@@ -670,11 +668,11 @@ class MaxMerge(OneDimOutputMixin, Merge):
         sum_exp_neg_rides = pseudocount_near_zero(
                              B.apply_iteratively_to_list(exp_neg_rides_arr,
                                                          lambda x, y: x+y))
-        contrib_pos_rides_arr = [((exp_pos_rides*tot_pos_contrib)/
-                                   sum_pos_rides) for exp_pos_rides
+        contrib_pos_rides_arr = [((exp_pos_rides*max_pos_ride)/
+                                   sum_exp_pos_rides) for exp_pos_rides
                                  in exp_pos_rides_arr]
-        contrib_neg_rides_arr = [((exp_neg_rides*tot_neg_contrib)/
-                                   sum_neg_rides) for exp_neg_rides
+        contrib_neg_rides_arr = [((-exp_neg_rides*max_neg_ride)/
+                                   sum_exp_neg_rides) for exp_neg_rides
                                  in exp_neg_rides_arr]
         #compute multipliers as ratio of contrib to inp diff-from-default
         pcd_inp_diff_def_arr = [pseudocount_near_zero(inp_diff_def) for

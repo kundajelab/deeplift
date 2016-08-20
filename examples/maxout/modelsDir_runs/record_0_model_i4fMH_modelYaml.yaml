@@ -1,0 +1,22 @@
+class_mode: categorical
+layers:
+- W_constraint: null
+  W_learning_rate_multiplier: null
+  W_regularizer: null
+  activity_regularizer: null
+  b_constraint: null
+  b_learning_rate_multiplier: null
+  b_regularizer: null
+  cache_enabled: true
+  custom_name: maxoutdense
+  init: glorot_uniform
+  input_dim: null
+  input_shape: !!python/tuple [2]
+  name: MaxoutDense
+  nb_feature: 10
+  output_dim: 1
+  trainable: true
+loss: mean_squared_error
+name: Sequential
+optimizer: {beta_1: 0.8999999761581421, beta_2: 0.9990000128746033, epsilon: 1.0e-08,
+  lr: 0.0010000000474974513, name: Adam}
