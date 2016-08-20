@@ -17,6 +17,14 @@ def pow(inp, power):
     return T.pow(inp, power)
 
 
+def exp(inp):
+    return T.exp(inp)
+
+
+def switch(tensor, iftrue, iffalse):
+    return T.switch(tensor, iftrue, iffalse)
+
+
 def maximum(x, y):
     return T.maximum(x, y)
 
