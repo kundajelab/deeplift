@@ -146,6 +146,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #difference in the direction of change, consider them "equal"
         equal_pairs_mask = (B.abs(change_vec_projection)<NEAR_ZERO_THRESHOLD)*\
                            (B.abs(feature_diff_at_default)<NEAR_ZERO_THRESHOLD)
+        self._debug_equal_pairs_mask = equal_pairs_mask
         unequal_pairs_mask = 1-equal_pairs_mask 
 
         #if two planes are parallel in the direction of change, we consider
@@ -177,12 +178,13 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #for transition_in_thetas or transition_out_thetas to be either
         #+inf or -inf, with lower indices dominating over higher indices
         #these all have dimensions num_features x num_features
-        upper_triangular_inf = np.triu(1.0E300*
+        upper_triangular_inf = np.triu(np.inf*
                                 np.ones((self.W.shape[0],
                                          self.W.shape[0])))
-        lower_triangular_inf = np.tril(1.0E300*(
+        lower_triangular_inf = np.tril(np.inf*(
                                 np.ones((self.W.shape[0], self.W.shape[0]))
                                 -np.eye(self.W.shape[0])))
+        lower_triangular_inf[np.isnan(lower_triangular_inf)]=0
         transition_in_equality_vals = -1*(upper_triangular_inf)\
                                       + lower_triangular_inf
         transition_out_equality_vals = -1*transition_in_equality_vals
@@ -201,19 +203,23 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #feature on second axis
         self._debug_positive_change_vec_mask = positive_change_vec_mask
         self._debug_negative_change_vec_mask = negative_change_vec_mask
+        self._debug = B.switch(equal_pairs_mask,
+                        transition_in_equality_vals[None,:,:,None],0)
         transition_in_thetas =\
-         (equal_pairs_mask\
-           *transition_in_equality_vals[None,:,:,None])\
-         + positive_change_vec_mask*thetas\
-         + negative_change_vec_mask*(-1.0E300)
+         B.switch(equal_pairs_mask,
+                  transition_in_equality_vals[None,:,:,None],0)\
+         + B.switch(positive_change_vec_mask, thetas, 0)\
+         - B.switch(negative_change_vec_mask, np.inf, 0)
         self._debug_transition_in_thetas = transition_in_thetas
+        self._transition_in_equality_vals = transition_in_equality_vals
+        self._transition_out_equality_vals = transition_out_equality_vals
         #When do you transition FROM feature on first axis
         #TO feature on second axis
         transition_out_thetas =\
-         (equal_pairs_mask\
-           *transition_out_equality_vals[None,:,:,None])\
-         + negative_change_vec_mask*thetas\
-         + positive_change_vec_mask*(1.0E300)
+          B.switch(equal_pairs_mask,
+                   transition_out_equality_vals[None,:,:,None],0)\
+         + B.switch(negative_change_vec_mask,thetas,0)\
+         + B.switch(positive_change_vec_mask,np.inf, 0)
         self._debug_transition_out_thetas = transition_out_thetas
 
         #time_spent_per_feature has dims:
