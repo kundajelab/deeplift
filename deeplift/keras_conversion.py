@@ -117,28 +117,35 @@ activation_to_conversion_function = {
     ActivationTypes.softmax: softmax_conversion
 }
 
+def convert_layer_name(layer_name):
+    # for newer versions of keras
+    layer_to_name_dict = {
+        # not empirically tested but checked names by looking @ Googled code snippets
+        'convolution2d': conv2d_conversion,
+        'maxpooling2d': lambda layer, name, mxts_mode:\
+                         pool2d_conversion(layer, name,
+                                           pool_mode=PoolMode.max,
+                                           mxts_mode=mxts_mode),
+        'averagepooling2d': lambda layer, name, mxts_mode:\
+                         pool2d_conversion(layer, name,
+                                           pool_mode=PoolMode.avg,
+                                           mxts_mode=mxts_mode),
+        'batchnormalization': batchnorm_conversion,
+        'zeropadding2d': zeropad2d_conversion,
+        'flatten': flatten_conversion,
 
-layer_name_to_conversion_function = {
-    'Convolution2D': conv2d_conversion,
-    'MaxPooling2D': lambda layer, name, mxts_mode:\
-                     pool2d_conversion(layer, name,
-                                       pool_mode=PoolMode.max,
-                                       mxts_mode=mxts_mode),
-    'AveragePooling2D': lambda layer, name, mxts_mode:\
-                     pool2d_conversion(layer, name,
-                                       pool_mode=PoolMode.avg,
-                                       mxts_mode=mxts_mode),
-    'BatchNormalization': batchnorm_conversion,
-    'ZeroPadding2D': zeropad2d_conversion,
-    'Flatten': flatten_conversion,
-    'Dense': dense_conversion,
-     #in current keras implementation, scaling is done during training
-     #and not predict time, so Dropout is a no-op at predict time
-    'Dropout': lambda layer, name, mxts_mode: [blobs.NoOp(name=name)], 
-    'Activation': activation_conversion, 
-    'PReLU': prelu_conversion
-}
+        # empirically tested to work
+        'dense': dense_conversion,
+         #in current keras implementation, scaling is done during training
+         #and not predict time, so Dropout is a no-op at predict time
+        'dropout': lambda layer, name, mxts_mode: [blobs.NoOp(name=name)], 
+        'activation': activation_conversion, 
+        'prelu': prelu_conversion
+    }
 
+    # older Keras builds used naming schemes like "Dense" and "PReLU" => need to lowercase
+    stripped_layer_name = layer_name.lower().split('_')[0]
+    return layer_to_name_dict[stripped_layer_name]
 
 def convert_sequential_model(model, num_dims=None, mxts_mode=MxtsMode.DeepLIFT):
     converted_layers = []
@@ -157,14 +164,15 @@ def convert_sequential_model(model, num_dims=None, mxts_mode=MxtsMode.DeepLIFT):
                                  num_dims=num_dims,
                                  shape = input_shape,
                                  name="input"))
+
     for layer_idx, layer in enumerate(model.layers):
-        conversion_function = layer_name_to_conversion_function[
-                               layer.get_config()[KerasKeys.name]]
+        conversion_function = convert_layer_name(layer.get_config()[KerasKeys.name])
         converted_layers.extend(conversion_function(
                                  layer=layer, name=str(layer_idx),
                                  mxts_mode=mxts_mode)) 
     connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
+
     return models.SequentialModel(converted_layers)
 
 
@@ -207,8 +215,9 @@ def convert_graph_model(model,
     
     #convert the nodes/outputs 
     for layer_name, layer in list(model.nodes.items()):
-        conversion_function = layer_name_to_conversion_function[
-                               layer.get_config()[KerasKeys.name]]
+
+        # !!! not empirically tested for newer versions of Keras, see convert_layer_name()
+        conversion_function = convert_layer_name(layer.get_config()[KerasKeys.name])
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
                                  mxts_mode=mxts_mode)
@@ -272,7 +281,6 @@ def mean_normalise_columns_in_conv_layer(layer_to_adjust):
     layer_to_adjust.set_weights([normalised_weights,
                                  normalised_bias])
 
-
 def mean_normalise_softmax_weights(softmax_dense_layer):
     weights, biases = softmax_dense_layer.get_weights()
     new_weights, new_biases =\
@@ -292,4 +300,4 @@ def load_keras_model(weights, yaml,
         mean_normalise_first_conv_layer_weights(
          model,
          name_of_conv_layer_to_normalise=name_of_conv_layer_to_normalise)
-    return model 
+    return model
