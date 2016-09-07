@@ -107,6 +107,7 @@ class SequentialModel(Model):
     def get_layers(self):
         return self._layers
 
+    # find_scores_layer_idx was previously called input_layer_idx
     def _get_func(self, find_scores_layer_idx,
                         target_layer_idx=-2, **kwargs):
         return super(SequentialModel, self)._get_func(
