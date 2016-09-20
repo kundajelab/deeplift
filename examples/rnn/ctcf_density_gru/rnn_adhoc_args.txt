@@ -1,7 +1,0 @@
-[
-    {"args":{
-        "inputLen": 150,
-        "numOutputs": 1,
-        "rnnDims": 100},
-     "description": ""}
-]
