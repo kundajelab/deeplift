@@ -35,7 +35,8 @@ find_scores_layer_idx = 0
 #Compile the function that computes the scores
 #For sigmoid or softmax outputs, target_layer_idx should be -2 (the default)
 #(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
-#For regression tasks with a linear or relu output, target_layer_idx should be -1 (which simply refers to the last layer)
+#For regression tasks with a linear or relu output, target_layer_idx should be -1
+#(which simply refers to the last layer)
 deeplift_contribs_func = deeplift_model.get_target_contribs_func(
                             find_scores_layer_idx=find_scores_layer_idx,
                             target_layer_idx=-1)
