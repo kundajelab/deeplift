@@ -64,7 +64,7 @@ from deeplift.conversion import keras_conversion as kc
 deeplift_model = kc.convert_graph_model(
                     keras_model,
                     mxts_mode=deeplift.blobs.MxtsMode.DeepLIFT)
-#For sigmoid or softmax outputs, this should be the name of the linear layer preceding the final nonlinear activation
+#For sigmoid or softmax outputs, this should be the name of the linear layer preceding the final nonlinearity
 #(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
 #For regression tasks with a linear or relu output, this should simply be the name of the final layer
 #You can find the name of the layers by inspecting the keys of deeplift_model.get_name_to_blob()
