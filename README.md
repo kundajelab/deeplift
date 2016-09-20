@@ -139,7 +139,7 @@ Here are the steps necessary to implement the backward pass, which is where the 
     ```
     - The first argument represents the inputs to the function and should be a list of one symbolic tensor for each input layer (this was explained under the instructions for compiling the forward pass).
     - The second argument represents the output of the function. In the example above, it is a single tensor containing the importance scores of a single blob, but it can also be a list of tensors if you wish to compute the scores for multiple blobs at once.
-    - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of MxtsMode.DeepLIFT, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
+    - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of `MxtsMode.DeepLIFT`, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
 5. Now you are ready to call the function to find the importance scores.
     - Select a specific output blob to compute importance scores with respect to by calling `set_active()` on the blob.
     - Select a specific target neuron within the blob by calling `update_task_index(task_idx)` on the blob. Here `task_idx` is the index of a neuron within the blob.
