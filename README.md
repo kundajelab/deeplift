@@ -83,6 +83,22 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
 
 ```
 
+##Under the hood
+This section explains finer aspects of the deeplift implementation
+
+###Blobs
+The blob (`deeplift.blobs.core.Blob`) is the basic unit; it is the equivalent of a "layer", but was named a "blob" so as not to imply a sequential structure. `deeplift.blobs.core.Dense` and `deeplift.blobs.convolution.Conv2D` are both examples of blobs.
+
+Blobs implement the following key methods:
+####get_activation_vars()
+Returns symbolic variables representing the activations of the blob. For an understanding of symbolic variables, refer to the documentation of symbolic computation packages like theano or tensorflow.
+
+####get_mxts()
+Returns symbolic variables representing the multipliers on this layer (for the selected output). Refer to the DeepLIFT paper for an explanation of what multipliers are.
+
+####get_target_contrib_vars()
+Returns symbolic variables representing the importance scores. This is a convenience function that returns `self.get_mxts()*self.get_diff_from_default_vars()`
+
 ##Examples
 Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift
 
