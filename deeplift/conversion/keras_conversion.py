@@ -66,11 +66,10 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
 
 
 def conv2d_conversion(layer, name, verbose,
-                      mxts_mode, expo_upweight_factor, **kwargs):
+                      mxts_mode, **kwargs):
     #mxts_mode only used for activation
     converted_activation = activation_conversion(
-                            layer, name, verbose, mxts_mode=mxts_mode,
-                            expo_upweight_factor=expo_upweight_factor)
+                            layer, name, verbose, mxts_mode=mxts_mode)
     to_return = [blobs.Conv2D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
@@ -131,11 +130,10 @@ def flatten_conversion(layer, name, verbose, **kwargs):
 
 
 def dense_conversion(layer, name, verbose,
-                      mxts_mode, expo_upweight_factor, **kwargs):
+                      mxts_mode, **kwargs):
     converted_activation = activation_conversion(
                                   layer, name=name, verbose=verbose,
-                                  mxts_mode=mxts_mode,
-                                  expo_upweight_factor=expo_upweight_factor) 
+                                  mxts_mode=mxts_mode) 
     to_return = [blobs.Dense(
                   name=("preact_" if len(converted_activation) > 0
                         else "")+name, 
@@ -150,45 +148,33 @@ def linear_conversion(**kwargs):
     return []
 
 
-def prelu_conversion(layer, name, verbose,
-                            mxts_mode, expo_upweight_factor):
+def prelu_conversion(layer, name, verbose, mxts_mode):
    return [blobs.PReLU(alpha=layer.get_weights()[0],
-                       name=name, verbose=verbose, mxts_mode=mxts_mode,
-                       expo_upweight_factor=expo_upweight_factor)] 
+                       name=name, verbose=verbose, mxts_mode=mxts_mode)] 
 
 
-def relu_conversion(layer, name, verbose,
-                           mxts_mode, expo_upweight_factor):
-    return [blobs.ReLU(name=name, verbose=verbose, mxts_mode=mxts_mode,
-                                  expo_upweight_factor=expo_upweight_factor)]
+def relu_conversion(layer, name, verbose, mxts_mode):
+    return [blobs.ReLU(name=name, verbose=verbose, mxts_mode=mxts_mode)]
 
 
-def sigmoid_conversion(layer, name, verbose,
-                              mxts_mode, expo_upweight_factor):
+def sigmoid_conversion(layer, name, verbose, mxts_mode):
     return [blobs.Sigmoid(name=name, verbose=verbose,
-                          mxts_mode=mxts_mode,
-                          expo_upweight_factor=expo_upweight_factor)]
+                          mxts_mode=mxts_mode)]
 
 
-def softmax_conversion(layer, name, verbose,
-                              mxts_mode, expo_upweight_factor):
-    return [blobs.Softmax(name=name, verbose=verbose,
-                          mxts_mode=mxts_mode,
-                          expo_upweight_factor=expo_upweight_factor)]
+def softmax_conversion(layer, name, verbose, mxts_mode):
+    return [blobs.Softmax(name=name, verbose=verbose, mxts_mode=mxts_mode)]
 
 
-def activation_conversion(layer, name, verbose,
-                                 mxts_mode, expo_upweight_factor, **kwargs):
+def activation_conversion(layer, name, verbose, mxts_mode, **kwargs):
     activation = layer.get_config()[KerasKeys.activation]
     return activation_to_conversion_function[activation](
                                      layer=layer, name=name, verbose=verbose,
-                                     mxts_mode=mxts_mode,
-                                     expo_upweight_factor=expo_upweight_factor) 
+                                     mxts_mode=mxts_mode) 
 
 
 def sequential_container_conversion(layer, name, verbose,
-                                    mxts_mode, expo_upweight_factor,
-                                    maxpool_deeplift_mode,
+                                    mxts_mode, maxpool_deeplift_mode,
                                     converted_layers=None):
     if (converted_layers is None):
         converted_layers = []
@@ -204,7 +190,6 @@ def sequential_container_conversion(layer, name, verbose,
                                    else "")+str(layer_idx),
                              verbose=verbose,
                              mxts_mode=mxts_mode,
-                             expo_upweight_factor=expo_upweight_factor,
                              maxpool_deeplift_mode=maxpool_deeplift_mode)) 
     return converted_layers
      
@@ -236,7 +221,6 @@ layer_name_to_conversion_function = {
 
 def convert_sequential_model(model, num_dims=None,
                         mxts_mode=MxtsMode.DeepLIFT,
-                        expo_upweight_factor=0,
                         default=0.0,
                         verbose=True,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode):
@@ -263,7 +247,6 @@ def convert_sequential_model(model, num_dims=None,
     converted_layers = sequential_container_conversion(
                 layer=model, name="", verbose=verbose,
                 mxts_mode=mxts_mode,
-                expo_upweight_factor=expo_upweight_factor,
                 maxpool_deeplift_mode=maxpool_deeplift_mode,
                 converted_layers=converted_layers)
     deeplift.util.connect_list_of_layers(converted_layers)
@@ -273,7 +256,6 @@ def convert_sequential_model(model, num_dims=None,
 
 def convert_graph_model(model,
                         mxts_mode=MxtsMode.DeepLIFT,
-                        expo_upweight_factor=0,
                         verbose=True,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode,
                         auto_build_outputs=True,
@@ -306,7 +288,6 @@ def convert_graph_model(model,
                                  layer=layer, name=layer_name,
                                  verbose=verbose,
                                  mxts_mode=mxts_mode,
-                                 expo_upweight_factor=expo_upweight_factor,
                                  maxpool_deeplift_mode=maxpool_deeplift_mode)
         deeplift.util.connect_list_of_layers(deeplift_layers)
         keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
