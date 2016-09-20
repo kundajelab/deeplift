@@ -9,7 +9,7 @@ Algorithms for computing importance scores in deep neural networks. Implements t
   * [Under The Hood](#under-the-hood)
     * [Blobs](#blobs)
     * [The Forward Pass](#the-forward-pass)
-    * [The Backward Pass](#the-forward-pass)
+    * [The Backward Pass](#the-backward-pass)
   * [Examples](#examples)
   * [Tests](#tests)
   * [Contact](#contact)
@@ -131,7 +131,12 @@ Here are the steps necessary to implement the backward pass, which is where the 
     - For Sigmoid/Softmax output layers, the output blob that you use should be the linear blob (usually a Dense layer) that comes before the final nonlinear activation. See "a note on final activation layers" in [the paper](https://arxiv.org/pdf/1605.01713v2.pdf) for justification. If there is no final nonlinearity (eg: in the case of many regression tasks), then the output blob should just be the last linear blob. 
     - For Softmax outputs, you should additionally mean-normalize the weights across all softmax classes when creating the Dense blob. A utility function to perform this mean-normalization is `deeplift.util.get_mean_normalised_softmax_weights(W, b)`. Note that this transformation does not affect the forward propagation. See "a note on softmax activation" in [the paper](https://arxiv.org/pdf/1605.01713v2.pdf) for a justification of why we do this.
 3. For the blob(s) that you wish to compute the importance scores for, call `update_mxts()`. This will create the symbolic variables that compute the multipliers with respect to the layer specified in step 2.
-4. Compile the importance score computation function with `deeplift.backend.function([input_layer.get_activation_vars()...], blob_to_find_scores_for.get_target_contrib_vars())`
+4. Compile the importance score computation function with
+
+```python
+deeplift.backend.function([input_layer.get_activation_vars()...],
+                          blob_to_find_scores_for.get_target_contrib_vars())
+```
     - The first argument represents the inputs to the function and should be a list of one symbolic tensor for each input layer (this was explained under the instructions for compiling the forward pass).
     - The second argument represents the output of the function. In the example above, it is a single tensor containing the importance scores of a single blob, but it can also be a list of tensors if you wish to compute the scores for multiple blobs at once.
     - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of MxtsMode.DeepLIFT, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
