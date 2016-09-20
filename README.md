@@ -134,6 +134,7 @@ Please email avanti [at] stanford [dot] edu with questions, ideas, feature reque
 The following is a list of some features in the works:
 - Keras 1.0 compatibility
 - Tensorflow support
-- RNN support
+- RNNs
 - Learning references from the data
+
 If you would like early access to any of those features, please contact us.
