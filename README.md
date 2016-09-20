@@ -104,7 +104,7 @@ Returns symbolic variables representing the multipliers on this layer (for the s
 Returns symbolic variables representing the importance scores. This is a convenience function that returns `self.get_mxts()*self.get_diff_from_default_vars()`
 
 ###The Forward Pass
-Here are the steps necessary to implement a forward pass. Note that if autoconversion (as described in the quickstart) is an option, you can skip steps (1) and (2).
+Here are the steps necessary to implement a forward pass. If executed correctly, the results should be identical (within numerical precision) to a forward pass of your original model, so this is definitely worth doing as a sanity check. Note that if autoconversion (as described in the quickstart) is an option, you can skip steps (1) and (2).
 
 1. Create a blob object for every layer in the network
 2. Tell each blob what its inputs are via the `set_inputs` function. The argument to `set_inputs` depends on what the blob expects
