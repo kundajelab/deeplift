@@ -8,6 +8,7 @@ Algorithms for computing importance scores in deep neural networks. Implements t
   * [Quickstart](#quickstart)
   * [Under The Hood](#under-the-hood)
     * [Blobs](#blobs)
+    * [The Forward Pass](#the-forward-pass)
   * [Examples](#examples)
   * [Tests](#tests)
   * [Contact](#contact)
@@ -48,6 +49,7 @@ find_scores_layer_idx = 0
 #(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
 #For regression tasks with a linear or relu output, target_layer_idx should be -1
 #(which simply refers to the last layer)
+#If you want the multipliers instead of the importance scores, you can use get_target_multipliers_func
 deeplift_contribs_func = deeplift_model.get_target_contribs_func(
                             find_scores_layer_idx=find_scores_layer_idx,
                             target_layer_idx=-1)
@@ -100,6 +102,21 @@ Returns symbolic variables representing the multipliers on this layer (for the s
 
 ####get_target_contrib_vars()
 Returns symbolic variables representing the importance scores. This is a convenience function that returns `self.get_mxts()*self.get_diff_from_default_vars()`
+
+###The Forward Pass
+Ideally, you should just use the autoconversion. If that is not an option, follow the following steps:
+- Each blob object needs to be told what its inputs are via the `set_inputs` function. The argument to `set_inputs` depends on what the blob expects.
+    - If the blob has a single blob as its input (eg: Dense layers), then the argument is simply the blob that is the input.
+    - If the blob takes multiple blobs as its input, the argument depends on the specific implementation - for example, in the case of a Concat layer, the argument is a list of blobs. 
+- Once every blob is linked to its inputs, you may compile the forward propagation function with `deeplift.backend.function([input_layer.get_activation_vars()...], output_layer.get_activation_vars())
+    - The first argument is a list of symbolic tensors representing the inputs to the net. If the net has only one input blob, then this will be a list containing only one tensor.
+    - Note that the second argument can be a list if you want the outputs of more than one blob
+- Once the function is compiled, you can use `deeplift.util.run_function_in_batches(func, input_data_list)` to run the function in batches (which would be advisable if you want to call the function on a large number of inputs that wont fit in memory)
+    - func is simply the compiled function returned by `deeplift.backend.function`
+    - input_data_list is a list of numpy arrays containing data for the different input layers of the network. In the case of a network with one input, this will be a list containing one numpy array.
+    - Optional arguments to run_function_in_batches are batch_size and progress_update
+
+###
 
 ##Examples
 Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift
