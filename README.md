@@ -132,6 +132,7 @@ Here are the steps necessary to implement the backward pass, which is where the 
     - For Softmax outputs, you should additionally mean-normalize the weights across all softmax classes when creating the Dense blob. A utility function to perform this mean-normalization is `deeplift.util.get_mean_normalised_softmax_weights(W, b)`. Note that this transformation does not affect the forward propagation. See "a note on softmax activation" in [the paper](https://arxiv.org/pdf/1605.01713v2.pdf) for a justification of why we do this.
 3. For the blob(s) that you wish to compute the importance scores for, call `update_mxts()`. This will create the symbolic variables that compute the multipliers with respect to the layer specified in step 2.
 4. Compile the importance score computation function with
+
     ```python
     deeplift.backend.function([input_layer.get_activation_vars()...],
                               blob_to_find_scores_for.get_target_contrib_vars())
