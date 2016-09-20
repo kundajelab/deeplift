@@ -15,6 +15,8 @@ The recommended way to obtain theano and numpy is through [anaconda](https://www
 
 ##Quickstart
 
+These examples show how to autoconvert a keras model and obtain importance scores.
+
 ```python
 #Convert a keras sequential model
 import deeplift
