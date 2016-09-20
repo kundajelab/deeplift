@@ -13,17 +13,14 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     #not actually one dimensional)
 
     def __init__(self, mxts_mode,
-                       expo_upweight_factor=0,
                        **kwargs):
         self.mxts_mode = mxts_mode
-        self.expo_upweight_factor = expo_upweight_factor
         super(Activation, self).__init__(**kwargs)
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Activation, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['mxts_mode'] = self.mxts_mode
-        kwargs_dict['expo_upweight_factor'] = self.expo_upweight_factor
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
@@ -85,40 +82,9 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             else: 
                 raise RuntimeError("Unsupported mxts_mode: "
                                    +str(self.mxts_mode))
-            #apply the exponential upweighting
             orig_mxts = scale_factor*self.get_mxts()
-            unnorm_mxts = orig_mxts*B.pow(B.abs(self.get_mxts()),
-                                          self.expo_upweight_factor)
-            #apply a rescaling so the total contribs going through are the
-            #same...note that this may not preserve the total contribution
-            #when the multipliers from other layers are factored in. Mostly,
-            #it is there to reduce numerical underflow
-            mxts = self.normalise_mxts(orig_mxts=orig_mxts,
-                                       unnorm_mxts=unnorm_mxts) 
+            return orig_mxts
         return mxts
-
-    def normalise_mxts(self, orig_mxts, unnorm_mxts):
-        #normalise unnorm_mxts so that the total contribs of input as
-        #mediated through this layer remains the same as for orig_mxts
-        #remember that there is a batch axis
-        #first, let's reshape orig_mxts and unnorm_mxts to be 2d
-        orig_mxts_flat = B.flatten_keeping_first(orig_mxts)
-        unnorm_mxts_flat = B.flatten_keeping_first(unnorm_mxts)
-        input_act_flat = B.flatten_keeping_first(
-                         self._get_input_activation_vars())
-        total_contribs_of_input_orig = B.sum(orig_mxts_flat*input_act_flat,
-                                             axis=1)
-        total_contribs_of_input_unnorm = B.sum(unnorm_mxts_flat*input_act_flat, 
-                                               axis=1)
-        rescaling = (total_contribs_of_input_orig/
-                     (total_contribs_of_input_unnorm + 
-                      NEAR_ZERO_THRESHOLD*\
-                       (total_contribs_of_input_unnorm < NEAR_ZERO_THRESHOLD)))
-        #unnorm_mxts.shape[0] gives info on the batch size
-        broadcast_shape = [unnorm_mxts.shape[0]]\
-                                  +([1]*len(self._shape[1:])) #remaining are 1s
-        return unnorm_mxts*(B.reshape(rescaling, broadcast_shape))
-
 
     def _get_gradient_at_activation(self, activation_vars):
         """

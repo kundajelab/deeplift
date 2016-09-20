@@ -54,8 +54,7 @@ class TestActivations(unittest.TestCase):
         return fprop_results, bprop_results_each_task
 
     def test_relu_deeplift(self): 
-        out_layer = blobs.ReLU(mxts_mode=blobs.MxtsMode.DeepLIFT,
-                                expo_upweight_factor=1)
+        out_layer = blobs.ReLU(mxts_mode=blobs.MxtsMode.DeepLIFT)
         fprop_results, bprop_results_each_task =\
             self.set_up_prediction_func_and_deeplift_func(out_layer) 
         self.assertListEqual(fprop_results,
@@ -74,8 +73,7 @@ class TestActivations(unittest.TestCase):
                                               (-1.0/-20.0)*np.array(self.w2)]))
 
     def test_relu_gradient(self): 
-        out_layer = blobs.ReLU(mxts_mode=blobs.MxtsMode.Gradient,
-                                expo_upweight_factor=1)
+        out_layer = blobs.ReLU(mxts_mode=blobs.MxtsMode.Gradient)
         fprop_results, bprop_results_each_task =\
             self.set_up_prediction_func_and_deeplift_func(out_layer) 
 
