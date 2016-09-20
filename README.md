@@ -7,7 +7,7 @@ Algorithms for computing importance scores in deep neural networks. Implements t
   * [Installation](#installation)
   * [Quickstart](#quickstart)
   * [Under The Hood](#under-the-hood)
-    *[Blobs](#blobs)
+    * [Blobs](#blobs)
   * [Examples](#examples)
   * [Tests](#tests)
   * [Contact](#contact)
