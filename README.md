@@ -148,7 +148,7 @@ Here are the steps necessary to implement the backward pass, which is where the 
     - (Yes, I will bundle all of these into a single function at some point)
 
 ##Examples
-Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift
+Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift, and stay tuned for updates as we will be adding more examples shortly.
 
 ##Tests
 A number of unit tests are provided in the tests folder in the main repository. They can be run with `nosetests tests/*`
