@@ -2,3 +2,4 @@
 **/*.png
 **/*.ipynb_checkpoints
 **/log_*.txt
+**/*.DS_Store
