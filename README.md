@@ -112,9 +112,9 @@ Ideally, you should just use the autoconversion. If that is not an option, follo
     - The first argument is a list of symbolic tensors representing the inputs to the net. If the net has only one input blob, then this will be a list containing only one tensor.
     - Note that the second argument can be a list if you want the outputs of more than one blob
 - Once the function is compiled, you can use `deeplift.util.run_function_in_batches(func, input_data_list)` to run the function in batches (which would be advisable if you want to call the function on a large number of inputs that wont fit in memory)
-    - func is simply the compiled function returned by `deeplift.backend.function`
-    - input_data_list is a list of numpy arrays containing data for the different input layers of the network. In the case of a network with one input, this will be a list containing one numpy array.
-    - Optional arguments to run_function_in_batches are batch_size and progress_update
+    - `func` is simply the compiled function returned by `deeplift.backend.function`
+    - `input_data_list` is a list of numpy arrays containing data for the different input layers of the network. In the case of a network with one input, this will be a list containing one numpy array.
+    - Optional arguments to `run_function_in_batches` are `batch_size` and `progress_update`
 
 ###
 
