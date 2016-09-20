@@ -108,7 +108,7 @@ Ideally, you should just use the autoconversion. If that is not an option, follo
 - Each blob object needs to be told what its inputs are via the `set_inputs` function. The argument to `set_inputs` depends on what the blob expects.
     - If the blob has a single blob as its input (eg: Dense layers), then the argument is simply the blob that is the input.
     - If the blob takes multiple blobs as its input, the argument depends on the specific implementation - for example, in the case of a Concat layer, the argument is a list of blobs. 
-- Once every blob is linked to its inputs, you may compile the forward propagation function with `deeplift.backend.function([input_layer.get_activation_vars()...], output_layer.get_activation_vars())
+- Once every blob is linked to its inputs, you may compile the forward propagation function with `deeplift.backend.function([input_layer.get_activation_vars()...], output_layer.get_activation_vars())`
     - The first argument is a list of symbolic tensors representing the inputs to the net. If the net has only one input blob, then this will be a list containing only one tensor.
     - Note that the second argument can be a list if you want the outputs of more than one blob
 - Once the function is compiled, you can use `deeplift.util.run_function_in_batches(func, input_data_list)` to run the function in batches (which would be advisable if you want to call the function on a large number of inputs that wont fit in memory)
