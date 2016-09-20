@@ -22,7 +22,9 @@ These examples show how to autoconvert a keras model and obtain importance score
 import deeplift
 from deeplift.conversion import keras_conversion as kc
 #MxtsMode defines the method for computing importance scores
-#Other supported values are: Gradient, DeconvNet, GuidedBackprop and GuidedBackpropDeepLIFT (a hybrid of GuidedBackprop and DeepLIFT where negative multipliers are ignored during backpropagation)
+#Other supported values are: Gradient, DeconvNet, GuidedBackprop
+#and GuidedBackpropDeepLIFT (a hybrid of GuidedBackprop and
+#DeepLIFT where negative multipliers are ignored during backpropagation)
 deeplift_model = kc.convert_sequential_model(
                     keras_model,
                     mxts_mode=deeplift.blobs.MxtsMode.DeepLIFT)
