@@ -1,6 +1,6 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
-Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1605.01713) by Shrikumar, Greenside, Shcherbina & Kundaje. Feel free to [reach out](mailto:avanti@cs.stanford.edu) with questions, clarifications, feature requests, etc.) 
+Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1605.01713) by Shrikumar, Greenside, Shcherbina & Kundaje.
 
 ##Installation
 
@@ -73,3 +73,9 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
     pre_activation_target_layer_name="name_goes_here")
 
 ```
+
+##Examples
+Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift
+
+##Contact
+Please email avanti [at] stanford [dot] edu with questions/ideas/feature requests/etc. We would love to hear from you!
