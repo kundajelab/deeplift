@@ -78,4 +78,12 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
 Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift
 
 ##Contact
-Please email avanti [at] stanford [dot] edu with questions/ideas/feature requests/etc. We would love to hear from you!
+Please email avanti [at] stanford [dot] edu with questions, ideas, feature requests, etc. We would love to hear from you!
+
+##Coming soon
+The following is a list of some features in the works:
+- Keras 1.0 compatibility
+- Tensorflow support
+- RNN support
+- Learning references from the data
+If you would like early access to any of those features, please contact us.
