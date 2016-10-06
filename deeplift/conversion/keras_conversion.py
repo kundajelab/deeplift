@@ -148,7 +148,7 @@ def linear_conversion(**kwargs):
     return []
 
 
-def prelu_conversion(layer, name, verbose, mxts_mode):
+def prelu_conversion(layer, name, verbose, mxts_mode, **kwargs):
    return [blobs.PReLU(alpha=layer.get_weights()[0],
                        name=name, verbose=verbose, mxts_mode=mxts_mode)] 
 
