@@ -4,11 +4,6 @@ from __future__ import absolute_import
 import sys
 import os
 from collections import OrderedDict
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
 import deeplift
 from deeplift import models, blobs
 from deeplift.blobs import MxtsMode, MaxPoolDeepLiftMode
