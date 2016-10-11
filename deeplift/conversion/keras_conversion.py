@@ -263,7 +263,7 @@ def convert_graph_model(model,
     for keras_input_layer_name in model.inputs:
         keras_input_layer = model.inputs[keras_input_layer_name]
         input_shape = keras_input_layer.get_config()['input_shape']
-        assert input_shape[0] is None #for the batch axis
+        assert input_shape[0] is None, input_shape#for the batch axis
         deeplift_input_layer =\
          blobs.Input_FixedDefault(
           default=default,
