@@ -263,7 +263,9 @@ def convert_graph_model(model,
     for keras_input_layer_name in model.inputs:
         keras_input_layer = model.inputs[keras_input_layer_name]
         input_shape = keras_input_layer.get_config()['input_shape']
-        assert input_shape[0] is None, input_shape#for the batch axis
+        if (input_shape[0] is not None):
+            input_shape = [None]+[x for x in input_shape]
+        assert input_shape[0] is None #for the batch axis
         deeplift_input_layer =\
          blobs.Input_FixedDefault(
           default=default,
@@ -296,7 +298,7 @@ def convert_graph_model(model,
         previous_keras_layer = get_previous_layer(keras_non_input_layer)
         previous_deeplift_layer =\
          keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
-        deeplfit.util.apply_softmax_normalization_if_needed(
+        deeplift.util.apply_softmax_normalization_if_needed(
                                               deeplift_layers[0],
                                               previous_deeplift_layer)
         deeplift_layers[0].set_inputs(previous_deeplift_layer) 
