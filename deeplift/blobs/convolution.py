@@ -120,12 +120,12 @@ class Pool2D(SingleInputMixin, Node):
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
-        shape_to_return = [input_shape[0]] #num channels unchanged 
+        shape_to_return = [None, input_shape[1]] #num channels unchanged 
         if (self.border_mode != B.BorderMode.valid):
             raise RuntimeError("Please implement shape inference for"
                                " border mode: "+str(self.border_mode))
         for (dim_inp_len, dim_kern_width, dim_stride) in\
-            zip(input_shape[1:], self.pool_size, self.strides):
+            zip(input_shape[2:], self.pool_size, self.strides):
             #assuming that overhangs are excluded
             shape_to_return.append(
              1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
