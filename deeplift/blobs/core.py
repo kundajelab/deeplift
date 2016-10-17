@@ -178,6 +178,7 @@ class Input(Blob):
         super(Input, self).__init__(**kwargs)
         assert num_dims is not None or shape is not None
         if (shape is not None):
+            shape = list(shape)
             if (shape[0] != None): #None in first pos represent batch axis
                 shape = [None]+shape
             shape_num_dims = len(shape)
