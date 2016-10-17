@@ -64,6 +64,7 @@ def plot_weights_given_ax(ax, array,
                  height_padding_factor,
                  length_padding,
                  subticks_frequency,
+                 highlight,
                  colors=default_colors,
                  plot_funcs=default_plot_funcs):
     if len(array.shape)==3:
@@ -72,6 +73,8 @@ def plot_weights_given_ax(ax, array,
     assert array.shape[0]==4
     max_pos_height = 0.0
     min_neg_height = 0.0
+    heights_at_positions = []
+    depths_at_positions = []
     for i in range(array.shape[1]):
         #sort from smallest to highest magnitude
         acgt_vals = sorted(enumerate(array[:,i]), key=lambda x: abs(x[1]))
@@ -89,18 +92,37 @@ def plot_weights_given_ax(ax, array,
             plot_func(ax=ax, base=height_so_far, left_edge=i, height=letter[1], color=color)
         max_pos_height = max(max_pos_height, positive_height_so_far)
         min_neg_height = min(min_neg_height, negative_height_so_far)
+        heights_at_positions.append(positive_height_so_far)
+        depths_at_positions.append(negative_height_so_far)
+
+    #now highlight any desired positions; the key of
+    #the highlight dict should be the color
+    for color in highlight:
+        for start_pos, end_pos in highlight[color]:
+            assert start_pos > 0.0 and end_pos <= array.shape[1]
+            min_depth = np.min(depths_at_positions[start_pos:end_pos])
+            max_height = np.max(heights_at_positions[start_pos:end_pos])
+            ax.add_patch(
+                matplotlib.patches.Rectangle(xy=[start_pos,min_depth],
+                    width=end_pos-start_pos,
+                    height=max_height-min_depth,
+                    edgecolor=color, fill=False))
+            
     ax.set_xlim(-length_padding, array.shape[1]+length_padding)
     ax.xaxis.set_ticks(np.arange(0.0, array.shape[1]+1, subticks_frequency))
-    ax.set_ylim(min_neg_height*height_padding_factor,max_pos_height*height_padding_factor)
+    height_padding = max(abs(min_neg_height)*(height_padding_factor),
+                         abs(max_pos_height)*(height_padding_factor))
+    ax.set_ylim(min_neg_height-height_padding, max_pos_height+height_padding)
 
 
 def plot_weights(array,
                  figsize=(20,2),
-                 height_padding_factor=1.2,
+                 height_padding_factor=0.2,
                  length_padding=1.0,
                  subticks_frequency=1.0,
                  colors=default_colors,
-                 plot_funcs=default_plot_funcs):
+                 plot_funcs=default_plot_funcs,
+                 highlight={}):
     fig = plt.figure(figsize=(20,2))
     ax = fig.add_subplot(111) 
     plot_weights_given_ax(ax=ax, array=array,
@@ -108,4 +130,6 @@ def plot_weights(array,
         length_padding=length_padding,
         subticks_frequency=subticks_frequency,
         colors=colors,
-        plot_funcs=plot_funcs)
+        plot_funcs=plot_funcs,
+        highlight=highlight)
+    plt.show()
