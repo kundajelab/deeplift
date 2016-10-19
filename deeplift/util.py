@@ -242,3 +242,61 @@ def connect_list_of_layers(deeplift_layers):
 
 def format_json_dump(json_data, indent=2):
     return json.dumps(jsonData, indent=indent, separators=(',', ': ')) 
+
+
+def get_smoothen_function(window_size):
+    """
+        Returns a function for smoothening inputs with a window
+         of size window_size.
+
+        Returned function has arguments of inp,
+         batch_size and progress_update
+    """
+    from deeplift import backend as B
+    inp_tensor = B.tensor_with_dims(2, "inp_tensor") 
+
+    #do padding so that the output will have the same size as the input
+    #remember, the output will have length of input length - (window_size-1)
+    #so, we're going to pad with int(window_size/2), and for even window_size
+    #we will trim off the value from the front of the output later on
+    padding = int(window_size/2)  
+    new_dims = [inp_tensor.shape[0], inp_tensor.shape[1]+2*padding]
+    padded_inp = B.zeros_like(inp_tensor)
+    #fill the middle region with the original input
+    padded_inp = B.set_subtensor(
+                    padded_inp[:,padding:(inp_tensor.shape[1]+padding)],
+                    inp_tensor) 
+    #duplicate the left end for padding
+    padded_inp = B.set_subtensor(padded_inp[:,0:padding],
+                                 inp_tensor[:,0:padding])
+    #duplicate the right end for padding
+    padded_inp = B.set_subtensor(
+                    padded_inp[:,(inp_tensor.shape[1]+padding):],
+                    inp_tensor[:,(inp_tensor.shape[1]-padding):])
+    padded_inp = padded_inp[:,None,None,:]
+    averaged_padded_inp = B.pool2d(
+                            inp=padded_inp,
+                            pool_size=(1,window_size),
+                            strides=(1,1),
+                            border_mode="valid",
+                            ignore_border=True,
+                            pool_mode=B.PoolMode.avg) 
+
+    #if window_size is even, then we have an extra value in the output,
+    #so kick off the value from the front
+    if (window_size%2==0):
+        averaged_padded_inp = averaged_padded_inp[:,:,:,1:]
+    averaged_padded_inp = averaged_padded_inp[:,0,0,:]
+    smoothen_func = B.function([inp_tensor], averaged_padded_inp)
+
+    def smoothen(inp, batch_size, progress_update):
+       return run_function_in_batches(
+                func=smoothen_func,
+                input_data_list=[inp],
+                batch_size=batch_size,
+                progress_update=progress_update)
+
+    return smoothen
+    
+
+
