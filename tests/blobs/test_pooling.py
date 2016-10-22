@@ -25,7 +25,7 @@ class TestPool(unittest.TestCase):
                               [[1,1,3,4],
                                [1,2,1,1],
                                [1,6,5,1],
-                               [7,1,8,9]]]]) 
+                               [7,1,8,9]]]])
 
         self.backprop_test_inps = np.array([[[
                                    [2,0,2,3],
@@ -59,8 +59,9 @@ class TestPool(unittest.TestCase):
 
         self.dense_layer = blobs.Dense(
                            W=np.array([([2]*outputs_per_channel)
-                                      +([3]*outputs_per_channel)]).T,
-                           b=[1])
+                                      +([3]*outputs_per_channel)])
+                                      .astype("float32").T,
+                           b=np.array([1]).astype("float32"))
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
@@ -207,7 +208,7 @@ class TestPool(unittest.TestCase):
         avg_pool_grads = np.array([[1, 2, 2, 1],
                                    [2, 4, 4, 2],
                                    [2, 4, 4, 2],
-                                   [1, 2, 2, 1]]) 
+                                   [1, 2, 2, 1]]).astype("float32") 
         np.testing.assert_almost_equal(func(self.backprop_test_inps),
                                   np.array(
                                   [[avg_pool_grads*2*0.25,
