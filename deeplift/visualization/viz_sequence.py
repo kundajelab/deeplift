@@ -123,7 +123,7 @@ def plot_weights(array,
                  colors=default_colors,
                  plot_funcs=default_plot_funcs,
                  highlight={}):
-    fig = plt.figure(figsize=(20,2))
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111) 
     plot_weights_given_ax(ax=ax, array=array,
         height_padding_factor=height_padding_factor,

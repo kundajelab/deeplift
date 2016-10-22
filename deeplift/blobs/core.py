@@ -531,7 +531,7 @@ class BatchNormalization(SingleInputMixin, Node):
         self.reshaped_std = self.std.reshape(new_shape)
         self.reshaped_gamma = self.gamma.reshape(new_shape)
         self.reshaped_beta = self.beta.reshape(new_shape)
-        return B.batch_normalization(inputs=self._get_input_activation_vars(),
+        return B.batch_normalization(inputs=input_act_vars,
                                      gamma=self.reshaped_gamma,
                                      beta=self.reshaped_beta,
                                      mean=self.reshaped_mean,
