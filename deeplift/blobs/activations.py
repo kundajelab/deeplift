@@ -69,7 +69,8 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         else:
             #all the other ones here are of the form:
             # scale_factor*self.get_mxts()
-            if (self.mxts_mode == MxtsMode.DeepLIFT): 
+            if (self.mxts_mode == MxtsMode.DeepLIFT
+                or self.mxts_mode==MxtsMode.PosThroughDenseDeepLIFT): 
                 scale_factor = self._deeplift_get_scale_factor()
             elif (self.mxts_mode == MxtsMode.GuidedBackpropDeepLIFT):
                 deeplift_scale_factor = self._deeplift_get_scale_factor() 

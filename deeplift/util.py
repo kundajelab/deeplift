@@ -261,7 +261,7 @@ def get_smoothen_function(window_size):
     #we will trim off the value from the front of the output later on
     padding = int(window_size/2)  
     new_dims = [inp_tensor.shape[0], inp_tensor.shape[1]+2*padding]
-    padded_inp = B.zeros_like(inp_tensor)
+    padded_inp = B.zeros(new_dims)
     #fill the middle region with the original input
     padded_inp = B.set_subtensor(
                     padded_inp[:,padding:(inp_tensor.shape[1]+padding)],
