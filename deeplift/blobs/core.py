@@ -15,10 +15,11 @@ import deeplift.backend as B
 ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
 MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
-                                    DeconvNet="DeconvNet",
-                                    GuidedBackprop="GuidedBackprop",
-                                    GuidedBackpropDeepLIFT=\
-                                     "GuidedBackpropDeepLIFT")
+                                DeconvNet="DeconvNet",
+                                GuidedBackprop="GuidedBackprop",
+                                GuidedBackpropDeepLIFT=\
+                                 "GuidedBackpropDeepLIFT",
+                                PosThroughDenseDeepLIFT="PosThroughDenseDeepLIFT")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -461,10 +462,11 @@ class NoOp(SingleInputMixin, Node):
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
-    def __init__(self, W, b, **kwargs):
+    def __init__(self, W, b, mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
         self.W = W
         self.b = b
+        self.mxts_mode = mxts_mode
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Dense, self).\
@@ -480,7 +482,10 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         return B.dot(input_act_vars, self.W) + self.b
 
     def _get_mxts_increments_for_inputs(self):
-        return B.dot(self.get_mxts(),self.W.T)
+        if (self.mxts_mode == MxtsMode.PosThroughDenseDeepLIFT):
+            return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
+        else:
+            return B.dot(self.get_mxts(),self.W.T)
 
 
 class BatchNormalization(SingleInputMixin, Node):
