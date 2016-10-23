@@ -56,7 +56,8 @@ class TestMaxMerge(unittest.TestCase):
         np.testing.assert_allclose(func(self.inp1, self.inp2, self.inp3),
                                    np.array([np.array(
                                     [[[1.0,  2.0, 2.0]],
-                                     [[0.5,  0.5, -0.5]]])]*2))
+                                     [[0.5,  0.5, -0.5]]])]*2),
+                                   rtol=10**-6)
 
     def test_backprop_contribs(self):
         func = theano.function([self.input_layer1.get_activation_vars(),
@@ -89,4 +90,4 @@ class TestMaxMerge(unittest.TestCase):
                             0.0]]])]*2])
         print(soln)
         np.testing.assert_allclose(func(self.inp1, self.inp2, self.inp3),
-                                   soln)
+                                   soln, rtol=10**-6)
