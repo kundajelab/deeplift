@@ -134,7 +134,8 @@ def dense_conversion(layer, name, verbose,
                         else "")+name, 
                   verbose=verbose,
                   W=layer.get_weights()[0],
-                  b=layer.get_weights()[1])]
+                  b=layer.get_weights()[1],
+                  mxts_mode=mxts_mode)]
     to_return.extend(converted_activation)
     return to_return
 
