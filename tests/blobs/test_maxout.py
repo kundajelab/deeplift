@@ -6,11 +6,6 @@ from unittest import skip
 import sys
 import os
 import numpy as np
-scripts_dir = os.environ.get("DEEPLIFT_DIR")
-if (scripts_dir is None):
-    raise Exception("Please set environment variable DEEPLIFT_DIR to point to"
-                    +" the deeplift directory")
-sys.path.insert(0, scripts_dir)
 import deeplift.blobs as blobs
 import theano
 

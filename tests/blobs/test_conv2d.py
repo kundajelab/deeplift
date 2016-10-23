@@ -20,10 +20,10 @@ class TestConv(unittest.TestCase):
                             default=0.0,
                             num_dims=None,
                             shape=(None,2,4,4))
-        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
+        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1]
         self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1]
-        self.conv_W = np.array([self.w1, self.w2])
-        self.conv_b = np.array([-1.0, 1.0])
+        self.conv_W = np.array([self.w1, self.w2]).astype("float32")
+        self.conv_b = np.array([-1.0, 1.0]).astype("float32")
 
     def create_small_net_with_conv_layer(self, conv_layer,
                                                outputs_per_channel):
@@ -35,8 +35,9 @@ class TestConv(unittest.TestCase):
 
         self.dense_layer = blobs.Dense(
                            W=np.array([([1]*outputs_per_channel)
-                                      +([-1]*outputs_per_channel)]).T,
-                           b=[1])
+                                      +([-1]*outputs_per_channel)])
+                                       .astype("float32").T,
+                           b=np.array([1]).astype("float32"))
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
