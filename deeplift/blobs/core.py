@@ -19,7 +19,10 @@ MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
                                 GuidedBackprop="GuidedBackprop",
                                 GuidedBackpropDeepLIFT=\
                                  "GuidedBackpropDeepLIFT",
-                                PosThroughDenseDeepLIFT="PosThroughDenseDeepLIFT")
+                                PosThroughDenseDeepLIFT=\
+                                 "PosThroughDenseDeepLIFT",
+                                CounterBalanceDenseDeepLIFT=\
+                                 "CounterBalanceDenseDeepLIFT")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -484,6 +487,31 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         if (self.mxts_mode == MxtsMode.PosThroughDenseDeepLIFT):
             return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
+        elif (self.mxts_mode == MxtsMode.CounterBalanceDenseDeepLIFT):
+            #self.W has dims input x output
+            #fwd_contribs has dims batch x output x input
+            fwd_contribs = self._get_input_activation_vars()[:,None,:]\
+                           *self.W.T[None,:,:] 
+            #total_pos_contribs and total_neg_contribs have dim batch x output
+            total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
+            total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
+                                       axis=-1))
+            #if output diff-from-def is positive but there are some neg
+            #contribs, temper positive by some portion of the neg
+            #to_distribute has dims batch x output
+            to_distribute = B.minimum(total_neg_contribs,total_pos_contribs)\
+                             *(1.0-(B.minimum(total_neg_contribs,total_pos_contribs)/
+                                   pseudocount_near_zero(B.maximum(total_neg_contribs,total_pos_contribs))))
+            #total_pos_contribs_new has dims batch x output
+            total_pos_contribs_new = total_pos_contribs - to_distribute
+            total_neg_contribs_new = total_neg_contribs - to_distribute
+            #positive_rescale has dims batch x output
+            positive_rescale = total_pos_contribs_new/pseudocount_near_zero(total_pos_contribs)
+            negative_rescale = total_neg_contribs_new/pseudocount_near_zero(total_neg_contribs)
+            #new_Wt has dims batch x output x input
+            new_Wt = self.W.T[None,:,:]*(fwd_contribs>0)*positive_rescale[:,:,None] 
+            new_Wt += self.W.T[None,:,:]*(fwd_contribs<0)*negative_rescale[:,:,None] 
+            return B.sum(self.get_mxts()[:,:,None]*new_Wt[:,:,:],axis=1)
         else:
             return B.dot(self.get_mxts(),self.W.T)
 
