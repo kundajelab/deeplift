@@ -499,9 +499,12 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             #if output diff-from-def is positive but there are some neg
             #contribs, temper positive by some portion of the neg
             #to_distribute has dims batch x output
-            to_distribute = B.minimum(total_neg_contribs,total_pos_contribs)\
-                             *(1.0-(B.minimum(total_neg_contribs,total_pos_contribs)/
-                                   pseudocount_near_zero(B.maximum(total_neg_contribs,total_pos_contribs))))
+            to_distribute =\
+             B.maximum(
+                (total_neg_contribs*(total_neg_contribs < total_pos_contribs)
+                 - B.maximum(self._get_default_activation_vars(),0)),0.0)\
+                *(1.0-((total_neg_contribs)/
+                       pseudocount_near_zero(total_pos_contribs)))
             #total_pos_contribs_new has dims batch x output
             total_pos_contribs_new = total_pos_contribs - to_distribute
             total_neg_contribs_new = total_neg_contribs - to_distribute
