@@ -99,7 +99,7 @@ def plot_weights_given_ax(ax, array,
     #the highlight dict should be the color
     for color in highlight:
         for start_pos, end_pos in highlight[color]:
-            assert start_pos > 0.0 and end_pos <= array.shape[1]
+            assert start_pos >= 0.0 and end_pos <= array.shape[1]
             min_depth = np.min(depths_at_positions[start_pos:end_pos])
             max_height = np.max(heights_at_positions[start_pos:end_pos])
             ax.add_patch(
