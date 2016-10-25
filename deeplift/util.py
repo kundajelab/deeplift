@@ -305,9 +305,9 @@ def get_smoothen_function(window_size, same_size_return=True):
         padded_inp = B.set_subtensor(
                         padded_inp[:,(inp_tensor.shape[1]+padding):],
                         inp_tensor[:,(inp_tensor.shape[1]-padding):])
-        padded_inp = padded_inp[:,None,None,:]
     else:
-        padded_inp = inp
+        padded_inp = inp_tensor
+    padded_inp = padded_inp[:,None,None,:]
 
     averaged_padded_inp = B.pool2d(
                             inp=padded_inp,
