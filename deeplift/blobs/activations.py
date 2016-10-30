@@ -28,7 +28,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_fwd_pass_vars(self):
         super(Activation, self)._build_fwd_pass_vars() 
         self._gradient_at_default_activation =\
-         self._get_gradient_at_activation(self._get_default_activation_vars())
+         self._get_gradient_at_activation(self.get_reference_vars())
 
     def _get_gradient_at_default_activation_var(self):
         return self._gradient_at_default_activation
@@ -37,13 +37,13 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         raise NotImplementedError()
 
     def _deeplift_get_scale_factor(self):
-        input_diff_from_default = self._get_input_diff_from_default_vars()
-        near_zero_contrib_mask = (B.abs(input_diff_from_default)\
+        input_diff_from_reference = self._get_input_diff_from_reference_vars()
+        near_zero_contrib_mask = (B.abs(input_diff_from_reference)\
                                        < NEAR_ZERO_THRESHOLD)
         far_from_zero_contrib_mask = 1-(1*near_zero_contrib_mask)
         #the pseudocount is to avoid division-by-zero for the ones that
         #we won't use anyway
-        pc_diff_from_default = input_diff_from_default +\
+        pc_diff_from_reference = input_diff_from_reference +\
                                             (1*near_zero_contrib_mask) 
         #when total contrib is near zero,
         #the scale factor is 1 (gradient; piecewise linear). Otherwise,
@@ -53,8 +53,8 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         scale_factor = near_zero_contrib_mask*\
                         self._get_gradient_at_default_activation_var() +\
                        (far_from_zero_contrib_mask*\
-                        (self._get_diff_from_default_vars()/
-                          pc_diff_from_default))
+                        (self._get_diff_from_reference_vars()/
+                          pc_diff_from_reference))
         return scale_factor
         
     def _gradients_get_scale_factor(self):

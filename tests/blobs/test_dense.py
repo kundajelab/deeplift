@@ -40,7 +40,7 @@ class TestDense(unittest.TestCase):
     @skip
     def test_dense_backprop(self):
         func = B.function([self.input_layer.get_activation_vars(),
-                           self.input_layer._get_default_activation_vars()],
+                           self.input_layer.get_reference_vars()],
                            self.input_layer.get_mxts())
         self.dense_layer.update_task_index(task_index=0)
         self.assertListEqual([list(x) for x in func(
