@@ -43,7 +43,7 @@ class Model(object):
             output_symbolic_vars = output_symbolic_vars[slice_objects]
         core_function = B.function([input_layer.get_activation_vars()
                                     for input_layer in input_layers]+
-                                   [input_layer._get_default_activation_vars()
+                                   [input_layer.get_reference_vars()
                                     for input_layer in input_layers],
                                    output_symbolic_vars)
         def func(task_idx, input_data_list,

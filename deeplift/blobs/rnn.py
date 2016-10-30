@@ -38,20 +38,20 @@ class RNN(SingleInputMixin, Node):
          self._hidden_state_activation_vars_through_time =\
           self._build_activation_vars(self._get_input_activation_vars())
 
-        self._default_activation_vars,\
+        self._reference_vars,\
          self._default_hidden_state_activation_vars_through_time =\
-          self._build_default_activation_vars()
+          self._build_reference_vars()
 
-        self._diff_from_default_vars = self._activation_vars\
-                                        - self._default_activation_vars
-        self._diff_from_default_hidden_vars_through_time =\
+        self._diff_from_reference_vars = self._activation_vars\
+                                        - self._reference_vars
+        self._diff_from_reference_hidden_vars_through_time =\
          [x - y for (x, y) in\
           zip(self._hidden_state_activation_vars_through_time,
               self._default_hidden_state_activation_vars_through_time)]
 
         #if the net's hidden vars were exposed,
         #then self._mxts has a time axis
-        self._mxts = B.zeros_like(self._default_activation_vars)
+        self._mxts = B.zeros_like(self._reference_vars)
 
     def _build_activation_vars(self, input_act_vars):
         self._initial_hidden_states = self._get_initial_hidden_states()
@@ -93,7 +93,7 @@ class RNN(SingleInputMixin, Node):
         backward_pass_initial_hidden_states +=\
          [B.zeros_like(var) for var in self._initial_hidden_states]
         backward_pass_initial_hidden_states +=\
-         [B.zeros_like(self._get_input_diff_from_default_vars()[:,0])]
+         [B.zeros_like(self._get_input_diff_from_reference_vars()[:,0])]
 
         #Now prepare the inputs for the backward pass
 
@@ -153,7 +153,7 @@ class RNN(SingleInputMixin, Node):
                    activation_hidden_vars_tm1_list+
                    default_hidden_vars_tm1_list+
                    [self._get_input_activation_vars()]+
-                   [self._get_input_default_activation_vars()])]
+                   [self._get_input_reference_vars()])]
                    
         (multipliers_flowing_to_hidden_states,
          multipliers_on_hidden_states,

@@ -43,7 +43,7 @@ class TestActivations(unittest.TestCase):
 
         bprop_func = B.function(
                           [self.input_layer.get_activation_vars(),
-                           self.input_layer._get_default_activation_vars()],
+                           self.input_layer.get_reference_vars()],
                           self.input_layer.get_mxts())
         bprop_results_each_task = []
         for task_idx in range(len(fprop_results[0])):
