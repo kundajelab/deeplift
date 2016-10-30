@@ -280,7 +280,7 @@ def convert_graph_model(model,
             input_shape = [None]+[x for x in input_shape]
         assert input_shape[0] is None #for the batch axis
         deeplift_input_layer =\
-         blobs.Input_FixedDefault(
+         blobs.Input_FixedReference(
           reference=reference,
           shape=input_shape,
           num_dims=None,

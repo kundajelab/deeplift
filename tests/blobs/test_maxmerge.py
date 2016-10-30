@@ -7,6 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import theano
 
 
@@ -30,7 +31,8 @@ class TestMaxMerge(unittest.TestCase):
             [self.input_layer1, self.input_layer2, self.input_layer3])
         self.flatten_layer = blobs.Flatten()
         self.flatten_layer.set_inputs(self.merge_layer)
-        self.dense_layer = blobs.Dense(W=np.array([([1,6])]).T, b=[1])
+        self.dense_layer = blobs.Dense(W=np.array([([1,6])]).T, b=[1],
+                            dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
         self.dense_layer.build_fwd_pass_vars()
 
