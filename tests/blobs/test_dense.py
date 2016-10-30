@@ -13,8 +13,8 @@ import theano
 class TestDense(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]

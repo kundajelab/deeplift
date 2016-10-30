@@ -13,16 +13,16 @@ import theano
 class TestMaxMerge(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer1 = blobs.Input_FixedDefault(
-                            default=1.0,
+        self.input_layer1 = blobs.Input_FixedReference(
+                            reference=1.0,
                             num_dims=None,
                             shape=(None,2,1,3))
-        self.input_layer2 = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer2 = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,2,1,3))
-        self.input_layer3 = blobs.Input_FixedDefault(
-                            default=-1.0,
+        self.input_layer3 = blobs.Input_FixedReference(
+                            reference=-1.0,
                             num_dims=None,
                             shape=(None,2,1,3))
         self.merge_layer = blobs.MaxMerge(axis=1, temp=1)

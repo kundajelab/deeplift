@@ -7,21 +7,24 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import theano
 
 
 class TestActivations(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]
         self.w2 = [-1.0, -2.0, -3.0, -4.0]
         W = np.array([self.w1, self.w2]).T
         b = np.array([-1.0, 1.0])
-        self.dense_layer = blobs.Dense(W=W, b=b)
+        self.dense_layer = blobs.Dense(
+                            W=W, b=b,
+                            dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.input_layer)
         self.inp = [[1.0, 1.0, 1.0, 1.0],
                     [2.0, 2.0, 2.0, 2.0]]
@@ -54,7 +57,8 @@ class TestActivations(unittest.TestCase):
         return fprop_results, bprop_results_each_task
 
     def test_relu_deeplift(self): 
-        out_layer = blobs.ReLU(mxts_mode=blobs.MxtsMode.DeepLIFT)
+        out_layer = blobs.ReLU(
+         nonlinear_mxts_mode=blobs.NonlinearMxtsMode.DeepLIFT)
         fprop_results, bprop_results_each_task =\
             self.set_up_prediction_func_and_deeplift_func(out_layer) 
         self.assertListEqual(fprop_results,
@@ -73,7 +77,8 @@ class TestActivations(unittest.TestCase):
                                               (-1.0/-20.0)*np.array(self.w2)]))
 
     def test_relu_gradient(self): 
-        out_layer = blobs.ReLU(mxts_mode=blobs.MxtsMode.Gradient)
+        out_layer = blobs.ReLU(
+         nonlinear_mxts_mode=blobs.NonlinearMxtsMode.Gradient)
         fprop_results, bprop_results_each_task =\
             self.set_up_prediction_func_and_deeplift_func(out_layer) 
 
