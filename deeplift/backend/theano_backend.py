@@ -79,7 +79,9 @@ def set_subtensor(subtensor, amnt):
 
 def function(inputs, outputs, **kwargs):
     return theano.function(inputs, outputs,
-                            allow_input_downcast=True, **kwargs) 
+                            allow_input_downcast=True,
+                            on_unused_input='ignore',
+                            **kwargs) 
 
 
 def tensor_with_dims(num_dims, name):

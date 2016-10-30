@@ -201,7 +201,8 @@ class Input(Blob):
         return self._activation_vars
     
     def _build_default_activation_vars(self):
-        raise NotImplementedError()
+        return B.tensor_with_dims(self._num_dims,
+                                  name="ref_"+str(self.get_name()))
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
@@ -213,22 +214,6 @@ class Input(Blob):
         self._default_activation_vars = self._build_default_activation_vars()
         self._diff_from_default_vars = self._build_diff_from_default_vars()
         self._mxts = B.zeros_like(self.get_activation_vars())
-
-
-class Input_FixedReference(Input):
-     
-    def __init__(self, reference=0.0, **kwargs):
-        super(Input_FixedReference, self).__init__(**kwargs)
-        self.reference = reference
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Input_FixedReference, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['reference'] = self.reference
-        return kwargs_dict
-
-    def _build_default_activation_vars(self):
-        return B.ones_like(self._activation_vars)*self.reference
 
 
 class Node(Blob):
