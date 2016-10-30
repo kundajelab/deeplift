@@ -135,7 +135,7 @@ Here are the steps necessary to implement the backward pass, which is where the 
 
     ```python
     deeplift.backend.function([input_layer.get_activation_vars()...,
-                               input_layer._get_default_activation_vars()...],
+                               input_layer.get_reference_vars()...],
                               blob_to_find_scores_for.get_target_contrib_vars())
     ```
     - The first argument represents the inputs to the function and should be a list of one symbolic tensor for the activations of each input layer (as for the forward pass), followed by a list of one symbolic tensor for the references of each input layer
