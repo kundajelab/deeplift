@@ -7,6 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import deeplift.backend as B
 import theano
 
@@ -16,12 +17,12 @@ class TestConv(unittest.TestCase):
     def setUp(self):
         #theano convolutional ordering assumed here...would need to
         #swap axes for tensorflow
-        self.input_layer = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer = blobs.Input_FixedReference(
+                            reference=np.array([0.0,0.0,0.0,0.0])[:,None].astype("float32"),
                             num_dims=None,
                             shape=(None,2,4,4))
-        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1]
-        self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1]
+        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
+        self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
         self.conv_W = np.array([self.w1, self.w2]).astype("float32")
         self.conv_b = np.array([-1.0, 1.0]).astype("float32")
 
@@ -34,10 +35,11 @@ class TestConv(unittest.TestCase):
         self.flatten_layer.set_inputs(self.conv_layer)
 
         self.dense_layer = blobs.Dense(
-                           W=np.array([([1]*outputs_per_channel)
-                                      +([-1]*outputs_per_channel)])
-                                       .astype("float32").T,
-                           b=np.array([1]).astype("float32"))
+                           W=(np.array([([1.0]*outputs_per_channel)
+                                      +([-1.0]*outputs_per_channel)]).T)
+                              .astype("float32"),
+                           b=np.array([1]).astype("float32"),
+                           dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
@@ -46,7 +48,7 @@ class TestConv(unittest.TestCase):
         self.dense_layer.set_active()
         self.input_layer.update_mxts()
 
-        self.inp = np.arange(64).reshape((2,2,4,4))
+        self.inp = np.arange(64).reshape((2,2,4,4)).astype("float32")
         
     def test_fprop(self): 
 
