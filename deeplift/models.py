@@ -42,9 +42,19 @@ class Model(object):
         if (slice_objects is not None):
             output_symbolic_vars = output_symbolic_vars[slice_objects]
         core_function = B.function([input_layer.get_activation_vars()
+                                    for input_layer in input_layers]+
+                                   [input_layer._get_default_activation_vars()
                                     for input_layer in input_layers],
-                          output_symbolic_vars)
-        def func(task_idx, input_data_list, batch_size, progress_update):
+                                   output_symbolic_vars)
+        def func(task_idx, input_data_list,
+                 batch_size, progress_update,
+                 input_references_list=None):
+            if (input_references_list is None):
+                input_references_list = [0.0 for x in input_data_list]
+            input_references_list = [
+                np.ones_like(input_data)*reference
+                for (input_data, reference) in
+                zip(input_data_list, input_references_list)]
             #WARNING: this is not thread-safe. Do not try to
             #parallelize or you can end up with multiple target_layers
             #active at once
@@ -52,7 +62,7 @@ class Model(object):
             target_layer.update_task_index(task_idx)
             to_return = deeplift.util.run_function_in_batches(
                     func = core_function,
-                    input_data_list = input_data_list,
+                    input_data_list = input_data_list+input_references_list,
                     batch_size = batch_size,
                     progress_update = progress_update)
             target_layer.set_inactive()
