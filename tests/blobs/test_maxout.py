@@ -13,9 +13,10 @@ import theano
 class TestMaxout(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer = blobs.Input_FixedDefault(default=-2,
-                                                    num_dims=None,
-                                                    shape=(None,2))
+        self.input_layer = blobs.Input_FixedReference(
+                                reference=-2,
+                                num_dims=None,
+                                shape=(None,2))
         W = np.array([[[-1.0, 0.0],
                        [-1.0, 0.0],
                        [-1.0, 0.0],

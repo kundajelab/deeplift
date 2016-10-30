@@ -7,25 +7,27 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import theano
 
 
 class TestConcat(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer1 = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer1 = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,1,1,1))
-        self.input_layer2 = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer2 = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,1,1,1))
         self.concat_layer = blobs.Concat(axis=1)
         self.concat_layer.set_inputs([self.input_layer1, self.input_layer2])
         self.flatten_layer = blobs.Flatten()
         self.flatten_layer.set_inputs(self.concat_layer)
-        self.dense_layer = blobs.Dense(W=np.array([([1,2])]).T, b=[1])
+        self.dense_layer = blobs.Dense(
+         W=np.array([([1,2])]).T, b=[1], dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
         self.dense_layer.build_fwd_pass_vars()
 

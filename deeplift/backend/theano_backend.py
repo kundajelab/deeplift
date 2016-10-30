@@ -62,7 +62,7 @@ def sum(x, axis):
 
 
 def ones_like(x):
-    return T.ones_like(x)
+    return T.ones_like(x, dtype=theano.config.floatX)
 
 
 def zeros_like(x):
