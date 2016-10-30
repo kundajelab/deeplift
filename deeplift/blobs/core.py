@@ -14,15 +14,16 @@ import deeplift.backend as B
 
 ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
-MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
-                                DeconvNet="DeconvNet",
-                                GuidedBackprop="GuidedBackprop",
-                                GuidedBackpropDeepLIFT=\
-                                 "GuidedBackpropDeepLIFT",
-                                PosThroughDenseDeepLIFT=\
-                                 "PosThroughDenseDeepLIFT",
-                                CounterBalanceDenseDeepLIFT=\
-                                 "CounterBalanceDenseDeepLIFT")
+NonlinearMxtsMode = deeplift.util.enum(
+                     Gradient="Gradient",
+                     DeepLIFT="DeepLIFT",
+                     DeconvNet="DeconvNet",
+                     GuidedBackprop="GuidedBackprop",
+                     GuidedBackpropDeepLIFT="GuidedBackpropDeepLIFT")
+DenseMxtsMode = deeplift.util.enum(
+                    Linear="Linear",
+                    PosOnly="PosOnly",
+                    Counterbalance="Counterbalance")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -214,20 +215,20 @@ class Input(Blob):
         self._mxts = B.zeros_like(self.get_activation_vars())
 
 
-class Input_FixedDefault(Input):
+class Input_FixedReference(Input):
      
-    def __init__(self, default=0.0, **kwargs):
-        super(Input_FixedDefault, self).__init__(**kwargs)
-        self.default = default
+    def __init__(self, reference=0.0, **kwargs):
+        super(Input_FixedReference, self).__init__(**kwargs)
+        self.reference = reference
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Input_FixedDefault, self).\
+        kwargs_dict = super(Input_FixedReference, self).\
                        get_yaml_compatible_object_kwargs()
-        kwargs_dict['default'] = self.default
+        kwargs_dict['reference'] = self.reference
         return kwargs_dict
 
     def _build_default_activation_vars(self):
-        return B.ones_like(self._activation_vars)*self.default
+        return B.ones_like(self._activation_vars)*self.reference
 
 
 class Node(Blob):
@@ -465,11 +466,11 @@ class NoOp(SingleInputMixin, Node):
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
-    def __init__(self, W, b, mxts_mode, **kwargs):
+    def __init__(self, W, b, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
         self.W = W
         self.b = b
-        self.mxts_mode = mxts_mode
+        self.dense_mxts_mode = dense_mxts_mode
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Dense, self).\
@@ -485,9 +486,9 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         return B.dot(input_act_vars, self.W) + self.b
 
     def _get_mxts_increments_for_inputs(self):
-        if (self.mxts_mode == MxtsMode.PosThroughDenseDeepLIFT):
+        if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
             return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
-        elif (self.mxts_mode == MxtsMode.CounterBalanceDenseDeepLIFT):
+        elif (self.dense_mxts_mode == DenseMxtsMode.Counterbalance):
             #self.W has dims input x output
             #fwd_contribs has dims batch x output x input
             fwd_contribs = self._get_input_activation_vars()[:,None,:]\
@@ -515,8 +516,11 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             new_Wt = self.W.T[None,:,:]*(fwd_contribs>0)*positive_rescale[:,:,None] 
             new_Wt += self.W.T[None,:,:]*(fwd_contribs<0)*negative_rescale[:,:,None] 
             return B.sum(self.get_mxts()[:,:,None]*new_Wt[:,:,:],axis=1)
-        else:
+        elif (self.dense_mxts_mode == DenseMxtsMode.Linear):
             return B.dot(self.get_mxts(),self.W.T)
+        else:
+            raise RuntimeError("Unsupported mxts mode: "
+                               +str(self.dense_mxts_mode))
 
 
 class BatchNormalization(SingleInputMixin, Node):

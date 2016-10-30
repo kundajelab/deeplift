@@ -7,21 +7,23 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import theano
 
 
 class TestBatchNormalization(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]
         self.w2 = [-1.0, -2.0, -3.0, -4.0]
         W = np.array([self.w1, self.w2]).T
         b = np.array([-1.0, 1.0])
-        self.dense_layer = blobs.Dense(W=W, b=b)
+        self.dense_layer = blobs.Dense(W=W, b=b,
+                             dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.input_layer)
         self.dense_layer.build_fwd_pass_vars()
         self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)

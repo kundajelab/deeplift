@@ -8,6 +8,7 @@ import os
 import numpy as np
 from deeplift.conversion import keras_conversion as kc
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import theano
 import keras
 from keras import models
@@ -69,8 +70,8 @@ class TestBatchNorm(unittest.TestCase):
 
 
     def prepare_batch_norm_deeplift_model(self, axis):
-        self.input_layer = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer = blobs.Input_FixedReference(
+                            reference=0.0,
                             num_dims=None,
                             shape=(None,2,2,2))
         self.batch_norm_layer = blobs.BatchNormalization(
@@ -83,7 +84,10 @@ class TestBatchNorm(unittest.TestCase):
         self.batch_norm_layer.set_inputs(self.input_layer)
         self.flatten_layer = blobs.Flatten()
         self.flatten_layer.set_inputs(self.batch_norm_layer)
-        self.dense_layer = blobs.Dense(W=np.ones((1,8)).T, b=np.zeros(1))
+        self.dense_layer = blobs.Dense(
+                            W=np.ones((1,8)).T,
+                            b=np.zeros(1),
+                            dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
         self.dense_layer.build_fwd_pass_vars()
         self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)

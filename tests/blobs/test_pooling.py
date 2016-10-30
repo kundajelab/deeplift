@@ -7,6 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import MxtsMode
 from deeplift.blobs import MaxPoolDeepLiftMode
 import deeplift.backend as B
 import theano
@@ -17,7 +18,7 @@ class TestPool(unittest.TestCase):
     def setUp(self):
         #theano dimensional ordering assumed here...would need to swap
         #axes for tensorflow
-        self.default_inps=np.array([[[
+        self.reference_inps=np.array([[[
                                [0,0,2,3],
                                [0,1,0,0],
                                [0,5,4,0],
@@ -44,8 +45,8 @@ class TestPool(unittest.TestCase):
                                    [1,2,5,1],
                                    [8,7,6,1],
                                    [7,1,9,10]]]])
-        self.input_layer = blobs.Input_FixedDefault(
-                           default=self.default_inps,
+        self.input_layer = blobs.Input_FixedReference(
+                            reference=self.reference_inps,
                             num_dims=None,
                             shape=(None,2,4,4))
 
@@ -82,8 +83,8 @@ class TestPool(unittest.TestCase):
         func = theano.function([self.input_layer.get_activation_vars()],
                                 self.pool_layer.get_activation_vars(),
                                 allow_input_downcast=True)
-        np.testing.assert_almost_equal(func([self.default_inps[0],
-                                             self.default_inps[0]-1]),
+        np.testing.assert_almost_equal(func([self.reference_inps[0],
+                                             self.reference_inps[0]-1]),
                                        np.array(
                                        [[[[1,2,3],
                                           [5,5,4],
@@ -110,8 +111,8 @@ class TestPool(unittest.TestCase):
         func = theano.function([self.input_layer.get_activation_vars()],
                                 self.pool_layer.get_activation_vars(),
                                 allow_input_downcast=True)
-        np.testing.assert_almost_equal(func([self.default_inps[0],
-                                             self.default_inps[0]-1]),
+        np.testing.assert_almost_equal(func([self.reference_inps[0],
+                                             self.reference_inps[0]-1]),
                                        0.25*np.array(
                                        [[[[ 1, 3, 5],
                                           [ 6,10, 4],

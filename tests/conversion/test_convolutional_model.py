@@ -8,7 +8,7 @@ import os
 import numpy as np
 from deeplift.conversion import keras_conversion as kc
 import deeplift.blobs as blobs
-from deeplift.blobs import MxtsMode
+from deeplift.blobs import NonlinearMxtsMode
 import theano
 import keras
 from keras import models
