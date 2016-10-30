@@ -305,9 +305,9 @@ def get_smoothen_function(window_size, same_size_return=True):
         padded_inp = B.set_subtensor(
                         padded_inp[:,(inp_tensor.shape[1]+padding):],
                         inp_tensor[:,(inp_tensor.shape[1]-padding):])
-        padded_inp = padded_inp[:,None,None,:]
     else:
-        padded_inp = inp
+        padded_inp = inp_tensor
+    padded_inp = padded_inp[:,None,None,:]
 
     averaged_padded_inp = B.pool2d(
                             inp=padded_inp,
@@ -333,3 +333,26 @@ def get_smoothen_function(window_size, same_size_return=True):
                 progress_update=progress_update)
 
     return smoothen
+
+
+def get_top_N_scores_per_region(
+    scores, N, exclude_hits_within_window):
+    scores = scores.copy()
+    assert len(scores.shape)==2, scores.shape
+    if (N==1):
+        return np.max(scores, axis=1)[:,None]
+    else:
+        top_n_scores = []
+        top_n_indices = []
+        for i in range(scores.shape[0]):
+            top_n_scores_for_region=[]
+            top_n_indices_for_region=[]
+            for n in range(N):
+                max_idx = np.argmax(scores[i]) 
+                top_n_scores_for_region.append(scores[i][max_idx])
+                top_n_indices_for_region.append(max_idx)
+                scores[i][max_idx-exclude_hits_within_window:
+                          max_idx+exclude_hits_within_window-1] = -np.inf
+            top_n_scores.append(top_n_scores_for_region) 
+            top_n_indices.append(top_n_indices_for_region)
+        return np.array(top_n_scores), np.array(top_n_indices)
