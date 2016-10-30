@@ -8,16 +8,15 @@ import os
 import numpy as np
 import deeplift.blobs as blobs
 from deeplift.blobs import DenseMxtsMode
+from deeplift import backend as B
 import theano
 
 
 class TestActivations(unittest.TestCase):
 
     def setUp(self):
-        self.input_layer = blobs.Input_FixedReference(
-                            reference=0.0,
-                            num_dims=None,
-                            shape=(None,4))
+        self.input_layer = blobs.Input(num_dims=None,
+                                       shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]
         self.w2 = [-1.0, -2.0, -3.0, -4.0]
         W = np.array([self.w1, self.w2]).T
@@ -38,19 +37,19 @@ class TestActivations(unittest.TestCase):
         out_layer.set_active()
         self.input_layer.update_mxts()
 
-        fprop_func = theano.function([self.input_layer.get_activation_vars()],
-                                out_layer.get_activation_vars(),
-                                allow_input_downcast=True)
+        fprop_func = B.function([self.input_layer.get_activation_vars()],
+                                out_layer.get_activation_vars())
         fprop_results = [list(x) for x in fprop_func(self.inp)] 
 
-        bprop_func = theano.function(
-                          [self.input_layer.get_activation_vars()],
-                          self.input_layer.get_mxts(),
-                          allow_input_downcast=True)
+        bprop_func = B.function(
+                          [self.input_layer.get_activation_vars(),
+                           self.input_layer._get_default_activation_vars()],
+                          self.input_layer.get_mxts())
         bprop_results_each_task = []
         for task_idx in range(len(fprop_results[0])):
             out_layer.update_task_index(task_index=task_idx)
-            bprop_results_task = [list(x) for x in bprop_func(self.inp)]
+            bprop_results_task = [list(x) for x in bprop_func(
+                                   self.inp, np.zeros_like(self.inp))]
             bprop_results_each_task.append(bprop_results_task)
 
         out_layer.set_inactive()

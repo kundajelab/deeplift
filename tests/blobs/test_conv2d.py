@@ -9,7 +9,6 @@ import numpy as np
 import deeplift.blobs as blobs
 from deeplift.blobs import DenseMxtsMode
 import deeplift.backend as B
-import theano
 
 
 class TestConv(unittest.TestCase):
@@ -17,8 +16,7 @@ class TestConv(unittest.TestCase):
     def setUp(self):
         #theano convolutional ordering assumed here...would need to
         #swap axes for tensorflow
-        self.input_layer = blobs.Input_FixedReference(
-                            reference=np.array([0.0,0.0,0.0,0.0])[:,None].astype("float32"),
+        self.input_layer = blobs.Input(
                             num_dims=None,
                             shape=(None,2,4,4))
         self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
@@ -58,9 +56,8 @@ class TestConv(unittest.TestCase):
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                self.conv_layer.get_activation_vars(),
-                                allow_input_downcast=True)
+        func = B.function([self.input_layer.get_activation_vars()],
+                                self.conv_layer.get_activation_vars())
         np.testing.assert_almost_equal(func(self.inp),
                                        np.array(
                                        [[[[439, 467, 495],
@@ -84,10 +81,10 @@ class TestConv(unittest.TestCase):
                                               outputs_per_channel=9)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        np.testing.assert_almost_equal(func(self.inp),
+        func = B.function([self.input_layer.get_activation_vars(),
+                           self.input_layer._get_default_activation_vars()],
+                                   self.input_layer.get_mxts())
+        np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
                                        np.array(
                                         [[[[  0,   2,   2,   2],
                                            [  4,  12,  12,   8],
@@ -118,9 +115,8 @@ class TestConv(unittest.TestCase):
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                self.conv_layer.get_activation_vars(),
-                                allow_input_downcast=True)
+        func = B.function([self.input_layer.get_activation_vars()],
+                                self.conv_layer.get_activation_vars())
         np.testing.assert_almost_equal(func(self.inp),
                                        np.array(
                                        [[[[  439,   495],
@@ -145,10 +141,10 @@ class TestConv(unittest.TestCase):
                                               outputs_per_channel=4)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        np.testing.assert_almost_equal(func(self.inp),
+        func = B.function([self.input_layer.get_activation_vars(),
+                           self.input_layer._get_default_activation_vars()],
+                                   self.input_layer.get_mxts())
+        np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
                                        np.array(
                                         [[[[  0,   2,   0,   2],
                                            [  4,   6,   4,   6],

@@ -226,7 +226,6 @@ layer_name_to_conversion_function = {
 
 def convert_sequential_model(model, num_dims=None,
                         nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
-                        reference=0.0,
                         verbose=True,
                         dense_mxts_mode=DenseMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode):
@@ -243,10 +242,7 @@ def convert_sequential_model(model, num_dims=None,
     else:
         input_shape = None
     converted_layers.append(
-        blobs.Input_FixedReference(reference=reference,
-                                 num_dims=num_dims,
-                                 shape=input_shape,
-                                 name="input"))
+        blobs.Input(num_dims=num_dims, shape=input_shape, name="input"))
     #converted_layers is actually mutated to be extended with the
     #additional layers so the assignment is not strictly necessary,
     #but whatever
@@ -266,8 +262,7 @@ def convert_graph_model(model,
                         verbose=True,
                         dense_mxts_mode=DenseMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode,
-                        auto_build_outputs=True,
-                        reference=0.0):
+                        auto_build_outputs=True):
     name_to_blob = OrderedDict()
     keras_layer_to_deeplift_blobs = OrderedDict() 
     keras_non_input_layers = []
@@ -280,11 +275,8 @@ def convert_graph_model(model,
             input_shape = [None]+[x for x in input_shape]
         assert input_shape[0] is None #for the batch axis
         deeplift_input_layer =\
-         blobs.Input_FixedReference(
-          reference=reference,
-          shape=input_shape,
-          num_dims=None,
-          name=keras_input_layer_name)
+         blobs.Input(shape=input_shape, num_dims=None,
+                           name=keras_input_layer_name)
         name_to_blob[keras_input_layer_name] = deeplift_input_layer
         keras_layer_to_deeplift_blobs[id(keras_input_layer)] =\
                                                          [deeplift_input_layer]
