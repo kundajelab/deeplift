@@ -7,7 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
-from deeplift.blobs import MxtsMode
+from deeplift.blobs import DenseMxtsMode
 from deeplift.blobs import MaxPoolDeepLiftMode
 import deeplift.backend as B
 import theano
@@ -62,7 +62,8 @@ class TestPool(unittest.TestCase):
                            W=np.array([([2]*outputs_per_channel)
                                       +([3]*outputs_per_channel)])
                                       .astype("float32").T,
-                           b=np.array([1]).astype("float32"))
+                           b=np.array([1]).astype("float32"),
+                           dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
