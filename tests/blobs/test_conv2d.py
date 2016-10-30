@@ -82,7 +82,7 @@ class TestConv(unittest.TestCase):
 
         self.dense_layer.update_task_index(task_index=0)
         func = B.function([self.input_layer.get_activation_vars(),
-                           self.input_layer._get_default_activation_vars()],
+                           self.input_layer.get_reference_vars()],
                                    self.input_layer.get_mxts())
         np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
                                        np.array(
@@ -142,7 +142,7 @@ class TestConv(unittest.TestCase):
 
         self.dense_layer.update_task_index(task_index=0)
         func = B.function([self.input_layer.get_activation_vars(),
-                           self.input_layer._get_default_activation_vars()],
+                           self.input_layer.get_reference_vars()],
                                    self.input_layer.get_mxts())
         np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
                                        np.array(

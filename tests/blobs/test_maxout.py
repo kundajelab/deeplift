@@ -55,9 +55,9 @@ class TestMaxout(unittest.TestCase):
                               [1.0,1.0], [4.0,4.0]])
  
     @skip
-    def test_diff_from_default(self):
+    def test_diff_from_reference(self):
         func = B.function([self.input_layer.get_activation_vars()],
-                          self.input_layer._get_diff_from_default_vars())
+                          self.input_layer._get_diff_from_reference_vars())
         self.assertListEqual([list(x) for x in func([[-2.0,-2.0],
                                                      [-1.0,-1.0],
                                                      [ 0.5, 0.5],
@@ -111,7 +111,7 @@ class TestMaxout(unittest.TestCase):
  
     def test_maxout_backprop(self):
         func = B.function([self.input_layer.get_activation_vars(),
-                           self.input_layer._get_default_activation_vars()],
+                           self.input_layer.get_reference_vars()],
                                 self.input_layer.get_mxts())
         inp = [[-2.0,-2.0],
                [-1.0,-1.0],

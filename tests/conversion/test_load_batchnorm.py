@@ -133,7 +133,7 @@ class TestBatchNorm(unittest.TestCase):
         self.prepare_batch_norm_deeplift_model(axis=self.axis)
         deeplift_multipliers_func = theano.function(
                             [self.input_layer.get_activation_vars(),
-                             self.input_layer._get_default_activation_vars()],
+                             self.input_layer.get_reference_vars()],
                              self.input_layer.get_mxts(),
                             allow_input_downcast=True)
         np.testing.assert_almost_equal(
@@ -156,7 +156,7 @@ class TestBatchNorm(unittest.TestCase):
         self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
         deeplift_multipliers_func = theano.function(
                             [self.input_layer.get_activation_vars(),
-                             self.input_layer._get_default_activation_vars()],
+                             self.input_layer.get_reference_vars()],
                              self.input_layer.get_mxts(),
                             allow_input_downcast=True)
         np.testing.assert_almost_equal(deeplift_multipliers_func(

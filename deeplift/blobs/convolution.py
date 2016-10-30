@@ -181,9 +181,9 @@ class MaxPool2D(Pool2D):
         elif (self.maxpool_deeplift_mode==
               MaxPoolDeepLiftMode.scaled_gradient):
             grad_times_diff_def = self._get_input_grad_given_outgrad(
-                   out_grad=self.get_mxts()*self._get_diff_from_default_vars()) 
+                   out_grad=self.get_mxts()*self._get_diff_from_reference_vars()) 
             pcd_input_diff_default = (pseudocount_near_zero(
-                                     self._get_input_diff_from_default_vars()))
+                                     self._get_input_diff_from_reference_vars()))
             return grad_times_diff_def/pcd_input_diff_default
         else:
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
