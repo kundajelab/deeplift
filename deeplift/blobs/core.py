@@ -80,36 +80,36 @@ class Blob(object):
             self._layer_needs_to_be_built_message()
         return self._activation_vars
 
-    def _build_default_activation_vars(self):
+    def _build_reference_vars(self):
         raise NotImplementedError()
 
-    def _build_diff_from_default_vars(self):
+    def _build_diff_from_reference_vars(self):
         """
             instantiate theano vars whose value is the difference between
-                the activation and the default activaiton
+                the activation and the reference activation
         """
-        return self.get_activation_vars() - self._get_default_activation_vars()
+        return self.get_activation_vars() - self.get_reference_vars()
 
     def _build_target_contrib_vars(self):
         """
             the contrib to the target is mxts*(Ax - Ax0)
         """ 
-        return self.get_mxts()*self._get_diff_from_default_vars()
+        return self.get_mxts()*self._get_diff_from_reference_vars()
 
-    def _get_diff_from_default_vars(self):
+    def _get_diff_from_reference_vars(self):
         """
             return the theano vars representing the difference between
-                the activation and the default activation
+                the activation and the reference activation
         """
-        return self._diff_from_default_vars
+        return self._diff_from_reference_vars
 
-    def _get_default_activation_vars(self):
+    def get_reference_vars(self):
         """
             get the activation that corresponds to zero contrib
         """
-        if (hasattr(self, '_default_activation_vars')==False):
-            raise RuntimeError("_default_activation_vars is unset")
-        return self._default_activation_vars
+        if (hasattr(self, '_reference_vars')==False):
+            raise RuntimeError("_reference_vars is unset")
+        return self._reference_vars
 
     def _increment_mxts(self, increment_var):
         """
@@ -200,7 +200,7 @@ class Input(Blob):
     def get_activation_vars(self):
         return self._activation_vars
     
-    def _build_default_activation_vars(self):
+    def _build_reference_vars(self):
         return B.tensor_with_dims(self._num_dims,
                                   name="ref_"+str(self.get_name()))
 
@@ -211,8 +211,8 @@ class Input(Blob):
         return kwargs_dict
 
     def _build_fwd_pass_vars(self):
-        self._default_activation_vars = self._build_default_activation_vars()
-        self._diff_from_default_vars = self._build_diff_from_default_vars()
+        self._reference_vars = self._build_reference_vars()
+        self._diff_from_reference_vars = self._build_diff_from_reference_vars()
         self._mxts = B.zeros_like(self.get_activation_vars())
 
 
@@ -247,13 +247,13 @@ class Node(Blob):
         return self._call_function_on_blobs_within_inputs(
                       'get_activation_vars') 
 
-    def _get_input_default_activation_vars(self):
+    def _get_input_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
-                    '_get_default_activation_vars')
+                    'get_reference_vars')
 
-    def _get_input_diff_from_default_vars(self):
+    def _get_input_diff_from_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
-                    '_get_diff_from_default_vars')
+                    '_get_diff_from_reference_vars')
 
     def _get_input_shape(self):
         return self._call_function_on_blobs_within_inputs('get_shape')
@@ -282,11 +282,11 @@ class Node(Blob):
         self._activation_vars =\
             self._build_activation_vars(
                 self._get_input_activation_vars())
-        self._default_activation_vars =\
-         self._build_default_activation_vars()
-        self._diff_from_default_vars =\
-         self._build_diff_from_default_vars()
-        self._mxts = B.zeros_like(self._get_default_activation_vars())
+        self._reference_vars =\
+         self._build_reference_vars()
+        self._diff_from_reference_vars =\
+         self._build_diff_from_reference_vars()
+        self._mxts = B.zeros_like(self.get_reference_vars())
 
     def _compute_shape(self, input_shape):
         """
@@ -301,9 +301,9 @@ class Node(Blob):
         """
         raise NotImplementedError()
 
-    def _build_default_activation_vars(self):
+    def _build_reference_vars(self):
         return self._build_activation_vars(
-                self._get_input_default_activation_vars())
+                self._get_input_reference_vars())
 
     def _update_mxts_for_inputs(self):
         """
@@ -488,7 +488,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             to_distribute =\
              B.maximum(
                 (total_neg_contribs*(total_neg_contribs < total_pos_contribs)
-                 - B.maximum(self._get_default_activation_vars(),0)),0.0)\
+                 - B.maximum(self.get_reference_vars(),0)),0.0)\
                 *(1.0-((total_neg_contribs)/
                        pseudocount_near_zero(total_pos_contribs)))
             #total_pos_contribs_new has dims batch x output
@@ -652,7 +652,7 @@ class MaxMerge(OneDimOutputMixin, Merge):
         return B.maximum_over_list(the_list=input_act_vars)
 
     def _get_mxts_increments_for_inputs(self):
-        refs = self._get_input_default_activation_vars()
+        refs = self._get_input_reference_vars()
         inp_acts = self._get_input_activation_vars()
         output = self.get_activation_vars()
         #1(a): Compute max(ref s.t. ref < output, -inf if ref >= output)
@@ -682,7 +682,7 @@ class MaxMerge(OneDimOutputMixin, Merge):
         max_neg_ride = B.maximum_over_list(negative_rides_arr)
         max_pos_ride = B.maximum_over_list(positive_rides_arr)
         #allocate total negative and positive importance according to ratio of max ride lengths
-        out_diff_def = self._get_diff_from_default_vars()
+        out_diff_def = self._get_diff_from_reference_vars()
         #distribute importance for individual pos and neg rides according to some function
         exp_pos_rides_arr = [B.exp(pos_rides/self.temp)-1
                              for pos_rides in positive_rides_arr]
@@ -700,10 +700,10 @@ class MaxMerge(OneDimOutputMixin, Merge):
         contrib_neg_rides_arr = [((-exp_neg_rides*max_neg_ride)/
                                    sum_exp_neg_rides) for exp_neg_rides
                                  in exp_neg_rides_arr]
-        #compute multipliers as ratio of contrib to inp diff-from-default
+        #compute multipliers as ratio of contrib to inp diff-from-reference
         pcd_inp_diff_def_arr = [pseudocount_near_zero(inp_diff_def) for
                                 inp_diff_def in
-                                self._get_input_diff_from_default_vars()]
+                                self._get_input_diff_from_reference_vars()]
         multipliers_arr = [(contrib_pos_rides+contrib_neg_rides)/
                             pcd_inp_diff_def for
                            (contrib_pos_rides,
