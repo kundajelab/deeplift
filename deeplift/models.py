@@ -151,6 +151,18 @@ class Model(object):
         return model_class.load_model_from_yaml_contents_only(
                             yaml_data[Model.YamlKeys.yaml_contents])
 
+    def _get_prediction_function(inputs, outputs):
+        func = B.function(inputs=inputs, outputs=outputs) 
+        def prediction_function(input_data_list,
+                                batch_size, progress_update=None):
+            to_return = deeplift.util.run_function_in_batches(
+                    func=func,
+                    input_data_list=input_data_list,
+                    batch_size = batch_size,
+                    progress_update = progress_update)
+            return to_return
+        return prediction_function
+
 
 class SequentialModel(Model):
     
@@ -189,6 +201,11 @@ class SequentialModel(Model):
             layers.append(blob)
         deeplift.util.connect_list_of_layers(layers)
         return cls(layers)
+
+    def get_prediction_function(input_layer_idx, output_layer_idx):
+        return self._get_prediction_function(
+            inputs=[self.get_layers()[input_layer_idx].get_activation_vars()],
+            outputs=self.get_layers()[output_layer_idx].get_activation_vars())
         
 
 class GraphModel(Model):
@@ -214,3 +231,12 @@ class GraphModel(Model):
                 input_layers=[self.get_name_to_blob()[input_layer]
                               for input_layer in self.get_input_layer_names()],
                 **kwargs)
+
+    def get_prediction_function(input_layer_names, output_layer_names):
+        return self._get_prediction_function(
+            inputs=[
+             self.get_name_to_blob()[input_layer_name].get_activation_vars()
+             for input_layer_name in input_layer_names],
+            outputs=[
+             self.get_name_to_blob()[output_layer_name].get_activation_vars()
+             for output_layer_name in output_layer_names])
