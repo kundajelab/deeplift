@@ -335,11 +335,11 @@ def get_smoothen_function(window_size, same_size_return=True):
     return smoothen
 
 
-def get_top_N_scores_per_region(
-    scores, N, exclude_hits_within_window):
+def get_top_n_scores_per_region(
+    scores, n, exclude_hits_within_window):
     scores = scores.copy()
     assert len(scores.shape)==2, scores.shape
-    if (N==1):
+    if (n==1):
         return np.max(scores, axis=1)[:,None]
     else:
         top_n_scores = []
@@ -347,7 +347,7 @@ def get_top_N_scores_per_region(
         for i in range(scores.shape[0]):
             top_n_scores_for_region=[]
             top_n_indices_for_region=[]
-            for n in range(N):
+            for j in range(n):
                 max_idx = np.argmax(scores[i]) 
                 top_n_scores_for_region.append(scores[i][max_idx])
                 top_n_indices_for_region.append(max_idx)
