@@ -62,7 +62,7 @@ def sum(x, axis):
 
 
 def ones_like(x):
-    return T.ones_like(x)
+    return T.ones_like(x, dtype=theano.config.floatX)
 
 
 def zeros_like(x):
@@ -79,7 +79,9 @@ def set_subtensor(subtensor, amnt):
 
 def function(inputs, outputs, **kwargs):
     return theano.function(inputs, outputs,
-                            allow_input_downcast=True, **kwargs) 
+                            allow_input_downcast=True,
+                            on_unused_input='ignore',
+                            **kwargs) 
 
 
 def tensor_with_dims(num_dims, name):
@@ -132,7 +134,7 @@ def abs(inp):
 
 
 def conv2d(inp, filters, border_mode, subsample):
-    
+    inp = T.cast(inp, dtype=theano.config.floatX) 
     if (border_mode==BorderMode.same):
         #'half' kernel width padding results in outputs of the same
         #dimensions as input
@@ -140,19 +142,22 @@ def conv2d(inp, filters, border_mode, subsample):
         assert filters.shape[2]%2 == 1 and filter_shape[3]%2 == 1,\
             "haven't handled even filter shapes for border mode 'half'"
     return T.nnet.conv2d(input=inp,
-                         filters=theano.shared(value=filters),
+                         filters=T.cast(theano.shared(value=filters),
+                                        dtype=theano.config.floatX),
                          border_mode=border_mode,
                          subsample=subsample,
                          filter_shape=filters.shape)
 
 
 def conv2d_grad(out_grad, conv_in, filters, border_mode, subsample):
+    out_grad=T.cast(out_grad, dtype=theano.config.floatX)
     conv_op = T.nnet.conv.ConvOp(output_mode=border_mode,
                                  dx=subsample[0],
                                  dy=subsample[1]) 
     inverse_conv2d = conv_op.grad(
                        (conv_in,
-                       T.as_tensor_variable(filters)),
+                       T.cast(T.as_tensor_variable(filters),
+                         dtype=theano.config.floatX)),
                        (out_grad,))
     #grad returns d_input and d_filters; we just care about
     #the first

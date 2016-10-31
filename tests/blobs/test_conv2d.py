@@ -7,8 +7,8 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 import deeplift.backend as B
-import theano
 
 
 class TestConv(unittest.TestCase):
@@ -16,12 +16,11 @@ class TestConv(unittest.TestCase):
     def setUp(self):
         #theano convolutional ordering assumed here...would need to
         #swap axes for tensorflow
-        self.input_layer = blobs.Input_FixedDefault(
-                            default=0.0,
+        self.input_layer = blobs.Input(
                             num_dims=None,
                             shape=(None,2,4,4))
-        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1]
-        self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1]
+        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
+        self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
         self.conv_W = np.array([self.w1, self.w2]).astype("float32")
         self.conv_b = np.array([-1.0, 1.0]).astype("float32")
 
@@ -34,10 +33,11 @@ class TestConv(unittest.TestCase):
         self.flatten_layer.set_inputs(self.conv_layer)
 
         self.dense_layer = blobs.Dense(
-                           W=np.array([([1]*outputs_per_channel)
-                                      +([-1]*outputs_per_channel)])
-                                       .astype("float32").T,
-                           b=np.array([1]).astype("float32"))
+                           W=(np.array([([1.0]*outputs_per_channel)
+                                      +([-1.0]*outputs_per_channel)]).T)
+                              .astype("float32"),
+                           b=np.array([1]).astype("float32"),
+                           dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
@@ -46,7 +46,7 @@ class TestConv(unittest.TestCase):
         self.dense_layer.set_active()
         self.input_layer.update_mxts()
 
-        self.inp = np.arange(64).reshape((2,2,4,4))
+        self.inp = np.arange(64).reshape((2,2,4,4)).astype("float32")
         
     def test_fprop(self): 
 
@@ -56,9 +56,8 @@ class TestConv(unittest.TestCase):
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                self.conv_layer.get_activation_vars(),
-                                allow_input_downcast=True)
+        func = B.function([self.input_layer.get_activation_vars()],
+                                self.conv_layer.get_activation_vars())
         np.testing.assert_almost_equal(func(self.inp),
                                        np.array(
                                        [[[[439, 467, 495],
@@ -82,10 +81,10 @@ class TestConv(unittest.TestCase):
                                               outputs_per_channel=9)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        np.testing.assert_almost_equal(func(self.inp),
+        func = B.function([self.input_layer.get_activation_vars(),
+                           self.input_layer.get_reference_vars()],
+                                   self.input_layer.get_mxts())
+        np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
                                        np.array(
                                         [[[[  0,   2,   2,   2],
                                            [  4,  12,  12,   8],
@@ -116,9 +115,8 @@ class TestConv(unittest.TestCase):
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                self.conv_layer.get_activation_vars(),
-                                allow_input_downcast=True)
+        func = B.function([self.input_layer.get_activation_vars()],
+                                self.conv_layer.get_activation_vars())
         np.testing.assert_almost_equal(func(self.inp),
                                        np.array(
                                        [[[[  439,   495],
@@ -143,10 +141,10 @@ class TestConv(unittest.TestCase):
                                               outputs_per_channel=4)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        np.testing.assert_almost_equal(func(self.inp),
+        func = B.function([self.input_layer.get_activation_vars(),
+                           self.input_layer.get_reference_vars()],
+                                   self.input_layer.get_mxts())
+        np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
                                        np.array(
                                         [[[[  0,   2,   0,   2],
                                            [  4,   6,   4,   6],

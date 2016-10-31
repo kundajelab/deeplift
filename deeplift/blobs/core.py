@@ -14,11 +14,16 @@ import deeplift.backend as B
 
 ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
-MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
-                                    DeconvNet="DeconvNet",
-                                    GuidedBackprop="GuidedBackprop",
-                                    GuidedBackpropDeepLIFT=\
-                                     "GuidedBackpropDeepLIFT")
+NonlinearMxtsMode = deeplift.util.enum(
+                     Gradient="Gradient",
+                     DeepLIFT="DeepLIFT",
+                     DeconvNet="DeconvNet",
+                     GuidedBackprop="GuidedBackprop",
+                     GuidedBackpropDeepLIFT="GuidedBackpropDeepLIFT")
+DenseMxtsMode = deeplift.util.enum(
+                    Linear="Linear",
+                    PosOnly="PosOnly",
+                    Counterbalance="Counterbalance")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -75,36 +80,36 @@ class Blob(object):
             self._layer_needs_to_be_built_message()
         return self._activation_vars
 
-    def _build_default_activation_vars(self):
+    def _build_reference_vars(self):
         raise NotImplementedError()
 
-    def _build_diff_from_default_vars(self):
+    def _build_diff_from_reference_vars(self):
         """
             instantiate theano vars whose value is the difference between
-                the activation and the default activaiton
+                the activation and the reference activation
         """
-        return self.get_activation_vars() - self._get_default_activation_vars()
+        return self.get_activation_vars() - self.get_reference_vars()
 
     def _build_target_contrib_vars(self):
         """
             the contrib to the target is mxts*(Ax - Ax0)
         """ 
-        return self.get_mxts()*self._get_diff_from_default_vars()
+        return self.get_mxts()*self._get_diff_from_reference_vars()
 
-    def _get_diff_from_default_vars(self):
+    def _get_diff_from_reference_vars(self):
         """
             return the theano vars representing the difference between
-                the activation and the default activation
+                the activation and the reference activation
         """
-        return self._diff_from_default_vars
+        return self._diff_from_reference_vars
 
-    def _get_default_activation_vars(self):
+    def get_reference_vars(self):
         """
             get the activation that corresponds to zero contrib
         """
-        if (hasattr(self, '_default_activation_vars')==False):
-            raise RuntimeError("_default_activation_vars is unset")
-        return self._default_activation_vars
+        if (hasattr(self, '_reference_vars')==False):
+            raise RuntimeError("_reference_vars is unset")
+        return self._reference_vars
 
     def _increment_mxts(self, increment_var):
         """
@@ -195,8 +200,9 @@ class Input(Blob):
     def get_activation_vars(self):
         return self._activation_vars
     
-    def _build_default_activation_vars(self):
-        raise NotImplementedError()
+    def _build_reference_vars(self):
+        return B.tensor_with_dims(self._num_dims,
+                                  name="ref_"+str(self.get_name()))
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
@@ -205,25 +211,9 @@ class Input(Blob):
         return kwargs_dict
 
     def _build_fwd_pass_vars(self):
-        self._default_activation_vars = self._build_default_activation_vars()
-        self._diff_from_default_vars = self._build_diff_from_default_vars()
+        self._reference_vars = self._build_reference_vars()
+        self._diff_from_reference_vars = self._build_diff_from_reference_vars()
         self._mxts = B.zeros_like(self.get_activation_vars())
-
-
-class Input_FixedDefault(Input):
-     
-    def __init__(self, default=0.0, **kwargs):
-        super(Input_FixedDefault, self).__init__(**kwargs)
-        self.default = default
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Input_FixedDefault, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['default'] = self.default
-        return kwargs_dict
-
-    def _build_default_activation_vars(self):
-        return B.ones_like(self._activation_vars)*self.default
 
 
 class Node(Blob):
@@ -257,13 +247,13 @@ class Node(Blob):
         return self._call_function_on_blobs_within_inputs(
                       'get_activation_vars') 
 
-    def _get_input_default_activation_vars(self):
+    def _get_input_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
-                    '_get_default_activation_vars')
+                    'get_reference_vars')
 
-    def _get_input_diff_from_default_vars(self):
+    def _get_input_diff_from_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
-                    '_get_diff_from_default_vars')
+                    '_get_diff_from_reference_vars')
 
     def _get_input_shape(self):
         return self._call_function_on_blobs_within_inputs('get_shape')
@@ -292,11 +282,11 @@ class Node(Blob):
         self._activation_vars =\
             self._build_activation_vars(
                 self._get_input_activation_vars())
-        self._default_activation_vars =\
-         self._build_default_activation_vars()
-        self._diff_from_default_vars =\
-         self._build_diff_from_default_vars()
-        self._mxts = B.zeros_like(self._get_default_activation_vars())
+        self._reference_vars =\
+         self._build_reference_vars()
+        self._diff_from_reference_vars =\
+         self._build_diff_from_reference_vars()
+        self._mxts = B.zeros_like(self.get_reference_vars())
 
     def _compute_shape(self, input_shape):
         """
@@ -311,9 +301,9 @@ class Node(Blob):
         """
         raise NotImplementedError()
 
-    def _build_default_activation_vars(self):
+    def _build_reference_vars(self):
         return self._build_activation_vars(
-                self._get_input_default_activation_vars())
+                self._get_input_reference_vars())
 
     def _update_mxts_for_inputs(self):
         """
@@ -461,10 +451,11 @@ class NoOp(SingleInputMixin, Node):
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
-    def __init__(self, W, b, **kwargs):
+    def __init__(self, W, b, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
         self.W = W
         self.b = b
+        self.dense_mxts_mode = dense_mxts_mode
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Dense, self).\
@@ -480,7 +471,41 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         return B.dot(input_act_vars, self.W) + self.b
 
     def _get_mxts_increments_for_inputs(self):
-        return B.dot(self.get_mxts(),self.W.T)
+        if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
+            return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
+        elif (self.dense_mxts_mode == DenseMxtsMode.Counterbalance):
+            #self.W has dims input x output
+            #fwd_contribs has dims batch x output x input
+            fwd_contribs = self._get_input_activation_vars()[:,None,:]\
+                           *self.W.T[None,:,:] 
+            #total_pos_contribs and total_neg_contribs have dim batch x output
+            total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
+            total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
+                                       axis=-1))
+            #if output diff-from-def is positive but there are some neg
+            #contribs, temper positive by some portion of the neg
+            #to_distribute has dims batch x output
+            to_distribute =\
+             B.maximum(
+                (total_neg_contribs*(total_neg_contribs < total_pos_contribs)
+                 - B.maximum(self.get_reference_vars(),0)),0.0)\
+                *(1.0-((total_neg_contribs)/
+                       pseudocount_near_zero(total_pos_contribs)))
+            #total_pos_contribs_new has dims batch x output
+            total_pos_contribs_new = total_pos_contribs - to_distribute
+            total_neg_contribs_new = total_neg_contribs - to_distribute
+            #positive_rescale has dims batch x output
+            positive_rescale = total_pos_contribs_new/pseudocount_near_zero(total_pos_contribs)
+            negative_rescale = total_neg_contribs_new/pseudocount_near_zero(total_neg_contribs)
+            #new_Wt has dims batch x output x input
+            new_Wt = self.W.T[None,:,:]*(fwd_contribs>0)*positive_rescale[:,:,None] 
+            new_Wt += self.W.T[None,:,:]*(fwd_contribs<0)*negative_rescale[:,:,None] 
+            return B.sum(self.get_mxts()[:,:,None]*new_Wt[:,:,:],axis=1)
+        elif (self.dense_mxts_mode == DenseMxtsMode.Linear):
+            return B.dot(self.get_mxts(),self.W.T)
+        else:
+            raise RuntimeError("Unsupported mxts mode: "
+                               +str(self.dense_mxts_mode))
 
 
 class BatchNormalization(SingleInputMixin, Node):

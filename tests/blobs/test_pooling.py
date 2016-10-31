@@ -7,6 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
+from deeplift.blobs import DenseMxtsMode
 from deeplift.blobs import MaxPoolDeepLiftMode
 import deeplift.backend as B
 import theano
@@ -17,7 +18,7 @@ class TestPool(unittest.TestCase):
     def setUp(self):
         #theano dimensional ordering assumed here...would need to swap
         #axes for tensorflow
-        self.default_inps=np.array([[[
+        self.reference_inps=np.array([[[
                                [0,0,2,3],
                                [0,1,0,0],
                                [0,5,4,0],
@@ -44,8 +45,7 @@ class TestPool(unittest.TestCase):
                                    [1,2,5,1],
                                    [8,7,6,1],
                                    [7,1,9,10]]]])
-        self.input_layer = blobs.Input_FixedDefault(
-                           default=self.default_inps,
+        self.input_layer = blobs.Input(
                             num_dims=None,
                             shape=(None,2,4,4))
 
@@ -61,7 +61,8 @@ class TestPool(unittest.TestCase):
                            W=np.array([([2]*outputs_per_channel)
                                       +([3]*outputs_per_channel)])
                                       .astype("float32").T,
-                           b=np.array([1]).astype("float32"))
+                           b=np.array([1]).astype("float32"),
+                           dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
@@ -79,11 +80,10 @@ class TestPool(unittest.TestCase):
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                self.pool_layer.get_activation_vars(),
-                                allow_input_downcast=True)
-        np.testing.assert_almost_equal(func([self.default_inps[0],
-                                             self.default_inps[0]-1]),
+        func = B.function([self.input_layer.get_activation_vars()],
+                           self.pool_layer.get_activation_vars())
+        np.testing.assert_almost_equal(func([self.reference_inps[0],
+                                             self.reference_inps[0]-1]),
                                        np.array(
                                        [[[[1,2,3],
                                           [5,5,4],
@@ -107,11 +107,10 @@ class TestPool(unittest.TestCase):
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                self.pool_layer.get_activation_vars(),
-                                allow_input_downcast=True)
-        np.testing.assert_almost_equal(func([self.default_inps[0],
-                                             self.default_inps[0]-1]),
+        func = B.function([self.input_layer.get_activation_vars()],
+                           self.pool_layer.get_activation_vars())
+        np.testing.assert_almost_equal(func([self.reference_inps[0],
+                                             self.reference_inps[0]-1]),
                                        0.25*np.array(
                                        [[[[ 1, 3, 5],
                                           [ 6,10, 4],
@@ -136,11 +135,13 @@ class TestPool(unittest.TestCase):
                                               outputs_per_channel=9)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        print(func(self.backprop_test_inps))
-        np.testing.assert_almost_equal(func(self.backprop_test_inps),
+        func = B.function([
+                self.input_layer.get_activation_vars(),
+                self.input_layer.get_reference_vars()],
+                                   self.input_layer.get_mxts())
+        np.testing.assert_almost_equal(
+            func(self.backprop_test_inps,
+                 np.ones_like(self.backprop_test_inps)*self.reference_inps),
                                   np.array(
                                   [[np.array([[1, 0, 0, 0],
                                      [0, 0, 2, 0],
@@ -169,11 +170,14 @@ class TestPool(unittest.TestCase):
                                               outputs_per_channel=9)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        print(func(self.backprop_test_inps))
-        np.testing.assert_almost_equal(func(self.backprop_test_inps),
+        func = B.function([self.input_layer.get_activation_vars(),
+                           self.input_layer.get_reference_vars()],
+                           self.input_layer.get_mxts())
+        print(func(self.backprop_test_inps,
+                   np.ones_like(self.backprop_test_inps)*self.reference_inps))
+        np.testing.assert_almost_equal(func(
+          self.backprop_test_inps,
+          np.ones_like(self.backprop_test_inps)*self.reference_inps),
                                   np.array(
                                   [[np.array([[0.5, 0, 0, 0],
                                      [0, 0, 2./4 + 1./4, 0],
@@ -201,15 +205,16 @@ class TestPool(unittest.TestCase):
                                               outputs_per_channel=9)
 
         self.dense_layer.update_task_index(task_index=0)
-        func = theano.function([self.input_layer.get_activation_vars()],
-                                   self.input_layer.get_mxts(),
-                                   allow_input_downcast=True)
-        print(func(self.backprop_test_inps))
+        func = B.function([self.input_layer.get_activation_vars(), 
+                           self.input_layer.get_reference_vars()],
+                           self.input_layer.get_mxts())
         avg_pool_grads = np.array([[1, 2, 2, 1],
                                    [2, 4, 4, 2],
                                    [2, 4, 4, 2],
                                    [1, 2, 2, 1]]).astype("float32") 
-        np.testing.assert_almost_equal(func(self.backprop_test_inps),
+        np.testing.assert_almost_equal(func(
+                  self.backprop_test_inps,
+                  np.ones_like(self.backprop_test_inps)*self.reference_inps),
                                   np.array(
                                   [[avg_pool_grads*2*0.25,
                                     avg_pool_grads*3*0.25], 

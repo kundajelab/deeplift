@@ -134,10 +134,11 @@ Here are the steps necessary to implement the backward pass, which is where the 
 4. Compile the importance score computation function with
 
     ```python
-    deeplift.backend.function([input_layer.get_activation_vars()...],
+    deeplift.backend.function([input_layer.get_activation_vars()...,
+                               input_layer.get_reference_vars()...],
                               blob_to_find_scores_for.get_target_contrib_vars())
     ```
-    - The first argument represents the inputs to the function and should be a list of one symbolic tensor for each input layer (this was explained under the instructions for compiling the forward pass).
+    - The first argument represents the inputs to the function and should be a list of one symbolic tensor for the activations of each input layer (as for the forward pass), followed by a list of one symbolic tensor for the references of each input layer
     - The second argument represents the output of the function. In the example above, it is a single tensor containing the importance scores of a single blob, but it can also be a list of tensors if you wish to compute the scores for multiple blobs at once.
     - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of `MxtsMode.DeepLIFT`, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
 5. Now you are ready to call the function to find the importance scores.

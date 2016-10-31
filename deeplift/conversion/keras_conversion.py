@@ -6,7 +6,8 @@ import os
 from collections import OrderedDict
 import deeplift
 from deeplift import models, blobs
-from deeplift.blobs import MxtsMode, MaxPoolDeepLiftMode
+from deeplift.blobs import NonlinearMxtsMode,\
+ DenseMxtsMode, MaxPoolDeepLiftMode
 import deeplift.util  
 from deeplift.backend import PoolMode, BorderMode
 import numpy as np
@@ -61,10 +62,11 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
 
 
 def conv2d_conversion(layer, name, verbose,
-                      mxts_mode, **kwargs):
-    #mxts_mode only used for activation
+                      nonlinear_mxts_mode, **kwargs):
+    #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
-                            layer, name, verbose, mxts_mode=mxts_mode)
+                            layer, name, verbose,
+                            nonlinear_mxts_mode=nonlinear_mxts_mode)
     to_return = [blobs.Conv2D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
@@ -125,16 +127,17 @@ def flatten_conversion(layer, name, verbose, **kwargs):
 
 
 def dense_conversion(layer, name, verbose,
-                      mxts_mode, **kwargs):
+                      dense_mxts_mode, nonlinear_mxts_mode, **kwargs):
     converted_activation = activation_conversion(
                                   layer, name=name, verbose=verbose,
-                                  mxts_mode=mxts_mode) 
+                                  nonlinear_mxts_mode=nonlinear_mxts_mode) 
     to_return = [blobs.Dense(
                   name=("preact_" if len(converted_activation) > 0
                         else "")+name, 
                   verbose=verbose,
                   W=layer.get_weights()[0],
-                  b=layer.get_weights()[1])]
+                  b=layer.get_weights()[1],
+                  dense_mxts_mode=dense_mxts_mode)]
     to_return.extend(converted_activation)
     return to_return
 
@@ -143,33 +146,39 @@ def linear_conversion(**kwargs):
     return []
 
 
-def prelu_conversion(layer, name, verbose, mxts_mode, **kwargs):
+def prelu_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
    return [blobs.PReLU(alpha=layer.get_weights()[0],
-                       name=name, verbose=verbose, mxts_mode=mxts_mode)] 
+                       name=name, verbose=verbose,
+                       nonlinear_mxts_mode=nonlinear_mxts_mode)] 
 
 
-def relu_conversion(layer, name, verbose, mxts_mode):
-    return [blobs.ReLU(name=name, verbose=verbose, mxts_mode=mxts_mode)]
+def relu_conversion(layer, name, verbose, nonlinear_mxts_mode):
+    return [blobs.ReLU(name=name, verbose=verbose,
+                       nonlinear_mxts_mode=nonlinear_mxts_mode)]
 
 
-def sigmoid_conversion(layer, name, verbose, mxts_mode):
+def sigmoid_conversion(layer, name, verbose, nonlinear_mxts_mode):
     return [blobs.Sigmoid(name=name, verbose=verbose,
-                          mxts_mode=mxts_mode)]
+                          nonlinear_mxts_mode=nonlinear_mxts_mode)]
 
 
-def softmax_conversion(layer, name, verbose, mxts_mode):
-    return [blobs.Softmax(name=name, verbose=verbose, mxts_mode=mxts_mode)]
+def softmax_conversion(layer, name, verbose,
+                       nonlinear_mxts_mode):
+    return [blobs.Softmax(name=name, verbose=verbose,
+                          nonlinear_mxts_mode=nonlinear_mxts_mode)]
 
 
-def activation_conversion(layer, name, verbose, mxts_mode, **kwargs):
+def activation_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
     activation = layer.get_config()[KerasKeys.activation]
     return activation_to_conversion_function[activation](
                                      layer=layer, name=name, verbose=verbose,
-                                     mxts_mode=mxts_mode) 
+                                     nonlinear_mxts_mode=nonlinear_mxts_mode) 
 
 
 def sequential_container_conversion(layer, name, verbose,
-                                    mxts_mode, maxpool_deeplift_mode,
+                                    nonlinear_mxts_mode,
+                                    dense_mxts_mode,
+                                    maxpool_deeplift_mode,
                                     converted_layers=None):
     if (converted_layers is None):
         converted_layers = []
@@ -184,7 +193,8 @@ def sequential_container_conversion(layer, name, verbose,
                              name=(name_prefix+"-" if name_prefix != ""
                                    else "")+str(layer_idx),
                              verbose=verbose,
-                             mxts_mode=mxts_mode,
+                             nonlinear_mxts_mode=nonlinear_mxts_mode,
+                             dense_mxts_mode=dense_mxts_mode,
                              maxpool_deeplift_mode=maxpool_deeplift_mode)) 
     return converted_layers
      
@@ -215,9 +225,9 @@ layer_name_to_conversion_function = {
 
 
 def convert_sequential_model(model, num_dims=None,
-                        mxts_mode=MxtsMode.DeepLIFT,
-                        default=0.0,
+                        nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
                         verbose=True,
+                        dense_mxts_mode=DenseMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode):
     converted_layers = []
     if (model.layers[0].input_shape is not None):
@@ -232,16 +242,14 @@ def convert_sequential_model(model, num_dims=None,
     else:
         input_shape = None
     converted_layers.append(
-        blobs.Input_FixedDefault(default=default,
-                                 num_dims=num_dims,
-                                 shape=input_shape,
-                                 name="input"))
+        blobs.Input(num_dims=num_dims, shape=input_shape, name="input"))
     #converted_layers is actually mutated to be extended with the
     #additional layers so the assignment is not strictly necessary,
     #but whatever
     converted_layers = sequential_container_conversion(
                 layer=model, name="", verbose=verbose,
-                mxts_mode=mxts_mode,
+                nonlinear_mxts_mode=nonlinear_mxts_mode,
+                dense_mxts_mode=dense_mxts_mode,
                 maxpool_deeplift_mode=maxpool_deeplift_mode,
                 converted_layers=converted_layers)
     deeplift.util.connect_list_of_layers(converted_layers)
@@ -250,11 +258,11 @@ def convert_sequential_model(model, num_dims=None,
 
 
 def convert_graph_model(model,
-                        mxts_mode=MxtsMode.DeepLIFT,
+                        nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
                         verbose=True,
+                        dense_mxts_mode=DenseMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode,
-                        auto_build_outputs=True,
-                        default=0.0):
+                        auto_build_outputs=True):
     name_to_blob = OrderedDict()
     keras_layer_to_deeplift_blobs = OrderedDict() 
     keras_non_input_layers = []
@@ -267,11 +275,8 @@ def convert_graph_model(model,
             input_shape = [None]+[x for x in input_shape]
         assert input_shape[0] is None #for the batch axis
         deeplift_input_layer =\
-         blobs.Input_FixedDefault(
-          default=default,
-          shape=input_shape,
-          num_dims=None,
-          name=keras_input_layer_name)
+         blobs.Input(shape=input_shape, num_dims=None,
+                           name=keras_input_layer_name)
         name_to_blob[keras_input_layer_name] = deeplift_input_layer
         keras_layer_to_deeplift_blobs[id(keras_input_layer)] =\
                                                          [deeplift_input_layer]
@@ -284,7 +289,8 @@ def convert_graph_model(model,
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
                                  verbose=verbose,
-                                 mxts_mode=mxts_mode,
+                                 nonlinear_mxts_mode=nonlinear_mxts_mode,
+                                 dense_mxts_mode=dense_mxts_mode,
                                  maxpool_deeplift_mode=maxpool_deeplift_mode)
         deeplift.util.connect_list_of_layers(deeplift_layers)
         keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
