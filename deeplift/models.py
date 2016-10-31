@@ -50,6 +50,7 @@ class Model(object):
                  batch_size, progress_update,
                  input_references_list=None):
             if (input_references_list is None):
+                print("No reference provided - using zeros")
                 input_references_list = [0.0 for x in input_data_list]
             input_references_list = [
                 np.ones_like(input_data)*reference
@@ -151,8 +152,8 @@ class Model(object):
         return model_class.load_model_from_yaml_contents_only(
                             yaml_data[Model.YamlKeys.yaml_contents])
 
-    def _get_prediction_function(self, inputs, outputs):
-        func = B.function(inputs=inputs, outputs=outputs) 
+    def _get_prediction_function(self, inputs, output):
+        func = B.function(inputs=inputs, outputs=output) 
         def prediction_function(input_data_list,
                                 batch_size, progress_update=None):
             to_return = deeplift.util.run_function_in_batches(
@@ -205,7 +206,7 @@ class SequentialModel(Model):
     def get_prediction_function(self, input_layer_idx, output_layer_idx):
         return self._get_prediction_function(
             inputs=[self.get_layers()[input_layer_idx].get_activation_vars()],
-            outputs=self.get_layers()[output_layer_idx].get_activation_vars())
+            output=self.get_layers()[output_layer_idx].get_activation_vars())
         
 
 class GraphModel(Model):
@@ -232,11 +233,9 @@ class GraphModel(Model):
                               for input_layer in self.get_input_layer_names()],
                 **kwargs)
 
-    def get_prediction_function(self, input_layer_names, output_layer_names):
+    def get_prediction_function(self, input_layer_names, output_layer_name):
         return self._get_prediction_function(
-            inputs=[
-             self.get_name_to_blob()[input_layer_name].get_activation_vars()
-             for input_layer_name in input_layer_names],
-            outputs=[
-             self.get_name_to_blob()[output_layer_name].get_activation_vars()
-             for output_layer_name in output_layer_names])
+    inputs=[
+     self.get_name_to_blob()[input_layer_name].get_activation_vars()
+     for input_layer_name in input_layer_names],
+    output=self.get_name_to_blob()[output_layer_name].get_activation_vars())
