@@ -62,10 +62,6 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                 self._get_input_activation_vars())  
         
     def _get_mxts_increments_for_inputs(self):
-        if (self.nonlinear_mxts_mode in [NonlinearMxtsMode.PassThrough]):
-            if (type(self.get_inputs()).__name__!="Dense"):
-                print("Activation does not have single Dense input so reverting") 
-                self.nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT 
         if (self.nonlinear_mxts_mode==NonlinearMxtsMode.DeconvNet):
             #apply the given nonlinearity in reverse
             mxts = self._build_activation_vars(self.get_mxts())
@@ -83,9 +79,6 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.GuidedBackprop):
                 scale_factor = self._gradients_get_scale_factor()\
                                 *(self.get_mxts() > 0)
-            elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.PassThrough): 
-                #just ones, always
-                scale_factor = B.ones_like(self.get_mxts())
             else: 
                 raise RuntimeError("Unsupported nonlinear_mxts_mode: "
                                    +str(self.nonlinear_mxts_mode))
