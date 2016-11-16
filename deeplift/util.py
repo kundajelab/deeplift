@@ -360,20 +360,37 @@ def get_top_n_scores_per_region(
 
 def get_integrated_gradients_function(gradient_computation_function,
                                       num_intervals):
-    def compute_integrated_gradients(inputs, references):
+    def compute_integrated_gradients(
+        task_idx, input_data_list, input_references_list,
+        batch_size, progress_update):
         outputs = [] 
         mean_gradients = []
-        for an_input, a_reference in zip(inputs, references):
+        #remember, input_data_list and input_references_list are
+        #a list with one entry per mode
+        input_references_list =\
+        [np.ones_like(np.array(input_data)) *input_reference for
+         input_data, input_reference in
+         zip(input_data_list, input_references_list)]
+        #will flesh out multimodal case later...
+        assert len(input_data_list)==1
+        assert len(input_references_list)==1
+        for an_input, a_reference in zip(input_data_list[0],
+                                         input_references_list[0]):
             #interpolate between reference and input with num_intervals 
             vector = an_input - a_reference
             step = vector/float(num_intervals)
-            interpolated_inputs = [a_reference]
+            interpolated_inputs = []
             for i in range(num_intervals):
                 interpolated_inputs.append(
                     a_reference + step*(i+0.5))
             #find the gradients at different steps
             interpolated_gradients =\
-             np.array(gradient_computation_function(interpolated_inputs))
+             np.array(gradient_computation_function(
+                task_idx=task_idx,
+                input_data_list=[interpolated_inputs],
+                input_references_list=[a_reference],
+                batch_size=batch_size,
+                progress_update=None))
             mean_gradient = np.mean(interpolated_gradients,axis=0)
             contribs = mean_gradient*vector
             outputs.append(contribs)
