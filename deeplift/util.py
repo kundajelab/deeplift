@@ -356,3 +356,27 @@ def get_top_n_scores_per_region(
             top_n_scores.append(top_n_scores_for_region) 
             top_n_indices.append(top_n_indices_for_region)
         return np.array(top_n_scores), np.array(top_n_indices)
+
+
+def get_integrated_gradients_function(gradient_computation_function,
+                                      num_intervals):
+    def compute_integrated_gradients(inputs, references):
+        outputs = [] 
+        mean_gradients = []
+        for an_input, a_reference in zip(inputs, references):
+            #interpolate between reference and input with num_intervals 
+            vector = an_input - a_reference
+            step = vector/float(num_intervals)
+            interpolated_inputs = [a_reference]
+            for i in range(num_intervals):
+                interpolated_inputs.append(
+                    a_reference + step*(i+0.5))
+            #find the gradients at different steps
+            interpolated_gradients =\
+             np.array(gradient_computation_function(interpolated_inputs))
+            mean_gradient = np.mean(interpolated_gradients,axis=0)
+            contribs = mean_gradient*vector
+            outputs.append(contribs)
+            mean_gradients.append(mean_gradient)
+        return outputs, mean_gradients
+    return compute_integrated_gradients
