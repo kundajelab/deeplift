@@ -15,7 +15,10 @@ from deeplift.blobs import ScoringMode
 import deeplift.backend as B
 
 
-FuncType = deeplift.util.enum(contribs="contribs", multipliers="multipliers")
+FuncType = deeplift.util.enum(
+    contribs="contribs",
+    multipliers="multipliers",
+    contribs_of_input_with_filter_refs="contribs_of_input_with_filter_refs")
 
 
 class Model(object):
@@ -37,6 +40,9 @@ class Model(object):
             output_symbolic_vars = find_scores_layer.get_target_contrib_vars()
         elif (func_type == FuncType.multipliers):
             output_symbolic_vars = find_scores_layer.get_mxts()
+        elif (func_type == FuncType.contribs_of_input_with_filter_refs()):
+            output_symbolic_vars =\
+             find_scores_layer.get_contribs_of_inputs_with_filter_refs()
         else:
             raise RuntimeError("Unsupported func_type: "+func_type)
         if (slice_objects is not None):
