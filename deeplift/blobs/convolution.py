@@ -23,16 +23,21 @@ class Conv2D(SingleInputMixin, Node):
         #W has dimensions:
         #num_output_channels x num_inp_channels
         #                    x rows_kern_width x cols_kern_width
+        #FIXME: Assumes theano dim order!
         self.W = W
         self.b = b
         self.strides = strides
         self.border_mode = border_mode
 
-    def set_filter_references(self, filter_references,
+    def set_filter_references(self, filter_reference_activations,
                                     filter_input_references): 
+        #filter_references is vec of length num_output_channels;
+        #indicates the reference activations 
+        #filter_input_references should have same dimensions as W
+        #FIXME: Assumes theano dim order!
         super(Conv2D, self).set_learned_reference(
             B.ones_like(self.get_activation_vars())
-            *filter_references[None,:,None,None]) #FIXME: Assumes theano dim order!
+            *filter_reference_activations[None,:,None,None])
         self.filter_input_references = filter_input_references 
 
     def get_yaml_compatible_object_kwargs(self):
@@ -70,6 +75,27 @@ class Conv2D(SingleInputMixin, Node):
                                   border_mode=self.border_mode,
                                   subsample=self.strides)
         return conv_without_bias
+
+    def get_contribs_of_inputs_with_filter_refs(self):
+        #efficiently compute the contributions of the layer below
+        mult_times_input_on_layer_below = B.conv2d_grad(
+                out_grad=self.get_mxts(),
+                conv_in=self._get_input_activation_vars(),
+                filters=self.W,
+                border_mode=self.border_mode,
+                subsample=self.strides)*self._get_input_activation_vars()
+        mult_times_filter_ref_on_layer_below = B.conv2d_grad(
+                out_grad=self.get_mxts(),
+                conv_in=self._get_input_activation_vars(),
+                #reverse the rows and cols of filter_input_references
+                #so that weights line up with the actual position they
+                #act on (remember, convolutions flip things)
+                #FIXME: assumes theano dimension ordering!
+                filters=self.W*self.filter_input_references[:,:,::-1,::-1],
+                border_mode=self.border_mode,
+                subsample=self.strides) 
+        return (mult_times_input_on_layer_below
+                - mult_times_filter_ref_on_layer_below)
 
     def _get_mxts_increments_for_inputs(self): 
         return B.conv2d_grad(
