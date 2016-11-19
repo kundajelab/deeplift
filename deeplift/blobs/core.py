@@ -50,6 +50,14 @@ class Blob(object):
         self._mxts_for_inputs_updated = False
         self.verbose=verbose
 
+    def reset_built_fwd_pass_vars(self):
+        self._reset_built_fwd_pass_vars_for_inputs()
+        self._built_fwd_pass_vars = False
+        self._output_layers = []
+
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        raise NotImplementedError()
+
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
             output_layer.reset_mxts_updated()
@@ -218,14 +226,14 @@ class Input(Blob):
         self._diff_from_reference_vars = self._build_diff_from_reference_vars()
         self._mxts = B.zeros_like(self.get_activation_vars())
 
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        pass
+
 
 class Node(Blob):
 
     def __init__(self, **kwargs):
         super(Node, self).__init__(**kwargs)
-
-    def set_learned_reference(self, learned_reference):
-        self.learned_reference = learned_reference
 
     def __call__(self, *args, **kwargs):
         self.set_inputs(*args, **kwargs) 
@@ -308,8 +316,8 @@ class Node(Blob):
         raise NotImplementedError()
 
     def _build_reference_vars(self):
-        if (hasattr(self, 'learned_reference')):
-            return B.as_tensor_variable(self.learned_reference)
+        if (hasattr(self, 'learned_reference')): 
+            return self.learned_reference
         else:
             return self._build_activation_vars(
                     self._get_input_reference_vars())
@@ -354,6 +362,9 @@ class SingleInputMixin(object):
     def _build_fwd_pass_vars_for_all_inputs(self):
         self.inputs.build_fwd_pass_vars(output_layer=self)
 
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        self.inputs.reset_built_fwd_pass_vars()
+
     def _call_function_on_blobs_within_inputs(self, function_name):
         """
             call function_name on self.inputs
@@ -384,8 +395,12 @@ class ListInputMixin(object):
                                     instance_var_name="self.inputs[0]")
     
     def _build_fwd_pass_vars_for_all_inputs(self):
-        return [an_input.build_fwd_pass_vars(output_layer=self)
-                for an_input in self.inputs]
+        for an_input in self.inputs:
+            an_input.build_fwd_pass_vars(output_layer=self)
+                
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        for an_input in self.inputs:
+            an_input.reset_built_fwd_pass_vars()
 
     def _call_function_on_blobs_within_inputs(self, function_name):
         return [eval('self.inputs['+str(i)+'].'+function_name+'()') for

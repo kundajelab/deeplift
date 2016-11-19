@@ -35,9 +35,8 @@ class Conv2D(SingleInputMixin, Node):
         #indicates the reference activations 
         #filter_input_references should have same dimensions as W
         #FIXME: Assumes theano dim order!
-        super(Conv2D, self).set_learned_reference(
-            B.ones_like(self.get_activation_vars())
-            *filter_reference_activations[None,:,None,None])
+        self.learned_reference = (B.ones_like(self.get_activation_vars())
+                              *filter_reference_activations[None,:,None,None])
         self.filter_input_references = filter_input_references 
 
     def get_yaml_compatible_object_kwargs(self):
