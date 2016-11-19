@@ -24,8 +24,9 @@ NonlinearMxtsMode = deeplift.util.enum(
 DenseMxtsMode = deeplift.util.enum(
                     Linear="Linear",
                     PosOnly="PosOnly",
-                    Counterbalance="Counterbalance",
-                    Counterbalance2="Counterbalance2")
+                    RevealCancel="RevealCancel",
+                    Redist="Redist",
+                    RevealCancelRedist="RevealCancelRedist")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -223,6 +224,9 @@ class Node(Blob):
     def __init__(self, **kwargs):
         super(Node, self).__init__(**kwargs)
 
+    def set_learned_reference(self, learned_reference):
+        self.learned_reference = learned_reference
+
     def __call__(self, *args, **kwargs):
         self.set_inputs(*args, **kwargs) 
 
@@ -304,8 +308,11 @@ class Node(Blob):
         raise NotImplementedError()
 
     def _build_reference_vars(self):
-        return self._build_activation_vars(
-                self._get_input_reference_vars())
+        if (hasattr(self, 'learned_reference')):
+            return B.as_tensor_variable(self.learned_reference)
+        else:
+            return self._build_activation_vars(
+                    self._get_input_reference_vars())
 
     def _update_mxts_for_inputs(self):
         """
@@ -477,19 +484,23 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         #when the output is a relu. So when the output is not a relu,
         #hackily set the mode back to Linear.
         if (self.dense_mxts_mode in
-             [DenseMxtsMode.Counterbalance, DenseMxtsMode.Counterbalance2]):
+             [DenseMxtsMode.RevealCancel,
+              DenseMxtsMode.Redist,
+              DenseMxtsMode.RevealCancelRedist]):
             if (len(self.get_output_layers())!=1 or
                 (type(self.get_output_layers()[0]).__name__!="ReLU")):
                 print("Dense layer does not have sole output of ReLU so"
                       " cautiously reverting DenseMxtsMode from"
-                      " Counterbalance to Linear") 
+                      " to Linear") 
                 self.dense_mxts_mode=DenseMxtsMode.Linear 
 
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
             return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
 
         elif (self.dense_mxts_mode in 
-              [DenseMxtsMode.Counterbalance, DenseMxtsMode.Counterbalance2]):
+              [DenseMxtsMode.RevealCancel,
+               DenseMxtsMode.Redist,
+               DenseMxtsMode.RevealCancelRedist]):
             #self.W has dims input x output; W.T is output x input
             #self._get_input_diff_from_reference_vars() has dims batch x input
             #fwd_contribs has dims batch x output x input
@@ -500,7 +511,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
             total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
                                        axis=-1))
-            if (self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
+            if (self.dense_mxts_mode==DenseMxtsMode.Redist):
                 #if output diff-from-def is positive but there are some neg
                 #contribs, temper positive by some portion of the neg
                 #to_distribute has dims batch x output
@@ -513,7 +524,9 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 #total_pos_contribs_new has dims batch x output
                 total_pos_contribs_new = total_pos_contribs - to_distribute
                 total_neg_contribs_new = total_neg_contribs - to_distribute
-            elif (self.dense_mxts_mode==DenseMxtsMode.Counterbalance2):
+            elif (self.dense_mxts_mode in
+                   [DenseMxtsMode.RevealCancel,
+                    DenseMxtsMode.RevealCancelRedist]):
 
                 ##sanity check to see if we can implement the existing deeplift
                 #total_contribs = total_pos_contribs - total_neg_contribs
@@ -530,12 +543,13 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                  B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
                  -B.maximum(self.get_reference_vars()
                             +total_pos_contribs-total_neg_contribs,0)
-                to_distribute = B.minimum(
-                    B.maximum(total_neg_contribs_new -
-                              B.maximum(self.get_reference_vars(),0.0),0.0),
-                    total_pos_contribs_new)/2.0
-                total_pos_contribs_new = total_pos_contribs_new - to_distribute
-                total_neg_contribs_new = total_neg_contribs_new - to_distribute
+                if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
+                    to_distribute = B.minimum(
+                        B.maximum(total_neg_contribs_new -
+                                  B.maximum(self.get_reference_vars(),0.0),0.0),
+                        total_pos_contribs_new)/2.0
+                    total_pos_contribs_new = total_pos_contribs_new - to_distribute
+                    total_neg_contribs_new = total_neg_contribs_new - to_distribute
             else:
                 raise RuntimeError("Unsupported dense_mxts_mode: "
                                    +str(self.dense_mxts_mode))
