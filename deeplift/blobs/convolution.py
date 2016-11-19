@@ -28,6 +28,13 @@ class Conv2D(SingleInputMixin, Node):
         self.strides = strides
         self.border_mode = border_mode
 
+    def set_filter_references(self, filter_references,
+                                    filter_input_references): 
+        super(Conv2D, self).set_learned_reference(
+            B.ones_like(self.get_activation_vars())
+            *filter_references[None,:,None,None]) #FIXME: Assumes theano dim order!
+        self.filter_input_references = filter_input_references 
+
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Conv2D,self).\
                        get_yaml_compatible_object_kwargs()
