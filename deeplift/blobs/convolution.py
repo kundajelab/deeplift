@@ -39,6 +39,11 @@ class Conv2D(SingleInputMixin, Node):
                               *filter_reference_activations[None,:,None,None])
         self.filter_input_references = filter_input_references 
 
+    def set_filter_silencing(self, filter_diff_from_ref_silencer):
+        #when the filter's diff-from-ref is less than the silencer level,
+        #the filter will be silenced from contributing to importance scores 
+        self.filter_diff_from_ref_silencer = filter_diff_from_ref_silencer 
+
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Conv2D,self).\
                        get_yaml_compatible_object_kwargs()
@@ -76,15 +81,23 @@ class Conv2D(SingleInputMixin, Node):
         return conv_without_bias
 
     def get_contribs_of_inputs_with_filter_refs(self):
+
+        effective_mxts = self.get_mxts()
+        #apply silencer if applicable
+        if (hasattr(self, 'filter_diff_from_ref_silencer')):
+            silencer_mask = (B.abs(self._get_diff_from_reference_vars())
+                             > self.filter_diff_from_ref_silencer)
+            effective_mxts = self.get_mxts()*silencer_mask
+
         #efficiently compute the contributions of the layer below
         mult_times_input_on_layer_below = B.conv2d_grad(
-                out_grad=self.get_mxts(),
+                out_grad=effective_mxts,
                 conv_in=self._get_input_activation_vars(),
                 filters=self.W,
                 border_mode=self.border_mode,
                 subsample=self.strides)*self._get_input_activation_vars()
         mult_times_filter_ref_on_layer_below = B.conv2d_grad(
-                out_grad=self.get_mxts(),
+                out_grad=effective_mxts,
                 conv_in=self._get_input_activation_vars(),
                 #reverse the rows and cols of filter_input_references
                 #so that weights line up with the actual position they
