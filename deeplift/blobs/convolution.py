@@ -105,9 +105,10 @@ class Conv2D(SingleInputMixin, Node):
                 #FIXME: assumes theano dimension ordering!
                 filters=self.W*self.filter_input_references[:,:,::-1,::-1],
                 border_mode=self.border_mode,
-                subsample=self.strides) 
+                subsample=self.strides)
         return (mult_times_input_on_layer_below
                 - mult_times_filter_ref_on_layer_below)
+         
 
     def _get_mxts_increments_for_inputs(self): 
         return B.conv2d_grad(
