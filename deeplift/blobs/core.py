@@ -51,9 +51,9 @@ class Blob(object):
         self.verbose=verbose
 
     def reset_built_fwd_pass_vars(self):
-        self._reset_built_fwd_pass_vars_for_inputs()
         self._built_fwd_pass_vars = False
         self._output_layers = []
+        self._reset_built_fwd_pass_vars_for_inputs()
 
     def _reset_built_fwd_pass_vars_for_inputs(self):
         raise NotImplementedError()
