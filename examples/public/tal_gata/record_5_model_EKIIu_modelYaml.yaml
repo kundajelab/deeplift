@@ -79,12 +79,10 @@ node_config:
 nodes:
   conv1:
     W_constraint: null
-    W_learning_rate_multiplier: null
     W_regularizer: null
     activation: linear
     activity_regularizer: null
     b_constraint: null
-    b_learning_rate_multiplier: null
     b_regularizer: null
     border_mode: valid
     cache_enabled: true
@@ -101,12 +99,10 @@ nodes:
     trainable: true}
   conv2:
     W_constraint: null
-    W_learning_rate_multiplier: null
     W_regularizer: null
     activation: linear
     activity_regularizer: null
     b_constraint: null
-    b_learning_rate_multiplier: null
     b_regularizer: null
     border_mode: valid
     cache_enabled: true
@@ -121,8 +117,8 @@ nodes:
     trainable: true
   conv2_act: {activation: relu, cache_enabled: true, custom_name: conv2_act, name: Activation,
     trainable: true}
-  dense1: {W_constraint: null, W_learning_rate_multiplier: null, W_regularizer: null,
-    activation: linear, activity_regularizer: null, b_constraint: null, b_learning_rate_multiplier: null,
+  dense1: {W_constraint: null, W_regularizer: null,
+    activation: linear, activity_regularizer: null, b_constraint: null,
     b_regularizer: null, cache_enabled: true, custom_name: dense1, init: glorot_uniform,
     input_dim: null, name: Dense, output_dim: 50, trainable: true}
   dense1_act: {activation: relu, cache_enabled: true, custom_name: dense1_act, name: Activation,
@@ -139,8 +135,8 @@ nodes:
     trainable: true
   output_act: {activation: sigmoid, cache_enabled: true, custom_name: output_act,
     name: Activation, trainable: true}
-  output_preact: {W_constraint: null, W_learning_rate_multiplier: null, W_regularizer: null,
-    activation: linear, activity_regularizer: null, b_constraint: null, b_learning_rate_multiplier: null,
+  output_preact: {W_constraint: null, W_regularizer: null,
+    activation: linear, activity_regularizer: null, b_constraint: null,
     b_regularizer: null, cache_enabled: true, custom_name: output_preact, init: glorot_uniform,
     input_dim: null, name: Dense, output_dim: 3, trainable: true}
 optimizer: {beta_1: 0.8999999761581421, beta_2: 0.9990000128746033, epsilon: 1.0e-08,
