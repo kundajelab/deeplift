@@ -8,7 +8,7 @@ from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
 import deeplift.util  
-from deeplift.util import NEAR_ZERO_THRESHOLD
+from helper_functions import pseudocount_near_zero, set_col_to_val
 import tensorflow as tf
 
 
@@ -58,10 +58,15 @@ class Blob(object):
     def _reset_built_fwd_pass_vars_for_inputs(self):
         raise NotImplementedError()
 
+    def _initialize_mxts(self):
+        self._mxts = tf.Variable(
+            initial_value=tf.zeros_like(tensor=self.get_activation_vars()),
+            name="mxts_"+str(self.get_name()))
+
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
             output_layer.reset_mxts_updated()
-        self._mxts = B.zeros_like(self.get_activation_vars())
+        self._mxts = self._initialize_mxts()
         self._mxts_updated = False
         self._mxts_for_inputs_updated = False
 
@@ -227,9 +232,7 @@ class Input(Blob):
     def _build_fwd_pass_vars(self):
         self._reference_vars = self._build_reference_vars()
         self._diff_from_reference_vars = self._build_diff_from_reference_vars()
-        self._mxts = tf.Variable(
-            initial_value=tf.zeros_like(tensor=self.get_activation_vars()),
-            name="mxts_"+str(self.get_name()))
+        self._initialize_mxts()
 
     def _reset_built_fwd_pass_vars_for_inputs(self):
         pass
@@ -305,9 +308,7 @@ class Node(Blob):
          self._build_reference_vars()
         self._diff_from_reference_vars =\
          self._build_diff_from_reference_vars()
-        self._mxts = tf.Variable(
-            initial_value=tf.zeros_like(tensor=self.get_reference_vars()),
-            name="mxts_"+str(self.name()))
+        self._initialize_mxts()
 
     def _compute_shape(self, input_shape):
         """
@@ -443,21 +444,13 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            new_mxts = self._mxts[:,self.get_task_index()]
-            tf.assign(ref=self._mxts[:,
-                      
-            self._mxts = B.set_subtensor(
-                           self._mxts[:,self._get_task_index()],
-                           self._active)
+            self._mxts = hp.set_col_to_val(
+                         self._mxts, self._get_task_index(),
+                         self._active) 
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
             #I was getting some weird NoneType errors when I tried
             #to compile this piece of the code, hence the shift to
             #accomplishing this bit via weight normalisation
-
-            #n = self.get_activation_vars().shape[1]
-            #self._mxts = B.ones_like(self.get_activation_vars())*(-1.0/n)
-            #self._mxts = B.set_subtensor(self._mxts[:,self._get_task_index()],
-            #                             (n-1.0)/n)
             raise NotImplementedError(
                                 "Do via mean-normalisation of weights "
                                 "instead; see what I did in "
@@ -504,7 +497,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         return (None, self.W.shape[1])
 
     def _build_activation_vars(self, input_act_vars):
-        return B.dot(input_act_vars, self.W) + self.b
+        return tf.matmul(input_act_vars, self.W) + self.b
 
     def _get_mxts_increments_for_inputs(self):
         #re. counterbalance: this modification is only appropriate
@@ -522,7 +515,9 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 self.dense_mxts_mode=DenseMxtsMode.Linear 
 
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
-            return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
+            return tf.matmul(
+                    self.get_mxts()*(tf.greater(self.get_mxts(),0.0)),
+                    self.W.T)
 
         elif (self.dense_mxts_mode in 
               [DenseMxtsMode.RevealCancel,
@@ -535,17 +530,18 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                            *self.W.T[None,:,:] 
 
             #total_pos_contribs and total_neg_contribs have dim batch x output
-            total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
-            total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
-                                       axis=-1))
+            total_pos_contribs = tf.reduce_sum(
+                fwd_contribs*(tf.greater(fwd_contribs,0)), axis=2)
+            total_neg_contribs = tf.abs(tf.reduce_sum(
+                fwd_contribs*(tf.less(fwd_contribs,0)), axis=2))
             if (self.dense_mxts_mode==DenseMxtsMode.Redist):
                 #if output diff-from-def is positive but there are some neg
                 #contribs, temper positive by some portion of the neg
                 #to_distribute has dims batch x output
                 #neg_to_distribute is what dips below 0, accounting for ref
-                to_distribute = B.minimum(
-                    B.maximum(total_neg_contribs -
-                              B.maximum(self.get_reference_vars(),0.0),0.0),
+                to_distribute = tf.minimum(
+                    tf.maximum(total_neg_contribs -
+                              tf.maximum(self.get_reference_vars(),0.0),0.0),
                     total_pos_contribs)/2.0
 
                 #total_pos_contribs_new has dims batch x output
@@ -564,36 +560,39 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 #return B.sum(self.get_mxts()[:,:,None]*self.W.T[None,:,:]*rescale[:,:,None], axis=1)
 
                 total_pos_contribs_new =\
-                 B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
-                 -B.maximum(self.get_reference_vars(),0)
+                 tf.maximum(self.get_reference_vars()+total_pos_contribs,0)\
+                 -tf.maximum(self.get_reference_vars(),0)
                 total_neg_contribs_new =\
-                 B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
-                 -B.maximum(self.get_reference_vars()
+                 tf.maximum(self.get_reference_vars()+total_pos_contribs,0)\
+                 -tf.maximum(self.get_reference_vars()
                             +total_pos_contribs-total_neg_contribs,0)
                 if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
-                    to_distribute = B.minimum(
-                        B.maximum(total_neg_contribs_new -
-                                  B.maximum(self.get_reference_vars(),0.0),0.0),
+                    to_distribute = tf.minimum(
+                        tf.maximum(total_neg_contribs_new -
+                            tf.maximum(self.get_reference_vars(),0.0),0.0),
                         total_pos_contribs_new)/2.0
-                    total_pos_contribs_new = total_pos_contribs_new - to_distribute
-                    total_neg_contribs_new = total_neg_contribs_new - to_distribute
+                    total_pos_contribs_new = (total_pos_contribs_new
+                                              - to_distribute)
+                    total_neg_contribs_new = (total_neg_contribs_new
+                                              - to_distribute)
             else:
                 raise RuntimeError("Unsupported dense_mxts_mode: "
                                    +str(self.dense_mxts_mode))
             #positive_rescale has dims batch x output
             positive_rescale = total_pos_contribs_new/\
-                                pseudocount_near_zero(total_pos_contribs)
+                                hp.pseudocount_near_zero(total_pos_contribs)
             negative_rescale = total_neg_contribs_new/\
-                                pseudocount_near_zero(total_neg_contribs)
+                                hp.pseudocount_near_zero(total_neg_contribs)
             #new_Wt has dims batch x output x input
             new_Wt = self.W.T[None,:,:]*\
-                      (fwd_contribs>0)*positive_rescale[:,:,None] 
+                      tf.greater(fwd_contribs,0)*positive_rescale[:,:,None] 
             new_Wt += self.W.T[None,:,:]*\
-                       (fwd_contribs<0)*negative_rescale[:,:,None] 
-            return B.sum(self.get_mxts()[:,:,None]*new_Wt[:,:,:], axis=1)
+                       tf.greater(fwd_contribs,0)*negative_rescale[:,:,None] 
+            return tf.reduce_sum(
+                    self.get_mxts()[:,:,None]*new_Wt[:,:,:], axis=1)
 
         elif (self.dense_mxts_mode == DenseMxtsMode.Linear):
-            return B.dot(self.get_mxts(),self.W.T)
+            return tf.matmul(self.get_mxts(),self.W.T)
         else:
             raise RuntimeError("Unsupported mxts mode: "
                                +str(self.dense_mxts_mode))
@@ -602,7 +601,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 class BatchNormalization(SingleInputMixin, Node):
 
     def __init__(self, gamma, beta, axis,
-                 mean, std, epsilon,**kwargs):
+                 mean, var, epsilon,**kwargs):
         """
             'axis' is the axis along which the normalization is conducted
              for dense layers, this should be -1 (which works for dense layers
@@ -621,7 +620,7 @@ class BatchNormalization(SingleInputMixin, Node):
         self.beta = beta
         self.axis = axis
         self.mean = mean
-        self.std = std
+        self.var = var
         self.epsilon = epsilon
     
     def get_yaml_compatible_object_kwargs(self):
@@ -631,7 +630,7 @@ class BatchNormalization(SingleInputMixin, Node):
         kwargs_dict['beta'] = self.beta
         kwargs_dict['axis'] = self.axis
         kwargs_dict['mean'] = self.mean
-        kwargs_dict['std'] = self.std
+        kwargs_dict['var'] = self.var
         kwargs_dict['epsilon'] = self.epsilon
         return kwargs_dict
 
@@ -644,15 +643,15 @@ class BatchNormalization(SingleInputMixin, Node):
                         else self._shape[i])
                        for i in range(len(self._shape))] 
         self.reshaped_mean = self.mean.reshape(new_shape)
-        self.reshaped_std = self.std.reshape(new_shape)
+        self.reshaped_var = self.var.reshape(new_shape)
         self.reshaped_gamma = self.gamma.reshape(new_shape)
         self.reshaped_beta = self.beta.reshape(new_shape)
-        return B.batch_normalization(inputs=input_act_vars,
+        return tf.nn.batch_normalization(input_act_vars,
                                      gamma=self.reshaped_gamma,
                                      beta=self.reshaped_beta,
                                      mean=self.reshaped_mean,
-                                     std=self.reshaped_std,
-                                     epsilon=self.epsilon)
+                                     variance=self.reshaped_var,
+                                     variance_epsilon=self.epsilon)
 
     def _get_mxts_increments_for_inputs(self):
         #self.reshaped_gamma and reshaped_std are created during
@@ -707,7 +706,8 @@ class Concat(OneDimOutputMixin, Merge):
         return sum(lengths_for_merge_axis_dim)
 
     def _build_activation_vars(self, input_act_vars):
-        return B.concat(tensor_list=input_act_vars, axis=self.axis)
+        return tf.concat(concat_dim=self.axis,
+                         values=input_act_vars)
 
     def _get_mxts_increments_for_inputs(self):
         mxts_increments_for_inputs = []
@@ -726,122 +726,8 @@ class Concat(OneDimOutputMixin, Merge):
 
         return mxts_increments_for_inputs
 
-
-class MaxMerge(OneDimOutputMixin, Merge):
-
-    def __init__(self, temp, **kwargs):
-        super(MaxMerge, self).__init__(**kwargs)
-        self.temp = temp
-
-    def compute_shape_for_merge_axis(self, lengths_for_merge_axis_dim):
-        assert len(set(lengths_for_merge_axis_dim))==1,\
-               "Not all elements in lengths_for_merge_axis_dim have the"+\
-               " same lengths: "+str(lengths_for_merge_axis_dim)
-        return lengths_for_merge_axis_dim[0]
-
-    def _build_activation_vars(self, input_act_vars):
-        return B.maximum_over_list(the_list=input_act_vars)
-
-    def _get_mxts_increments_for_inputs(self):
-        refs = self._get_input_reference_vars()
-        inp_acts = self._get_input_activation_vars()
-        output = self.get_activation_vars()
-        #1(a): Compute max(ref s.t. ref < output, -inf if ref >= output)
-        ref_st_ref_lt_output = [B.mask_if_not_condition(
-                                tensor=ref,
-                                mask_val=-np.inf,
-                                condition=(ref < output)) for ref in refs]
-        max_ref_st_ref_lt_output =\
-         B.maximum_over_list(the_list=ref_st_ref_lt_output)
-        #1(b): Compute max(act s.t. ref >= output, -inf if ref < output)
-        act_st_ref_gte_output = [B.mask_if_not_condition(
-                            tensor=inp_act,
-                            mask_val=-np.inf,
-                            condition=(ref >= output)) for (ref, inp_act) in
-                            zip(refs, inp_acts)] 
-        max_act_st_ref_gte_output = B.maximum_over_list(
-                                        act_st_ref_gte_output)
-        #Compute max(1(a), 1(b))
-        stations = B.maximum(max_ref_st_ref_lt_output,
-                             max_act_st_ref_gte_output)
-        #compute the negative rides as max(ref-stations,0)
-        negative_rides_arr = [B.maximum(ref-stations, 0) for ref in refs]
-        #compute the positive rides as max(act-stations,0)
-        positive_rides_arr = [B.maximum(inp_act-stations,0)
-                              for inp_act in inp_acts]
-        #compute the max negative ride, max positive ride
-        max_neg_ride = B.maximum_over_list(negative_rides_arr)
-        max_pos_ride = B.maximum_over_list(positive_rides_arr)
-        #allocate total negative and positive importance according to ratio of max ride lengths
-        out_diff_def = self._get_diff_from_reference_vars()
-        #distribute importance for individual pos and neg rides according to some function
-        exp_pos_rides_arr = [B.exp(pos_rides/self.temp)-1
-                             for pos_rides in positive_rides_arr]
-        exp_neg_rides_arr = [B.exp(neg_rides/self.temp)-1
-                             for neg_rides in negative_rides_arr]
-        sum_exp_pos_rides = pseudocount_near_zero(
-                             B.apply_iteratively_to_list(exp_pos_rides_arr,
-                                                         lambda x, y: x+y))
-        sum_exp_neg_rides = pseudocount_near_zero(
-                             B.apply_iteratively_to_list(exp_neg_rides_arr,
-                                                         lambda x, y: x+y))
-        contrib_pos_rides_arr = [((exp_pos_rides*max_pos_ride)/
-                                   sum_exp_pos_rides) for exp_pos_rides
-                                 in exp_pos_rides_arr]
-        contrib_neg_rides_arr = [((-exp_neg_rides*max_neg_ride)/
-                                   sum_exp_neg_rides) for exp_neg_rides
-                                 in exp_neg_rides_arr]
-        #compute multipliers as ratio of contrib to inp diff-from-reference
-        pcd_inp_diff_def_arr = [pseudocount_near_zero(inp_diff_def) for
-                                inp_diff_def in
-                                self._get_input_diff_from_reference_vars()]
-        multipliers_arr = [(contrib_pos_rides+contrib_neg_rides)/
-                            pcd_inp_diff_def for
-                           (contrib_pos_rides,
-                            contrib_neg_rides,
-                            pcd_inp_diff_def) in zip(contrib_pos_rides_arr,
-                                                     contrib_neg_rides_arr,
-                                                     pcd_inp_diff_def_arr)]
-        return multipliers_arr
-
-
-def compute_mult_for_sum_then_transform(
-    diff_def_act_input_vars_list, diff_def_act_output, mult_output):
-    sum_diff_def_input_vars = B.zeros_like(diff_def_act_input_vars_list[0])
-    for diff_def_act_var in diff_def_act_input_vars_list:
-        sum_diff_def_input_vars += diff_def_act_var 
-    pc_sum_diff_def_input_vars = pseudocount_near_zero(sum_diff_def_input_vars)
-    scale_factor = diff_def_act_output/pc_sum_diff_def_input_vars
-    #the multiplier ends up being the same for all the inputs, as
-    #they were just summed
-    multiplier_inp = scale_factor*mult_output
-    return [multiplier_inp for x in diff_def_act_input_vars_list]
-
-
-def distribute_over_product(def_act_var1, diff_def_act_var1,
-                            def_act_var2, diff_def_act_var2, mult_output):
-    mult_var1 = mult_output*(def_act_var2 + 0.5*diff_def_act_var2)
-    mult_var2 = mult_output*(def_act_var1 + 0.5*diff_def_act_var1)
-    return (mult_var1, mult_var2)
-
-
-def pseudocount_near_zero(tensor):
-    
-    return tensor + (NEAR_ZERO_THRESHOLD*((B.abs(tensor)
-                                          < 0.5*NEAR_ZERO_THRESHOLD)*
-                                          (tensor >= 0)) -
-                     NEAR_ZERO_THRESHOLD*((B.abs(tensor)
-                                          < 0.5*NEAR_ZERO_THRESHOLD)*
-                                          (tensor < 0)))
-
-
-def set_col_to_ones(var, col):
-    var.assign(tf.zeros_like(var, dtype=tf.float32))
-    vector_with_zeros = tf.Variable(tf.zeros(var.get_shape()[1]),
-                                    dtype=tf.float32)
-    vector_with_zeros = tf.scatter_update(vector_with_zeros,[3],[1.0])
-    vector_with_zeros = tf.reshape(vector_with_zeros,
-                                   [1,var.get_shape().as_list()[1]])
-    broadcast_add = var+vector_with_zeros
-    var = var.assign(broadcast_add)
-    return var
+#TODO: port over from theano
+- MaxMerge
+- maxout.py
+- rnn.py
+- associated tests

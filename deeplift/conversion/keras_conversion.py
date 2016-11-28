@@ -9,7 +9,6 @@ from deeplift import models, blobs
 from deeplift.blobs import NonlinearMxtsMode,\
  DenseMxtsMode, MaxPoolDeepLiftMode
 import deeplift.util  
-from deeplift.backend import PoolMode, BorderMode
 import numpy as np
 
 
@@ -56,7 +55,7 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
         beta=np.array(layer.beta.get_value()),
         axis=layer.axis,
         mean=np.array(layer.running_mean.get_value()),
-        std=np.array(layer.running_std.get_value()),
+        var=np.pow(np.array(layer.running_std.get_value()),2),
         epsilon=layer.epsilon 
     )] 
 
@@ -73,7 +72,7 @@ def conv2d_conversion(layer, name, verbose,
             W=layer.get_weights()[0],
             b=layer.get_weights()[1],
             strides=layer.get_config()[KerasKeys.subsample],
-            border_mode=layer.get_config()[KerasKeys.border_mode])] 
+            padding_mode=layer.get_config()[KerasKeys.border_mode].upper())] 
     to_return.extend(converted_activation)
     return to_return
 
@@ -83,7 +82,7 @@ def prep_pool2d_kwargs(layer, name, verbose):
             'verbose': verbose,
             'pool_size': layer.get_config()[KerasKeys.pool_size],
             'strides': layer.get_config()[KerasKeys.strides],
-            'border_mode': layer.get_config()[KerasKeys.border_mode],
+            'padding_mode': layer.get_config()[KerasKeys.border_mode].upper(),
             'ignore_border': True} #Keras implementations always seem to ignore
 
 
@@ -106,7 +105,7 @@ def pool2d_conversion(layer, name, verbose, pool_mode, **kwargs):
              verbose=verbose,
              pool_size=layer.get_config()[KerasKeys.pool_size],
              strides=layer.get_config()[KerasKeys.strides],
-             border_mode=layer.get_config()[KerasKeys.border_mode],
+             padding_mode=layer.get_config()[KerasKeys.border_mode].upper(),
              ignore_border=True, #Keras implementations always seem to ignore
              pool_mode=pool_mode)]
 

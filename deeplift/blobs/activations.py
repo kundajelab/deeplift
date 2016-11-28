@@ -27,8 +27,6 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _build_fwd_pass_vars(self):
         super(Activation, self)._build_fwd_pass_vars() 
-        self._gradient_at_default_activation =\
-         self._get_gradient_at_activation(self.get_reference_vars())
 
     def _get_gradient_at_default_activation_var(self):
         return self._gradient_at_default_activation
@@ -38,13 +36,13 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _deeplift_get_scale_factor(self):
         input_diff_from_reference = self._get_input_diff_from_reference_vars()
-        near_zero_contrib_mask = (B.abs(input_diff_from_reference)\
-                                       < NEAR_ZERO_THRESHOLD)
-        far_from_zero_contrib_mask = 1-(1*near_zero_contrib_mask)
+        near_zero_contrib_mask = 1.0*tf.less(tf.abs(input_diff_from_reference),
+                                             NEAR_ZERO_THRESHOLD)
+        far_from_zero_contrib_mask = 1.0-(1.0*near_zero_contrib_mask)
         #the pseudocount is to avoid division-by-zero for the ones that
         #we won't use anyway
         pc_diff_from_reference = input_diff_from_reference +\
-                                            (1*near_zero_contrib_mask) 
+                                            (1.0*near_zero_contrib_mask) 
         #when total contrib is near zero,
         #the scale factor is 1 (gradient; piecewise linear). Otherwise,
         #compute the scale factor. The pseudocount doesn't mess anything up
@@ -62,6 +60,8 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                 self._get_input_activation_vars())  
         
     def _get_mxts_increments_for_inputs(self):
+        self._gradient_at_default_activation =\
+         self._get_gradient_at_activation(self.get_reference_vars())
         if (self.nonlinear_mxts_mode in [NonlinearMxtsMode.PassThrough]):
             if (type(self.get_inputs()).__name__!="Dense"):
                 print("Activation does not have single Dense input so reverting") 
@@ -77,15 +77,16 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
             elif (self.nonlinear_mxts_mode==
                   NonlinearMxtsMode.GuidedBackpropDeepLIFT):
                 deeplift_scale_factor = self._deeplift_get_scale_factor() 
-                scale_factor = deeplift_scale_factor*(self.get_mxts() > 0)
+                scale_factor = (deeplift_scale_factor
+                                *tf.greater(self.get_mxts(),0))
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.Gradient):
                 scale_factor = self._gradients_get_scale_factor() 
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.GuidedBackprop):
                 scale_factor = self._gradients_get_scale_factor()\
-                                *(self.get_mxts() > 0)
+                                *tf.greater(self.get_mxts(),0)
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.PassThrough): 
                 #just ones, always
-                scale_factor = B.ones_like(self.get_mxts())
+                scale_factor = tf.ones_like(self.get_mxts())
             else: 
                 raise RuntimeError("Unsupported nonlinear_mxts_mode: "
                                    +str(self.nonlinear_mxts_mode))
@@ -107,14 +108,14 @@ class PReLU(Activation):
         self.alpha = alpha
 
     def _build_activation_vars(self, input_act_vars):
-        to_return = B.relu(input_act_vars)
-        negative_mask = (input_act_vars < 0)
+        to_return = tf.nn.relu(input_act_vars)
+        negative_mask = tf.less(input_act_vars,0)
         to_return = to_return + negative_mask*input_act_vars*self.alpha
         return to_return
 
     def _get_gradient_at_activation(self, activation_vars):
-        to_return = (activation_vars <= 0)*self.alpha +\
-                    (activation_vars > 0)*1.0
+        to_return = tf.lesser_equal(activation_vars,0.0)*self.alpha +\
+                    tf.greater(activation_vars,0.0)*1.0
         return to_return
 
 
@@ -127,18 +128,22 @@ class ReLU(PReLU):
 class Sigmoid(Activation):
 
     def _build_activation_vars(self, input_act_vars):
-        return B.sigmoid(input_act_vars) 
+        return tf.nn.sigmoid(input_act_vars) 
 
     def _get_gradient_at_activation(self, activation_vars):
-        return B.sigmoid_grad(activation_vars)
+        raise NotImplementedError(
+         "Not implemented for tensorflow yet. "
+         "This shouldn't be needed unless you "
+         "have hidden-unit sigmoid activations.")
 
 
 class Softmax(Activation):
 
     def _build_activation_vars(self, input_act_vars):
-        return B.softmax(input_act_vars)
+        return tf.nn.softmax(input_act_vars)
 
     def _get_gradient_at_activation(self, activation_vars):
-        return 0#punting; this needs to have
-                #same dims as activation_vars
-                #B.softmax_grad(activation_vars)
+        raise NotImplementedError(
+         "Not implemented for tensorflow yet. "
+         "This shouldn't be needed unless you "
+         "have hidden-unit softmax activations.")
