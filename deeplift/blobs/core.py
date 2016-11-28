@@ -9,7 +9,7 @@ from collections import OrderedDict
 from collections import defaultdict
 import deeplift.util  
 from deeplift.util import NEAR_ZERO_THRESHOLD
-import deeplift.backend as B
+import tensorflow as tf
 
 
 ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
@@ -202,9 +202,12 @@ class Input(Blob):
                 assert shape_num_dims==num_dims,\
                 "dims of "+str(shape)+" != "+str(num_dims)
             num_dims = shape_num_dims
-        self._activation_vars = B.tensor_with_dims(
-                                  num_dims,
-                                  name="inp_"+str(self.get_name()))
+        else:
+            if (num_dims is not None):
+                shape = [None for x in xrange(num_dims)]
+        self._activation_vars = tf.placeholder(
+                                 dtype=tf.float32, shape=shape,
+                                 name="inp_"+str(self.get_name()))
         self._num_dims = num_dims
         self._shape = shape
 
@@ -212,8 +215,8 @@ class Input(Blob):
         return self._activation_vars
     
     def _build_reference_vars(self):
-        return B.tensor_with_dims(self._num_dims,
-                                  name="ref_"+str(self.get_name()))
+        return tf.placeholder(dtype=tf.float32,
+                shape=shape, name="ref_"+str(self.get_name()))
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
@@ -224,7 +227,9 @@ class Input(Blob):
     def _build_fwd_pass_vars(self):
         self._reference_vars = self._build_reference_vars()
         self._diff_from_reference_vars = self._build_diff_from_reference_vars()
-        self._mxts = B.zeros_like(self.get_activation_vars())
+        self._mxts = tf.Variable(
+            initial_value=tf.zeros_like(tensor=self.get_activation_vars()),
+            name="mxts_"+str(self.get_name()))
 
     def _reset_built_fwd_pass_vars_for_inputs(self):
         pass
@@ -300,7 +305,9 @@ class Node(Blob):
          self._build_reference_vars()
         self._diff_from_reference_vars =\
          self._build_diff_from_reference_vars()
-        self._mxts = B.zeros_like(self.get_reference_vars())
+        self._mxts = tf.Variable(
+            initial_value=tf.zeros_like(tensor=self.get_reference_vars()),
+            name="mxts_"+str(self.name()))
 
     def _compute_shape(self, input_shape):
         """
@@ -416,17 +423,19 @@ class OneDimOutputMixin(object):
    
     def _init_task_index(self):
         if (hasattr(self,"_active")==False):
-            self._active = B.shared(0)
-            self._task_index = B.shared(0)
+            self._active = tf.Variable(value=0, dtype=tf.float32,
+                                       name="active_"+str(self.name))
+            self._task_index = tf.Variable(value=0, dtype=tf.float32,
+                                name="task_idx_"+str(self.name))
 
     def update_task_index(self, task_index):
         self._task_index.set_value(task_index)
 
     def set_active(self):
-        self._active.set_value(1.0)
+        tf.assign(ref=self._active, value=1.0)
 
     def set_inactive(self):
-        self._active.set_value(0)
+        tf.assign(ref=self._active, value=0.0)
 
     def _get_task_index(self):
         return self._task_index
@@ -434,6 +443,9 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
+            new_mxts = self._mxts[:,self.get_task_index()]
+            tf.assign(ref=self._mxts[:,
+                      
             self._mxts = B.set_subtensor(
                            self._mxts[:,self._get_task_index()],
                            self._active)
@@ -821,3 +833,15 @@ def pseudocount_near_zero(tensor):
                      NEAR_ZERO_THRESHOLD*((B.abs(tensor)
                                           < 0.5*NEAR_ZERO_THRESHOLD)*
                                           (tensor < 0)))
+
+
+def set_col_to_ones(var, col):
+    var.assign(tf.zeros_like(var, dtype=tf.float32))
+    vector_with_zeros = tf.Variable(tf.zeros(var.get_shape()[1]),
+                                    dtype=tf.float32)
+    vector_with_zeros = tf.scatter_update(vector_with_zeros,[3],[1.0])
+    vector_with_zeros = tf.reshape(vector_with_zeros,
+                                   [1,var.get_shape().as_list()[1]])
+    broadcast_add = var+vector_with_zeros
+    var = var.assign(broadcast_add)
+    return var

@@ -12,7 +12,7 @@ import deeplift.util
 from deeplift import blobs
 from deeplift.blobs import *
 from deeplift.blobs import ScoringMode
-import deeplift.backend as B
+import tensorflow as tf
 
 
 FuncType = deeplift.util.enum(
