@@ -8,7 +8,8 @@ from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
 import deeplift.util  
-from helper_functions import pseudocount_near_zero, set_col_to_val
+from deeplift.blobs.helper_functions import (
+ pseudocount_near_zero, add_val_to_col)
 import tensorflow as tf
 
 
@@ -59,8 +60,7 @@ class Blob(object):
         raise NotImplementedError()
 
     def _initialize_mxts(self):
-        self._mxts = tf.Variable(
-            initial_value=tf.zeros_like(tensor=self.get_activation_vars()),
+        self._mxts = tf.zeros_like(tensor=self.get_activation_vars(),
             name="mxts_"+str(self.get_name()))
 
     def reset_mxts_updated(self):
@@ -221,7 +221,7 @@ class Input(Blob):
     
     def _build_reference_vars(self):
         return tf.placeholder(dtype=tf.float32,
-                shape=shape, name="ref_"+str(self.get_name()))
+                shape=self._shape, name="ref_"+str(self.get_name()))
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
@@ -424,9 +424,9 @@ class OneDimOutputMixin(object):
    
     def _init_task_index(self):
         if (hasattr(self,"_active")==False):
-            self._active = tf.Variable(value=0, dtype=tf.float32,
+            self._active = tf.Variable(0, dtype=tf.float32,
                                        name="active_"+str(self.name))
-            self._task_index = tf.Variable(value=0, dtype=tf.float32,
+            self._task_index = tf.Variable(0, dtype=tf.int32,
                                 name="task_idx_"+str(self.name))
 
     def update_task_index(self, task_index):
@@ -444,9 +444,11 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            self._mxts = hp.set_col_to_val(
-                         self._mxts, self._get_task_index(),
-                         self._active) 
+            self._mxts = tf.zeros_like(self.get_activation_vars())
+            self._mxts = add_val_to_col(
+                             var=self._mxts,
+                             col=self._get_task_index(),
+                             val=self._active) 
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
             #I was getting some weird NoneType errors when I tried
             #to compile this piece of the code, hence the shift to
@@ -482,8 +484,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
-        self.W = W
-        self.b = b
+        self.W = W.astype("float32")
+        self.b = b.astype("float32")
         self.dense_mxts_mode = dense_mxts_mode
 
     def get_yaml_compatible_object_kwargs(self):
@@ -727,7 +729,7 @@ class Concat(OneDimOutputMixin, Merge):
         return mxts_increments_for_inputs
 
 #TODO: port over from theano
-- MaxMerge
-- maxout.py
-- rnn.py
-- associated tests
+#- MaxMerge
+#- maxout.py
+#- rnn.py
+#- associated tests
