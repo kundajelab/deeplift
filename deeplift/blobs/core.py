@@ -424,19 +424,36 @@ class OneDimOutputMixin(object):
    
     def _init_task_index(self):
         if (hasattr(self,"_active")==False):
-            self._active = tf.Variable(0, dtype=tf.float32,
-                                       name="active_"+str(self.name))
-            self._task_index = tf.Variable(0, dtype=tf.int32,
-                                name="task_idx_"+str(self.name))
+            self._active = 0.0
+            self._task_index = 0
+            self.task_vector = (
+                tf.Variable(np.zeros(self.get_shape()[1]), dtype=tf.float32))
+            print("task vector type - 2",type(self.task_vector))
+            deeplift.util.get_session().run(
+             tf.variables_initializer([self.task_vector])) 
+            print("task vector type - 3",type(self.task_vector))
+            self.update_task_vector()
+            print("task vector type - 8",type(self.task_vector))
 
     def update_task_index(self, task_index):
-        self._task_index.set_value(task_index)
+        print("task idx:",task_index)
+        self._task_index = task_index
+        self.update_task_vector()
 
     def set_active(self):
-        tf.assign(ref=self._active, value=1.0)
+        self._active = 1.0
+        self.update_task_vector()
 
     def set_inactive(self):
-        tf.assign(ref=self._active, value=0.0)
+        self._active = 0.0
+        self.update_task_vector()
+
+    def update_task_vector(self):
+        task_vector_update = tf.assign(self.task_vector,
+                                     np.zeros(self.get_shape()[1]))
+        task_vector_update = tf.scatter_update(
+            task_vector_update, [self._task_index], [self._active])
+        deeplift.util.get_session().run(task_vector_update)
 
     def _get_task_index(self):
         return self._task_index
@@ -444,11 +461,9 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            self._mxts = tf.zeros_like(self.get_activation_vars())
-            self._mxts = add_val_to_col(
-                             var=self._mxts,
-                             col=self._get_task_index(),
-                             val=self._active) 
+            self._mxts = (
+                tf.zeros_like(self.get_activation_vars()) +
+                tf.reshape(self.task_vector, [1, self.get_shape()[-1]]))
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
             #I was getting some weird NoneType errors when I tried
             #to compile this piece of the code, hence the shift to

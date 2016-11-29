@@ -13,6 +13,16 @@ import tensorflow as tf
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
+_SESS = None
+
+def get_session():
+    global _SESS 
+    if _SESS is None:
+        print("MAKING A SESSION")
+        _SESS = tf.Session()
+        _SESS.run(tf.global_variables_initializer()) 
+    return _SESS
+
 
 def compile_func(inputs, outputs):
     assert isinstance(inputs, list)
@@ -20,9 +30,8 @@ def compile_func(inputs, outputs):
         feed_dict = {}
         for input_tensor, input_val in zip(inputs, inp):
             feed_dict[input_tensor] = input_val 
-        with tf.Session(graph=outputs[0].graph) as sess:
-            sess.run(tf.global_variables_initializer()) 
-            return sess.run(outputs, feed_dict=feed_dict)  
+        sess = get_session()
+        return sess.run(outputs, feed_dict=feed_dict)  
     return func_to_return
 
 
