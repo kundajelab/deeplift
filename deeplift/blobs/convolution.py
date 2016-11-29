@@ -96,7 +96,7 @@ class Conv2D(SingleInputMixin, Node):
                 value=effective_mxts,
                 filter=self.W,
                 output_shape=self.get_shape(),
-                strides=(1,)+self.strides+(1,)
+                strides=(1,)+self.strides+(1,),
                 padding=self.padding_mode)*self._get_input_activation_vars()
         mult_times_filter_ref_on_layer_below = tf.nn.conv2d_transpose(
                 value=effective_mxts,

@@ -18,13 +18,10 @@ def pseudocount_near_zero(tensor):
                                           (tensor < 0)))
 
 
-def set_col_to_val(var, col, val):
-    var.assign(tf.zeros_like(var, dtype=tf.float32))
+def add_val_to_col(var, col, val):
     vector_with_zeros = tf.Variable(tf.zeros(var.get_shape()[1]),
                                     dtype=tf.float32)
     vector_with_zeros = tf.scatter_update(vector_with_zeros,[col],[val])
     vector_with_zeros = tf.reshape(vector_with_zeros,
                                    [1,var.get_shape().as_list()[1]])
-    broadcast_add = var+vector_with_zeros
-    var = var.assign(broadcast_add)
-    return var
+    return var+vector_with_zeros

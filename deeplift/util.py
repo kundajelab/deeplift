@@ -16,13 +16,14 @@ NEAR_ZERO_THRESHOLD = 10**(-7)
 
 def compile_func(inputs, outputs):
     assert isinstance(inputs, list)
-    def func_to_return(inp):
+    def func_to_return(*inp):
         feed_dict = {}
         for input_tensor, input_val in zip(inputs, inp):
             feed_dict[input_tensor] = input_val 
-        with tf.Session(graph = outputs[0].g) as sess:
+        with tf.Session(graph=outputs[0].graph) as sess:
             sess.run(tf.global_variables_initializer()) 
             return sess.run(outputs, feed_dict=feed_dict)  
+    return func_to_return
 
 
 def enum(**enums):
