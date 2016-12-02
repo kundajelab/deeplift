@@ -1,7 +1,10 @@
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
-from .core import *
+from .core import (SingleInputMixin, OneDimOutputMixin, Node,
+    ScoringMode, NonlinearMxtsMode) 
+import tensorflow as tf
+from deeplift.util import NEAR_ZERO_THRESHOLD
 
 
 class Activation(SingleInputMixin, OneDimOutputMixin, Node):
@@ -36,9 +39,10 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _deeplift_get_scale_factor(self):
         input_diff_from_reference = self._get_input_diff_from_reference_vars()
-        near_zero_contrib_mask = 1.0*tf.less(tf.abs(input_diff_from_reference),
-                                             NEAR_ZERO_THRESHOLD)
-        far_from_zero_contrib_mask = 1.0-(1.0*near_zero_contrib_mask)
+        near_zero_contrib_mask = tf.cast(
+            tf.less(tf.abs(input_diff_from_reference), NEAR_ZERO_THRESHOLD),
+            tf.float32)
+        far_from_zero_contrib_mask = 1.0-near_zero_contrib_mask
         #the pseudocount is to avoid division-by-zero for the ones that
         #we won't use anyway
         pc_diff_from_reference = input_diff_from_reference +\
@@ -109,13 +113,14 @@ class PReLU(Activation):
 
     def _build_activation_vars(self, input_act_vars):
         to_return = tf.nn.relu(input_act_vars)
-        negative_mask = tf.less(input_act_vars,0)
+        negative_mask = tf.cast(tf.less(input_act_vars,0),tf.float32)
         to_return = to_return + negative_mask*input_act_vars*self.alpha
         return to_return
 
     def _get_gradient_at_activation(self, activation_vars):
-        to_return = tf.lesser_equal(activation_vars,0.0)*self.alpha +\
-                    tf.greater(activation_vars,0.0)*1.0
+        to_return = ((tf.cast(tf.less_equal(activation_vars,0.0),tf.float32)
+                     *self.alpha) +
+                     tf.cast(tf.greater(activation_vars,0.0),tf.float32))
         return to_return
 
 
