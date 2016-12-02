@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .core import *
 
 PoolMode = deeplift.util.enum(max='max', avg='avg')
-PaddingMode = deeplift.util.enum(SAME='SAME', VALID='VALID')
+PaddingMode = deeplift.util.enum(same='SAME', valid='VALID')
 
 
 class Conv2D(SingleInputMixin, Node):
@@ -50,7 +50,7 @@ class Conv2D(SingleInputMixin, Node):
         kwargs_dict['W'] = self.W
         kwargs_dict['b'] = self.b
         kwargs_dict['strides'] = self.strides
-        kwargs_dict['border_mode'] = self.border_mode
+        kwargs_dict['padding_mode'] = self.padding_mode
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
@@ -59,9 +59,9 @@ class Conv2D(SingleInputMixin, Node):
         if (input_shape is None):
             shape_to_return += [None, None]
         else:
-            if (self.border_mode != BorderMode.valid):
+            if (self.padding_mode != PaddingMode.valid):
                 raise RuntimeError("Please implement shape inference for"
-                                   " border mode: "+str(self.border_mode))
+                                   " border mode: "+str(self.padding_mode))
             for (dim_inp_len, dim_kern_width, dim_stride) in\
                 zip(input_shape[1:3], self.W.shape[:2], self.strides):
                 #assuming that overhangs are excluded
@@ -105,15 +105,18 @@ class Conv2D(SingleInputMixin, Node):
                 #act on (remember, convolutions flip things)
                 filter=self.W*self.filter_input_references[::-1,::-1,:,:],
                 padding=self.padding_mode,
-                strides=(1,)+self.strides+(1,))
+                strides=tf.pack((1,)+self.strides+(1,)))
         return (mult_times_input_on_layer_below
                 - mult_times_filter_ref_on_layer_below)
          
 
     def _get_mxts_increments_for_inputs(self): 
+        input_shape = self.inputs.get_shape()
         return tf.nn.conv2d_transpose(
                 value=self.get_mxts(),
                 filter=self.W,
+                output_shape=tf.pack([-1, input_shape[1],
+                                      input_shape[2], input_shape[3]]),
                 padding=self.padding_mode,
                 strides=(1,)+self.strides+(1,))
 #TODO:
@@ -135,7 +138,7 @@ class Pool2D(SingleInputMixin, Node):
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['pool_size'] = self.pool_size
         kwargs_dict['strides'] = self.strides
-        kwargs_dict['border_mode'] = self.border_mode
+        kwargs_dict['padding_mode'] = self.padding_mode
         kwargs_dict['ignore_border'] = self.ignore_border
         return kwargs_dict
 
@@ -154,18 +157,6 @@ class Pool2D(SingleInputMixin, Node):
 
     def _get_mxts_increments_for_inputs(self):
         raise NotImplementedError()
-
-    def _get_input_grad_given_outgrad(self, out_grad):
-        input_act_vars = self._get_input_activation_vars() 
-        to_return = B.pool2d_grad(
-                        out_grad=out_grad,
-                        pool_in=input_act_vars,
-                        pool_size=self.pool_size,
-                        strides=self.strides,
-                        border_mode=self.border_mode,
-                        ignore_border=self.ignore_border,
-                        pool_mode=self.pool_mode)
-        return to_return
 
 
 MaxPoolDeepLiftMode = deeplift.util.enum(
@@ -188,8 +179,8 @@ class MaxPool2D(Pool2D):
 
     def _build_activation_vars(self, input_act_vars):
         return tf.nn.max_pool(value=input_act_vars,
-                             ksize=(1,)+self.pool_size+(1,),
-                             strides=(1,)+self.strides+(1,),
+                             ksize=tf.pack((1,)+self.pool_size+(1,)),
+                             strides=tf.pack((1,)+self.strides+(1,)),
                              padding=self.padding_mode)
 
     def _get_mxts_increments_for_inputs(self):
@@ -198,8 +189,8 @@ class MaxPool2D(Pool2D):
                 orig_input=self._get_input_activation_vars(),
                 orig_output=self.get_activation_vars(),
                 grad=self.get_mxts(),
-                ksize=(1,)+self.pool_size+(1,),
-                strides=(1,)+self.strides+(1,),
+                ksize=tf.pack((1,)+self.pool_size+(1,)),
+                strides=tf.pack((1,)+self.strides+(1,)),
                 padding=self.padding_mode) 
         else:
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
@@ -213,31 +204,35 @@ class AvgPool2D(Pool2D):
 
     def _build_activation_vars(self, input_act_vars):
         return tf.nn.avg_pool(value=input_act_vars,
-                             ksize=(1,)+self.pool_size+(1,),
-                             strides=(1,)+self.strides+(1,),
+                             ksize=tf.pack((1,)+self.pool_size+(1,)),
+                             strides=tf.pack((1,)+self.strides+(1,)),
                              padding=self.padding_mode)
 
     def _get_mxts_increments_for_inputs(self):
         return tf.nn.gen_nn_ops._avg_pool_grad(
             orig_input_shape=self._get_input_activation_vars().get_shape(),
             grad=self.get_mxts(),
-            ksize=(1,)+self.pool_size+(1,),
-            strides=(1,)+self.strides+(1,),
+            ksize=tf.pack((1,)+self.pool_size+(1,)),
+            strides=tf.pack((1,)+self.strides+(1,)),
             padding=self.padding_mode) 
 
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     
     def _build_activation_vars(self, input_act_vars):
+        print(input_act_vars.get_shape()[1:])
         return tf.reshape(input_act_vars,
-                tf.pack([input_act_vars.get_shape()[0],
-                         tf.reduce_prod(input_act_vars.get_shape()[1:])
-                        ]))
+                [-1,
+                 tf.reduce_prod(input_act_vars.get_shape()[1:])
+                ])
 
     def _compute_shape(self, input_shape):
         return (None, np.prod(input_shape[1:]))
 
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
+        inp_shape = input_act_vars.get_shape()
         return tf.reshape(tensor=self.get_mxts(),
-                          shape=input_act_vars.get_shape())
+                          shape=tf.pack(
+                           [-1,inp_shape[1],
+                            inp_shape[2],inp_shape[3]]))
