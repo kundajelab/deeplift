@@ -66,7 +66,7 @@ class Blob(object):
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
             output_layer.reset_mxts_updated()
-        self._mxts = self._initialize_mxts()
+        self._initialize_mxts()
         self._mxts_updated = False
         self._mxts_for_inputs_updated = False
 
@@ -428,15 +428,11 @@ class OneDimOutputMixin(object):
             self._task_index = 0
             self.task_vector = (
                 tf.Variable(np.zeros(self.get_shape()[1]), dtype=tf.float32))
-            print("task vector type - 2",type(self.task_vector))
             deeplift.util.get_session().run(
              tf.variables_initializer([self.task_vector])) 
-            print("task vector type - 3",type(self.task_vector))
             self.update_task_vector()
-            print("task vector type - 8",type(self.task_vector))
 
     def update_task_index(self, task_index):
-        print("task idx:",task_index)
         self._task_index = task_index
         self.update_task_vector()
 

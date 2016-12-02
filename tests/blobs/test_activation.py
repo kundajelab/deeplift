@@ -8,13 +8,15 @@ import os
 import numpy as np
 import deeplift.blobs as blobs
 from deeplift.blobs import DenseMxtsMode
-from deeplift import backend as B
-import theano
+from deeplift.util import compile_func
+import tensorflow as tf
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 
 class TestActivations(unittest.TestCase):
 
     def setUp(self):
+        tf.logging.set_verbosity(tf.logging.ERROR)
         self.input_layer = blobs.Input(num_dims=None,
                                        shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]
@@ -30,6 +32,7 @@ class TestActivations(unittest.TestCase):
         
     def set_up_prediction_func_and_deeplift_func(self, out_layer):
         
+        tf.logging.set_verbosity(tf.logging.ERROR)
         out_layer.set_inputs(self.dense_layer)
         out_layer.build_fwd_pass_vars()
         self.input_layer.reset_mxts_updated()
@@ -37,11 +40,12 @@ class TestActivations(unittest.TestCase):
         out_layer.set_active()
         self.input_layer.update_mxts()
 
-        fprop_func = B.function([self.input_layer.get_activation_vars()],
-                                out_layer.get_activation_vars())
+        fprop_func = compile_func([
+                        self.input_layer.get_activation_vars()],
+                        out_layer.get_activation_vars())
         fprop_results = [list(x) for x in fprop_func(self.inp)] 
 
-        bprop_func = B.function(
+        bprop_func = compile_func(
                           [self.input_layer.get_activation_vars(),
                            self.input_layer.get_reference_vars()],
                           self.input_layer.get_mxts())
@@ -68,12 +72,14 @@ class TestActivations(unittest.TestCase):
         #pre-activation diff-from-default is [10.0, -10.0], [20.0, -20.0]
         #scale-factors: [[9.0/10.0, -1.0/-10.0], [19.0/20.0, -1.0/-20.0]]
         print(bprop_results_each_task)
-        np.testing.assert_almost_equal(np.array(bprop_results_each_task[0]),
-                                     np.array([(9.0/10.0)*np.array(self.w1),
-                                              (19.0/20.0)*np.array(self.w1)]))
-        np.testing.assert_almost_equal(np.array(bprop_results_each_task[1]),
-                                     np.array([(-1.0/-10.0)*np.array(self.w2),
-                                              (-1.0/-20.0)*np.array(self.w2)]))
+        np.testing.assert_almost_equal(
+            np.array(bprop_results_each_task[0]),
+            np.array([(9.0/10.0)*np.array(self.w1),
+            (19.0/20.0)*np.array(self.w1)]), decimal=6)
+        np.testing.assert_almost_equal(
+            np.array(bprop_results_each_task[1]),
+            np.array([(-1.0/-10.0)*np.array(self.w2),
+            (-1.0/-20.0)*np.array(self.w2)]), decimal=6)
 
     def test_relu_gradient(self): 
         out_layer = blobs.ReLU(
