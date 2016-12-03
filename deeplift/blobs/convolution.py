@@ -100,10 +100,9 @@ class Conv2D(SingleInputMixin, Node):
                 padding=self.padding_mode)*self._get_input_activation_vars()
         mult_times_filter_ref_on_layer_below = tf.nn.conv2d_transpose(
                 value=effective_mxts,
-                #reverse the rows and cols of filter_input_references
-                #so that weights line up with the actual position they
-                #act on (remember, convolutions flip things)
-                filter=self.W*self.filter_input_references[::-1,::-1,:,:],
+                #no reversal of weights needed as tensorflow conv2d is
+                #actually a cross-correlation
+                filter=self.W*self.filter_input_references,
                 padding=self.padding_mode,
                 strides=tf.pack((1,)+self.strides+(1,)))
         return (mult_times_input_on_layer_below

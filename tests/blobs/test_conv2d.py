@@ -11,19 +11,21 @@ from deeplift.blobs import DenseMxtsMode
 from deeplift.blobs.convolution import PoolMode, PaddingMode
 from deeplift.util import compile_func
 import deeplift.backend as B
+import itertools
 
 
 class TestConv(unittest.TestCase):
 
     def setUp(self):
-        #theano convolutional ordering assumed here...would need to
         #swap axes for tensorflow
         self.input_layer = blobs.Input(
                             num_dims=None,
                             shape=(None,4,4,2))
-        self.w1 = np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
-        self.w2 = -np.arange(8).reshape(2,2,2)[:,::-1,::-1].astype("float32")
-        self.conv_W = np.array([self.w1, self.w2]).astype("float32")
+        #tensorflow, shockingly, does not flip the weights of a conv
+        self.w1 = np.arange(8).reshape(2,2,2)[:,::1,::1].astype("float32")
+        self.w2 = -np.arange(8).reshape(2,2,2)[:,::1,::1].astype("float32")
+        self.conv_W = (np.array([self.w1, self.w2])
+                       .transpose(2,3,1,0).astype("float32"))
         self.conv_b = np.array([-1.0, 1.0]).astype("float32")
 
     def create_small_net_with_conv_layer(self, conv_layer,
@@ -35,8 +37,9 @@ class TestConv(unittest.TestCase):
         self.flatten_layer.set_inputs(self.conv_layer)
 
         self.dense_layer = blobs.Dense(
-                           W=(np.array([([1.0]*outputs_per_channel)
-                                      +([-1.0]*outputs_per_channel)]).T)
+                           W=(np.array([
+    list(itertools.chain(*[[1.0,-1.0] for i in range(outputs_per_channel)]))
+                                ]).T)
                               .astype("float32"),
                            b=np.array([1]).astype("float32"),
                            dense_mxts_mode=DenseMxtsMode.Linear)
@@ -49,7 +52,7 @@ class TestConv(unittest.TestCase):
         self.input_layer.update_mxts()
 
         self.inp = (np.arange(64).reshape((2,2,4,4))
-                    .transpose(0,3,2,1).astype("float32"))
+                    .transpose(0,2,3,1).astype("float32"))
         
     def test_fprop(self): 
 
@@ -74,7 +77,7 @@ class TestConv(unittest.TestCase):
                                  [1559, 1587, 1615],],
                                 [[-1335, -1363, -1391],
                                  [-1447, -1475, -1503],
-                                 [-1559, -1587, -1615]]]]).transpose(0,3,2,1))
+                                 [-1559, -1587, -1615]]]]).transpose(0,2,3,1))
 
     def test_dense_backprop(self):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
@@ -108,8 +111,9 @@ class TestConv(unittest.TestCase):
                               [[  8,  18,  18,  10],
                                [ 20,  44,  44,  24],
                                [ 20,  44,  44,  24],
-                               [ 12,  26,  26,  14]]]]).transpose(0,3,2,1))
+                               [ 12,  26,  26,  14]]]]).transpose(0,2,3,1))
 
+    @skip
     def test_fprop_stride(self): 
 
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
@@ -133,9 +137,10 @@ class TestConv(unittest.TestCase):
                                       [ 1559,  1615]],
 
                                      [[-1335, -1391],
-                                      [-1559, -1615]]]]).transpose(0,3,2,1))
+                                      [-1559, -1615]]]]).transpose(0,2,3,1))
 
 
+    @skip
     def test_dense_backprop_stride(self):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
@@ -168,4 +173,4 @@ class TestConv(unittest.TestCase):
                                   [[  8,  10,   8,  10],
                                    [ 12,  14,  12,  14],
                                    [  8,  10,   8,  10],
-                                   [ 12,  14,  12,  14]]]]).transpose(0,3,2,1))
+                                   [ 12,  14,  12,  14]]]]).transpose(0,2,3,1))
