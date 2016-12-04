@@ -8,8 +8,7 @@ import os
 import numpy as np
 import deeplift.blobs as blobs
 from deeplift.blobs import DenseMxtsMode
-from deeplift import backend as B
-import theano
+from deeplift.util import compile_func
 
 
 class TestConcat(unittest.TestCase):
@@ -37,14 +36,14 @@ class TestConcat(unittest.TestCase):
         self.inp2 = np.arange(2).reshape((2,1,1,1))+1
         
     def test_concat(self): 
-        func = B.function([self.input_layer1.get_activation_vars(),
+        func = compile_func([self.input_layer1.get_activation_vars(),
                                 self.input_layer2.get_activation_vars()],
                                 self.concat_layer.get_activation_vars())
         np.testing.assert_allclose(func(self.inp1, self.inp2),
                                    np.array([[[[1]],[[1]]],[[[2]],[[2]]]]))
 
     def test_concat_backprop(self):
-        func = B.function([
+        func = compile_func([
                 self.input_layer1.get_activation_vars(),
                 self.input_layer2.get_activation_vars()],
                 #self.concat_layer.get_mxts(),
@@ -56,8 +55,3 @@ class TestConcat(unittest.TestCase):
         np.testing.assert_allclose(func(self.inp1, self.inp2),
                                    [np.array([[[[1]]],[[[1]]]]),
                                     np.array([[[[2]]],[[[2]]]])])
-
-    def test_concat_backprop2(self):
-        func = B.function([self.flatten_layer.get_activation_vars()],
-                self.flatten_layer.get_mxts(),
-                )

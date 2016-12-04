@@ -11,7 +11,6 @@ from deeplift.blobs import DenseMxtsMode
 from deeplift.blobs import MaxPoolDeepLiftMode
 from deeplift.blobs.convolution import PaddingMode
 from deeplift.util import compile_func
-import theano
 import itertools
 
 
