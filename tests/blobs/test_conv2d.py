@@ -10,7 +10,6 @@ import deeplift.blobs as blobs
 from deeplift.blobs import DenseMxtsMode
 from deeplift.blobs.convolution import PoolMode, PaddingMode
 from deeplift.util import compile_func
-import deeplift.backend as B
 import itertools
 
 

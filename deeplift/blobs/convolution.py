@@ -178,8 +178,8 @@ class MaxPool2D(Pool2D):
 
     def _build_activation_vars(self, input_act_vars):
         return tf.nn.max_pool(value=input_act_vars,
-                             ksize=tf.pack((1,)+self.pool_size+(1,)),
-                             strides=tf.pack((1,)+self.strides+(1,)),
+                             ksize=(1,)+self.pool_size+(1,),
+                             strides=(1,)+self.strides+(1,),
                              padding=self.padding_mode)
 
     def _get_mxts_increments_for_inputs(self):
@@ -188,8 +188,8 @@ class MaxPool2D(Pool2D):
                 orig_input=self._get_input_activation_vars(),
                 orig_output=self.get_activation_vars(),
                 grad=self.get_mxts(),
-                ksize=tf.pack((1,)+self.pool_size+(1,)),
-                strides=tf.pack((1,)+self.strides+(1,)),
+                ksize=(1,)+self.pool_size+(1,),
+                strides=(1,)+self.strides+(1,),
                 padding=self.padding_mode) 
         else:
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
@@ -203,23 +203,22 @@ class AvgPool2D(Pool2D):
 
     def _build_activation_vars(self, input_act_vars):
         return tf.nn.avg_pool(value=input_act_vars,
-                             ksize=tf.pack((1,)+self.pool_size+(1,)),
-                             strides=tf.pack((1,)+self.strides+(1,)),
+                             ksize=(1,)+self.pool_size+(1,),
+                             strides=(1,)+self.strides+(1,),
                              padding=self.padding_mode)
 
     def _get_mxts_increments_for_inputs(self):
         return tf.nn.gen_nn_ops._avg_pool_grad(
-            orig_input_shape=self._get_input_activation_vars().get_shape(),
+            orig_input_shape=tf.shape(self._get_input_activation_vars()),
             grad=self.get_mxts(),
-            ksize=tf.pack((1,)+self.pool_size+(1,)),
-            strides=tf.pack((1,)+self.strides+(1,)),
+            ksize=(1,)+self.pool_size+(1,),
+            strides=(1,)+self.strides+(1,),
             padding=self.padding_mode) 
 
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     
     def _build_activation_vars(self, input_act_vars):
-        print(input_act_vars.get_shape()[1:])
         return tf.reshape(input_act_vars,
                 [-1,
                  tf.reduce_prod(input_act_vars.get_shape()[1:])
