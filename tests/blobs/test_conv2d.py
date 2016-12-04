@@ -113,7 +113,7 @@ class TestConv(unittest.TestCase):
                                [ 20,  44,  44,  24],
                                [ 12,  26,  26,  14]]]]).transpose(0,2,3,1))
 
-    @skip
+
     def test_fprop_stride(self): 
 
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
@@ -140,7 +140,6 @@ class TestConv(unittest.TestCase):
                                       [-1559, -1615]]]]).transpose(0,2,3,1))
 
 
-    @skip
     def test_dense_backprop_stride(self):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
