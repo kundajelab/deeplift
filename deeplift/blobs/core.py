@@ -495,8 +495,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, W, b, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
-        self.W = W.astype("float32")
-        self.b = b.astype("float32")
+        self.W = np.array(W).astype("float32")
+        self.b = np.array(b).astype("float32")
         self.dense_mxts_mode = dense_mxts_mode
 
     def get_yaml_compatible_object_kwargs(self):
