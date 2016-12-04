@@ -110,12 +110,12 @@ class Conv2D(SingleInputMixin, Node):
          
 
     def _get_mxts_increments_for_inputs(self): 
-        input_shape = self.inputs.get_shape()
         return tf.nn.conv2d_transpose(
                 value=self.get_mxts(),
                 filter=self.W,
-                output_shape=tf.pack([-1, input_shape[1],
-                                      input_shape[2], input_shape[3]]),
+                #Note: tf.shape(var) doesn't give the same result
+                #as var.get_shape(); one works, the other doesn't...
+                output_shape=tf.shape(self.inputs.get_activation_vars()),
                 padding=self.padding_mode,
                 strides=(1,)+self.strides+(1,))
 #TODO:
