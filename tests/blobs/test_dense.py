@@ -8,7 +8,6 @@ import os
 import numpy as np
 import deeplift
 import deeplift.blobs as blobs
-from deeplift import backend as B
 from deeplift.blobs import DenseMxtsMode
 from deeplift.util import compile_func
 
