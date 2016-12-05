@@ -18,8 +18,8 @@ from keras import backend as K
 
 class TestConvolutionalModel(unittest.TestCase):
 
+
     def setUp(self):
-         
         self.inp = (np.random.randn(10*10*51*51)
                     .reshape(10,10,51,51)).transpose(0,2,3,1)
         self.keras_model = keras.models.Sequential()
@@ -41,7 +41,7 @@ class TestConvolutionalModel(unittest.TestCase):
 
         grad = tf.gradients(tf.reduce_sum(
             self.keras_model.layers[-2].output[:,0]),
-            [self.keras_model.layers[0].input])
+            [self.keras_model.layers[0].input])[0]
         self.grad_func = compile_func(
             [self.keras_model.layers[0].input,
              K.learning_phase()], grad)
@@ -61,6 +61,7 @@ class TestConvolutionalModel(unittest.TestCase):
     def test_convert_model_backprop(self): 
         deeplift_model = kc.convert_sequential_model(
                           model=self.keras_model)
+
         deeplift_multipliers_func = deeplift_model.\
                                      get_target_multipliers_func(
                                       find_scores_layer_idx=0,
@@ -71,4 +72,4 @@ class TestConvolutionalModel(unittest.TestCase):
                                       batch_size=10,
                                       progress_update=None),
             #when biases are 0, deeplift is the same as taking gradients 
-            self.grad_func(self.inp), decimal=6)
+            self.grad_func(self.inp, False), decimal=6)

@@ -16,12 +16,18 @@ NEAR_ZERO_THRESHOLD = 10**(-7)
 _SESS = None
 
 def get_session():
-    global _SESS 
-    if _SESS is None:
-        print("MAKING A SESSION")
-        _SESS = tf.Session()
-        _SESS.run(tf.global_variables_initializer()) 
-    return _SESS
+    try:
+        #use the keras session if there is one
+        import keras.backend as K
+        return K.get_session()
+    except:
+        #Warning: I haven't really tested this behaviour out...
+        global _SESS 
+        if _SESS is None:
+            print("MAKING A SESSION")
+            _SESS = tf.Session()
+            _SESS.run(tf.global_variables_initializer()) 
+        return _SESS
 
 
 def compile_func(inputs, outputs):
