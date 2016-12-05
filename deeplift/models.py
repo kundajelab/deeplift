@@ -12,6 +12,7 @@ import deeplift.util
 from deeplift import blobs
 from deeplift.blobs import *
 from deeplift.blobs import ScoringMode
+from deeplift.util import compile_func
 import tensorflow as tf
 
 
@@ -51,7 +52,7 @@ class Model(object):
             raise RuntimeError("Unsupported func_type: "+func_type)
         if (slice_objects is not None):
             output_symbolic_vars = output_symbolic_vars[slice_objects]
-        core_function = B.function([input_layer.get_activation_vars()
+        core_function = compile_func([input_layer.get_activation_vars()
                                     for input_layer in input_layers]+
                                    [input_layer.get_reference_vars()
                                     for input_layer in input_layers],
