@@ -628,7 +628,7 @@ class BatchNormalization(SingleInputMixin, Node):
         #the current code I have written, consistent with the Keras
         #implementation, seems to support these only being one dimensional
         assert len(mean.shape)==1
-        assert len(std.shape)==1
+        assert len(var.shape)==1
         self.gamma = gamma
         self.beta = beta
         self.axis = axis
@@ -660,8 +660,8 @@ class BatchNormalization(SingleInputMixin, Node):
         self.reshaped_gamma = self.gamma.reshape(new_shape)
         self.reshaped_beta = self.beta.reshape(new_shape)
         return tf.nn.batch_normalization(input_act_vars,
-                                     gamma=self.reshaped_gamma,
-                                     beta=self.reshaped_beta,
+                                     scale=self.reshaped_gamma,
+                                     offset=self.reshaped_beta,
                                      mean=self.reshaped_mean,
                                      variance=self.reshaped_var,
                                      variance_epsilon=self.epsilon)
@@ -669,7 +669,8 @@ class BatchNormalization(SingleInputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         #self.reshaped_gamma and reshaped_std are created during
         #the call to _build_activation_vars in _built_fwd_pass_vars
-        return self.get_mxts()*self.reshaped_gamma/self.reshaped_std 
+        return (self.get_mxts()*self.reshaped_gamma)/(
+                tf.sqrt(self.reshaped_var))
 
 
 class Merge(ListInputMixin, Node):

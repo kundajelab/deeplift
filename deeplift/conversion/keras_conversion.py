@@ -48,14 +48,17 @@ def gru_conversion(layer, name, verbose, **kwargs):
 
 
 def batchnorm_conversion(layer, name, verbose, **kwargs):
-   return [blobs.BatchNormalization(
+    #note: the variable called "running_std" actually stores
+    #the variance...
+    gamma, beta, running_mean, running_var = layer.get_weights()
+    return [blobs.BatchNormalization(
         name=name,
         verbose=verbose,
-        gamma=np.array(layer.gamma.get_value()),
-        beta=np.array(layer.beta.get_value()),
+        gamma=np.array(gamma),
+        beta=np.array(beta),
         axis=layer.axis,
-        mean=np.array(layer.running_mean.get_value()),
-        var=np.pow(np.array(layer.running_std.get_value()),2),
+        mean=np.array(running_mean),
+        var=running_var,
         epsilon=layer.epsilon 
     )] 
 
