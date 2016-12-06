@@ -1,6 +1,19 @@
 import tensorflow as tf
 from deeplift.util import NEAR_ZERO_THRESHOLD
 
+
+def conv1d_transpose_via_conv2d(
+    value, W, tensor_with_output_shape, stride, padding_mode):
+    return tf.squeeze(tf.nn.conv2d_transpose(
+        value=tf.expand_dims(value,1),
+        filter=W[None,:,:,:],
+        #Note: tf.shape(var) doesn't give the same result
+        #as var.get_shape(); one works, the other doesn't...
+        output_shape=tf.shape(tf.expand_dims(tensor_with_output_shape,1)),
+        strides=(1,1,stride,1),
+        padding=padding_mode),1)
+
+
 def distribute_over_product(def_act_var1, diff_def_act_var1,
                             def_act_var2, diff_def_act_var2, mult_output):
     mult_var1 = mult_output*(def_act_var2 + 0.5*diff_def_act_var2)

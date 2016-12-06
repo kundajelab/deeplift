@@ -12,10 +12,13 @@ import deeplift.util
 import numpy as np
 
 
-KerasKeys = deeplift.util.enum(name='name', activation='activation',
-                      subsample='subsample', border_mode='border_mode',
-                      output_dim='output_dim', pool_size='pool_size',
-                      strides='strides', padding='padding')
+KerasKeys = deeplift.util.enum(
+    name='name', activation='activation',
+    subsample='subsample', subsample_length='subsample_length',
+    border_mode='border_mode', output_dim='output_dim',
+    pool_length='pool_length', stride='stride',
+    pool_size='pool_size', strides='strides',
+    padding='padding')
 
 
 ActivationTypes = deeplift.util.enum(relu='relu',
@@ -25,26 +28,6 @@ ActivationTypes = deeplift.util.enum(relu='relu',
                                      linear='linear')
 
 default_maxpool_deeplift_mode = MaxPoolDeepLiftMode.gradient
-
-def gru_conversion(layer, name, verbose, **kwargs):
-    return [blobs.GRU(
-              name=name,
-              verbose=verbose,
-              hidden_states_exposed=layer.get_config()['return_sequences'],
-              weights_lookup=OrderedDict([
-                ('weights_on_x_for_z', layer.W_z.copy()),
-                ('weights_on_x_for_r', layer.W_r.copy()),
-                ('weights_on_x_for_h', layer.W_h.copy()),
-                ('weights_on_h_for_z', layer.U_z.copy()),
-                ('weights_on_h_for_r', layer.U_r.copy()),
-                ('weights_on_h_for_h', layer.U_h.copy()),
-                ('bias_for_z', layer.b_z.copy()),
-                ('bias_for_r', layer.b_r.copy()),
-                ('bias_for_h', layer.b_h.copy()),
-              ]),
-              gate_activation_name=layer.get_config()['inner_activation'],
-              hidden_state_activation_name=layer.get_config()['activation'])
-            ]
 
 
 def batchnorm_conversion(layer, name, verbose, **kwargs):
@@ -61,6 +44,24 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
         var=running_var,
         epsilon=layer.epsilon 
     )] 
+
+
+def conv1d_conversion(layer, name, verbose,
+                      nonlinear_mxts_mode, **kwargs):
+    #nonlinear_mxts_mode only used for activation
+    converted_activation = activation_conversion(
+                            layer, name, verbose,
+                            nonlinear_mxts_mode=nonlinear_mxts_mode)
+    to_return = [blobs.Conv1D(
+            name=("preact_" if len(converted_activation) > 0
+                        else "")+name,
+            W=layer.get_weights()[0].squeeze(1),
+            b=layer.get_weights()[1],
+            stride=layer.get_config()[KerasKeys.subsample_length],
+            padding_mode=layer.get_config()[KerasKeys.border_mode].upper())] 
+    to_return.extend(converted_activation)
+    return to_return
+
 
 
 def conv2d_conversion(layer, name, verbose,
@@ -85,8 +86,8 @@ def prep_pool2d_kwargs(layer, name, verbose):
             'verbose': verbose,
             'pool_size': layer.get_config()[KerasKeys.pool_size],
             'strides': layer.get_config()[KerasKeys.strides],
-            'padding_mode': layer.get_config()[KerasKeys.border_mode].upper(),
-            'ignore_border': True} #Keras implementations always seem to ignore
+            'padding_mode': layer.get_config()[KerasKeys.border_mode].upper()
+            }
 
 
 def maxpool2d_conversion(layer, name, verbose,
@@ -102,22 +103,26 @@ def avgpool2d_conversion(layer, name, verbose, **kwargs):
     return [blobs.AvgPool2D(**pool2d_kwargs)]
 
 
-def pool2d_conversion(layer, name, verbose, pool_mode, **kwargs):
-    return [blobs.Pool2D(
-             name=name,
-             verbose=verbose,
-             pool_size=layer.get_config()[KerasKeys.pool_size],
-             strides=layer.get_config()[KerasKeys.strides],
-             padding_mode=layer.get_config()[KerasKeys.border_mode].upper(),
-             ignore_border=True, #Keras implementations always seem to ignore
-             pool_mode=pool_mode)]
+def prep_pool1d_kwargs(layer, name, verbose):
+    return {'name': name,
+            'verbose': verbose,
+            'pool_length': layer.get_config()[KerasKeys.pool_length],
+            'stride': layer.get_config()[KerasKeys.stride],
+            'padding_mode': layer.get_config()[KerasKeys.border_mode].upper()
+            }
 
 
-def zeropad2d_conversion(layer, name, verbose, **kwargs):
-    return [blobs.ZeroPad2D(
-             name=name,
-             verbose=verbose,
-             padding=layer.get_config()[KerasKeys.padding])]
+def maxpool1d_conversion(layer, name, verbose,
+                         maxpool_deeplift_mode, **kwargs):
+    pool1d_kwargs = prep_pool1d_kwargs(layer=layer, name=name, verbose=verbose)
+    return [blobs.MaxPool1D(
+             maxpool_deeplift_mode=maxpool_deeplift_mode,
+             **pool2d_kwargs)]
+
+
+def avgpool1d_conversion(layer, name, verbose, **kwargs):
+    pool1d_kwargs = prep_pool1d_kwargs(layer=layer, name=name, verbose=verbose)
+    return [blobs.AvgPool1D(**pool1d_kwargs)]
 
 
 def dropout_conversion(name, **kwargs):
@@ -210,11 +215,13 @@ activation_to_conversion_function = {
 
 
 layer_name_to_conversion_function = {
+    'Convolution1D': conv1d_conversion,
+    'MaxPooling1D': maxpool1d_conversion,
+    'AveragePooling1D': avgpool1d_conversion,
     'Convolution2D': conv2d_conversion,
     'MaxPooling2D': maxpool2d_conversion,
     'AveragePooling2D': avgpool2d_conversion,
     'BatchNormalization': batchnorm_conversion,
-    'ZeroPadding2D': zeropad2d_conversion,
     'Flatten': flatten_conversion,
     'Dense': dense_conversion,
      #in current keras implementation, scaling is done during training
