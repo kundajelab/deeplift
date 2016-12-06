@@ -2,25 +2,95 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 from .core import *
+from .helper_functions import conv1d_transpose_via_conv2d
 
 PoolMode = deeplift.util.enum(max='max', avg='avg')
 PaddingMode = deeplift.util.enum(same='SAME', valid='VALID')
 
 
-class Conv2D(SingleInputMixin, Node):
+class Conv(SingleInputMixin, Node):
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(Conv,self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['W'] = self.W
+        kwargs_dict['b'] = self.b
+        kwargs_dict['padding_mode'] = self.padding_mode
+        return kwargs_dict
+
+class Conv1D(Conv):
     """
-        Note: this is ACTUALLY a convolution, not cross-correlation i.e.
-            the weights are 'flipped'
+        Note: is ACTUALLY a cross-correlation i.e. weights are not 'flipped'
+    """
+
+    def __init__(self, W, b, stride, padding_mode, **kwargs):
+        """
+            The ordering of the dimensions is assumed to be: length, channels
+            Note: this is ACTUALLY a cross-correlation,
+                i.e. the weights are not 'flipped' as for a convolution.
+                This is the tensorflow behaviour.
+        """
+        super(Conv1D, self).__init__(**kwargs)
+        #W has dimensions:
+        #length x inp_channels x num output channels
+        self.W = W
+        self.b = b
+        self.stride = stride
+        self.padding_mode = padding_mode
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(Conv1D,self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['stride'] = self.stride
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        #assuming a theano dimension ordering here...
+        shape_to_return = [None]
+        if (input_shape is None or input_shape[1] is None):
+            shape_to_return += [None]
+        else:
+            if (self.padding_mode != PaddingMode.valid):
+                raise RuntimeError("Please implement shape inference for"
+                                   " border mode: "+str(self.padding_mode))
+            shape_to_return.append(
+             1+int((input_shape[1]-self.W.shape[0])/self.stride)) 
+        shape_to_return.append(self.W.shape[-1]) #num output channels
+        return shape_to_return
+
+    def _build_activation_vars(self, input_act_vars):
+        conv_without_bias = self._compute_conv_without_bias(input_act_vars)
+        return conv_without_bias + self.b[None,None,:]
+
+    def _compute_conv_without_bias(self, x):
+        conv_without_bias = tf.nn.conv1d(
+                             value=x,
+                             filters=self.W,
+                             stride=self.stride,
+                             padding=self.padding_mode)
+        return conv_without_bias
+
+    def _get_mxts_increments_for_inputs(self): 
+        return conv1d_transpose_via_conv2d(
+                value=self.get_mxts(),
+                W=self.W,
+                tensor_with_output_shape=self.inputs.get_activation_vars(),
+                padding_mode=self.padding_mode,
+                stride=self.stride)
+
+
+class Conv2D(Conv):
+    """
+        Note: is ACTUALLY a cross-correlation i.e. weights are not 'flipped'
     """
 
     def __init__(self, W, b, strides, padding_mode, **kwargs):
         """
             The ordering of the dimensions is assumed to be:
                 rows, columns, channels
-            Note: this is ACTUALLY a convolution and not a cross-correlation,
-                i.e. the weights are 'flipped' and then you do cross-corr.
-                This is the behaviour that keras has, but not all deep
-                learning packages actually do this.
+            Note: this is ACTUALLY a cross-correlation,
+                i.e. the weights are not 'flipped' as for a convolution.
+                This is the tensorflow behaviour.
         """
         super(Conv2D, self).__init__(**kwargs)
         #W has dimensions:
@@ -30,27 +100,10 @@ class Conv2D(SingleInputMixin, Node):
         self.strides = strides
         self.padding_mode = padding_mode
 
-    def set_filter_references(self, filter_reference_activations,
-                                    filter_input_references): 
-        #filter_references is vec of length num_output_channels;
-        #indicates the reference activations 
-        #filter_input_references should have same dimensions as W
-        self.learned_reference = (tf.ones_like(self.get_activation_vars())
-                              *filter_reference_activations[None,None,None,:])
-        self.filter_input_references = filter_input_references 
-
-    def set_filter_silencing(self, filter_diff_from_ref_silencer):
-        #when the filter's diff-from-ref is less than the silencer level,
-        #the filter will be silenced from contributing to importance scores 
-        self.filter_diff_from_ref_silencer = filter_diff_from_ref_silencer 
-
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Conv2D,self).\
                        get_yaml_compatible_object_kwargs()
-        kwargs_dict['W'] = self.W
-        kwargs_dict['b'] = self.b
         kwargs_dict['strides'] = self.strides
-        kwargs_dict['padding_mode'] = self.padding_mode
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
@@ -82,33 +135,6 @@ class Conv2D(SingleInputMixin, Node):
                              padding=self.padding_mode)
         return conv_without_bias
 
-    def get_contribs_of_inputs_with_filter_refs(self):
-
-        effective_mxts = self.get_mxts()
-        #apply silencer if applicable
-        if (hasattr(self, 'filter_diff_from_ref_silencer')):
-            silencer_mask = (B.abs(self._get_diff_from_reference_vars())
-                             > self.filter_diff_from_ref_silencer)
-            effective_mxts = self.get_mxts()*silencer_mask
-
-        #efficiently compute the contributions of the layer below
-        mult_times_input_on_layer_below = tf.nn.conv2d_transpose(
-                value=effective_mxts,
-                filter=self.W,
-                output_shape=self.get_shape(),
-                strides=(1,)+self.strides+(1,),
-                padding=self.padding_mode)*self._get_input_activation_vars()
-        mult_times_filter_ref_on_layer_below = tf.nn.conv2d_transpose(
-                value=effective_mxts,
-                #no reversal of weights needed as tensorflow conv2d is
-                #actually a cross-correlation
-                filter=self.W*self.filter_input_references,
-                padding=self.padding_mode,
-                strides=tf.pack((1,)+self.strides+(1,)))
-        return (mult_times_input_on_layer_below
-                - mult_times_filter_ref_on_layer_below)
-         
-
     def _get_mxts_increments_for_inputs(self): 
         return tf.nn.conv2d_transpose(
                 value=self.get_mxts(),
@@ -122,15 +148,102 @@ class Conv2D(SingleInputMixin, Node):
 #port ZeroPad2D over from theano
 
 
+MaxPoolDeepLiftMode = deeplift.util.enum(gradient = 'gradient')
+
+class Pool1D(SingleInputMixin, Node):
+
+    def __init__(self, pool_length, stride, padding_mode, **kwargs):
+        super(Pool1D, self).__init__(**kwargs) 
+        self.pool_length = pool_length
+        self.stride = stride
+        self.padding_mode = padding_mode
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(Pool2D, self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['pool_length'] = self.pool_length
+        kwargs_dict['stride'] = self.stride
+        kwargs_dict['padding_mode'] = self.padding_mode
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        shape_to_return = [None] 
+        if (self.padding_mode != PaddingMode.valid):
+            raise RuntimeError("Please implement shape inference for"
+                               " padding mode: "+str(self.padding_mode))
+        #assuming that overhangs are excluded
+        shape_to_return.append(1+
+            int((input_shape[1]-self.pool_length)/self.stride)) 
+        shape_to_return.append(input_shape[-1]) #channels unchanged
+        return shape_to_return
+
+    def _get_mxts_increments_for_inputs(self):
+        raise NotImplementedError()
+
+
+class MaxPool1D(Pool1D):
+    """
+    Heads-up: an all-or-none MaxPoolDeepLiftMode is only 
+        appropriate when all inputs falling within a single
+        kernel have the same default value.
+    Heads-up: scaled all-or-none MaxPoolDeepLiftMode can
+        lead to odd results if the inputs falling within a
+        single kernel don't have approx even default vals
+    """ 
+    def __init__(self, maxpool_deeplift_mode, **kwargs):
+        super(MaxPool1D, self).__init__(**kwargs) 
+        self.maxpool_deeplift_mode = maxpool_deeplift_mode
+
+    def _build_activation_vars(self, input_act_vars):
+        return tf.squeeze(
+                tf.nn.max_pool(value=tf.expand_dims(input_act_vars,1),
+                     ksize=(1,1,self.pool_length,1),
+                     strides=(1,1,self.stride,1),
+                     padding=self.padding_mode),1)
+
+    def _get_mxts_increments_for_inputs(self):
+        if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
+            return tf.squeeze(tf.nn.gen_nn_ops._max_pool_grad(
+                orig_input=tf.expand_dims(self._get_input_activation_vars(),1),
+                orig_output=tf.expand_dims(self.get_activation_vars(),1),
+                grad=tf.expand_dims(self.get_mxts(),1),
+                ksize=(1,1,self.pool_length,1),
+                strides=(1,1,self.stride,1),
+                padding=self.padding_mode),1)
+        else:
+            raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
+                               str(self.maxpool_deeplift_mode))
+            
+
+class AvgPool1D(Pool1D):
+
+    def __init__(self, **kwargs):
+        super(AvgPool1D, self).__init__(**kwargs) 
+
+    def _build_activation_vars(self, input_act_vars):
+        return tf.squeeze(
+                tf.nn.avg_pool(value=tf.expand_dims(input_act_vars,1),
+                 ksize=(1,1,self.pool_length,1),
+                 strides=(1,1,self.stride,1),
+                 padding=self.padding_mode),1)
+
+    def _get_mxts_increments_for_inputs(self):
+        return tf.squeeze(tf.nn.gen_nn_ops._avg_pool_grad(
+            orig_input_shape=
+                tf.shape(tf.expand_dims(self._get_input_activation_vars(),1)),
+            grad=tf.expand_dims(self.get_mxts(),1),
+            ksize=(1,1,self.pool_length,1),
+            strides=(1,1,self.stride,1),
+            padding=self.padding_mode),1) 
+
+
 class Pool2D(SingleInputMixin, Node):
 
-    def __init__(self, pool_size, strides, padding_mode,
-                 ignore_border, **kwargs):
+    def __init__(self, pool_size, strides, padding_mode, **kwargs):
         super(Pool2D, self).__init__(**kwargs) 
         self.pool_size = pool_size 
         self.strides = strides
         self.padding_mode = padding_mode
-        self.ignore_border = ignore_border
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Pool2D, self).\
@@ -138,7 +251,6 @@ class Pool2D(SingleInputMixin, Node):
         kwargs_dict['pool_size'] = self.pool_size
         kwargs_dict['strides'] = self.strides
         kwargs_dict['padding_mode'] = self.padding_mode
-        kwargs_dict['ignore_border'] = self.ignore_border
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
@@ -157,10 +269,6 @@ class Pool2D(SingleInputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         raise NotImplementedError()
 
-
-MaxPoolDeepLiftMode = deeplift.util.enum(
-                       gradient = 'gradient',
-                       scaled_gradient = 'scaled_gradient')
 
 class MaxPool2D(Pool2D):
     """
@@ -229,8 +337,5 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
 
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
-        inp_shape = input_act_vars.get_shape()
         return tf.reshape(tensor=self.get_mxts(),
-                          shape=tf.pack(
-                           [-1,inp_shape[1],
-                            inp_shape[2],inp_shape[3]]))
+                          shape=tf.shape(input_act_vars))

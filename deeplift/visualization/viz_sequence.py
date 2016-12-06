@@ -70,14 +70,16 @@ def plot_weights_given_ax(ax, array,
     if len(array.shape)==3:
         array = np.squeeze(array)
     assert len(array.shape)==2, array.shape
-    assert array.shape[0]==4
+    if (array.shape[0]==4 and array.shape[1] != 4):
+        array = array.transpose(1,0)
+    assert array.shape[1]==4
     max_pos_height = 0.0
     min_neg_height = 0.0
     heights_at_positions = []
     depths_at_positions = []
-    for i in range(array.shape[1]):
+    for i in range(array.shape[0]):
         #sort from smallest to highest magnitude
-        acgt_vals = sorted(enumerate(array[:,i]), key=lambda x: abs(x[1]))
+        acgt_vals = sorted(enumerate(array[i,:]), key=lambda x: abs(x[1]))
         positive_height_so_far = 0.0
         negative_height_so_far = 0.0
         for letter in acgt_vals:
@@ -99,7 +101,7 @@ def plot_weights_given_ax(ax, array,
     #the highlight dict should be the color
     for color in highlight:
         for start_pos, end_pos in highlight[color]:
-            assert start_pos >= 0.0 and end_pos <= array.shape[1]
+            assert start_pos >= 0.0 and end_pos <= array.shape[0]
             min_depth = np.min(depths_at_positions[start_pos:end_pos])
             max_height = np.max(heights_at_positions[start_pos:end_pos])
             ax.add_patch(
@@ -108,8 +110,8 @@ def plot_weights_given_ax(ax, array,
                     height=max_height-min_depth,
                     edgecolor=color, fill=False))
             
-    ax.set_xlim(-length_padding, array.shape[1]+length_padding)
-    ax.xaxis.set_ticks(np.arange(0.0, array.shape[1]+1, subticks_frequency))
+    ax.set_xlim(-length_padding, array.shape[0]+length_padding)
+    ax.xaxis.set_ticks(np.arange(0.0, array.shape[0]+1, subticks_frequency))
     height_padding = max(abs(min_neg_height)*(height_padding_factor),
                          abs(max_pos_height)*(height_padding_factor))
     ax.set_ylim(min_neg_height-height_padding, max_pos_height+height_padding)

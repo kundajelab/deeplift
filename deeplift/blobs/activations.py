@@ -82,12 +82,12 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                   NonlinearMxtsMode.GuidedBackpropDeepLIFT):
                 deeplift_scale_factor = self._deeplift_get_scale_factor() 
                 scale_factor = (deeplift_scale_factor
-                                *tf.greater(self.get_mxts(),0))
+                    *tf.cast(tf.greater(self.get_mxts(),0), tf.float32))
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.Gradient):
                 scale_factor = self._gradients_get_scale_factor() 
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.GuidedBackprop):
                 scale_factor = self._gradients_get_scale_factor()\
-                                *tf.greater(self.get_mxts(),0)
+                    *tf.cast(tf.greater(self.get_mxts(),0), tf.float32)
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.PassThrough): 
                 #just ones, always
                 scale_factor = tf.ones_like(self.get_mxts())
