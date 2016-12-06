@@ -1,1 +1,0 @@
-runKerasModel_dbTrack.py --modelCreationClass AdhocRNN --batchSize 1000 --yamlConfigs yaml/* --predictAndEvalClass AccStats --stoppingCriterionClass EarlyStopping --stoppingCriterionArgs " --epochsToWaitForImprovement 10" --emails avanti@stanford.edu --jsonDbFile rnn.db  --emailMode noEmails --argumentsFromFile rnn_adhoc_args.txt

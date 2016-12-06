@@ -1,9 +1,0 @@
-{
-   "features": {
-       "featuresFormat": "rowsAndColumns"
-        ,"opts": {
-            "fileNames": ["features_10K.gz"]
-            ,"contentType": "float"
-        }
-    } 
-}
