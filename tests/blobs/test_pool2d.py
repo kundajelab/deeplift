@@ -77,7 +77,6 @@ class TestPool(unittest.TestCase):
         pool_layer = blobs.MaxPool2D(pool_size=(2,2),
                           strides=(1,1),
                           padding_mode=PaddingMode.valid,
-                          ignore_border=True,
                           maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
@@ -100,40 +99,12 @@ class TestPool(unittest.TestCase):
                                           [5,5,4],
                                           [6,7,8]]]]).transpose(0,2,3,1))
         
-    def test_fprop_maxpool1d(self): 
 
-        pool_layer = blobs.MaxPool1D(pool_length=2,
-                          stride=1,
-                          padding_mode=PaddingMode.valid,
-                          ignore_border=True,
-                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
-        self.create_small_net_with_pool_layer(pool_layer,
-                                              outputs_per_channel=9)
-
-        func = compile_func([self.input_layer.get_activation_vars()],
-                           self.pool_layer.get_activation_vars())
-        np.testing.assert_almost_equal(func([self.reference_inps[0],
-                                             self.reference_inps[0]-1]),
-                                       np.array(
-                                       [[[[1,2,3],
-                                          [5,5,4],
-                                          [6,7,8]],
-                                         [[2,3,4],
-                                          [6,6,5],
-                                          [7,8,9]]],
-                                        [[[0,1,2],
-                                          [4,4,3],
-                                          [5,6,7]],
-                                         [[1,2,3],
-                                          [5,5,4],
-                                          [6,7,8]]]]).transpose(0,2,3,1))
-
-    def test_fprop_avgpool(self): 
+    def test_fprop_avgpool2d(self): 
 
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                                   strides=(1,1),
-                                  padding_mode=PaddingMode.valid,
-                                  ignore_border=True)
+                                  padding_mode=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -155,11 +126,10 @@ class TestPool(unittest.TestCase):
                                           [ 6,10, 4],
                                           [11,16,19]]]]).transpose(0,2,3,1))
 
-    def test_backprop_maxpool_gradients(self):
+    def test_backprop_maxpool2d_gradients(self):
         pool_layer = blobs.MaxPool2D(pool_size=(2,2),
                   strides=(1,1),
                   padding_mode=PaddingMode.valid,
-                  ignore_border=True,
                   maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
@@ -190,49 +160,10 @@ class TestPool(unittest.TestCase):
                                      [2, 1, 1, 0],
                                      [0, 0, 1, 1]])*3]]).transpose(0,2,3,1))
 
-    #TODO: implement this mode by porting from theano
-    @skip
-    def test_backprop_maxpool_scaled_contribs(self):
-        pool_layer = blobs.MaxPool2D(pool_size=(2,2),
-                  strides=(1,1),
-                  padding_mode=PaddingMode.valid,
-                  ignore_border=True,
-                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.scaled_gradient)
-        self.create_small_net_with_pool_layer(pool_layer,
-                                              outputs_per_channel=9)
-
-        self.dense_layer.update_task_index(task_index=0)
-        func = compile_func([self.input_layer.get_activation_vars(),
-                           self.input_layer.get_reference_vars()],
-                           self.input_layer.get_mxts())
-        print(func(self.backprop_test_inps,
-                   np.ones_like(self.backprop_test_inps)*self.reference_inps))
-        np.testing.assert_almost_equal(func(
-          self.backprop_test_inps,
-          np.ones_like(self.backprop_test_inps)*self.reference_inps),
-                                  np.array(
-                                  [[np.array([[0.5, 0, 0, 0],
-                                     [0, 0, 2./4 + 1./4, 0],
-                                     [2./7 + 1./7, 1, 1, 0],
-                                     [0, 0, 1, 1]])*2,
-                                    np.array([[0, 0, 1, 1],
-                                     [0, 1, 0, 0],
-                                     [0, 2, 1, 0],
-                                     [1, 0, 1, 1]])*3], 
-                                   [np.array([[0, 0, 1, 1],
-                                     [0, 1, 0, 0],
-                                     [0, 2, 1, 0],
-                                     [1, 0, 1, 1]])*2,
-                                    np.array([[0.5, 0, 0, 0],
-                                     [0, 0, 2./4 + 1./4, 0],
-                                     [2./7 + 1./7, 1, 1, 0],
-                                     [0, 0, 1, 1]])*3]]).transpose(0,2,3,1))
-
-    def test_backprop_avgpool(self):
+    def test_backprop_avgpool2d(self):
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                   strides=(1,1),
-                  padding_mode=PaddingMode.valid,
-                  ignore_border=True)
+                  padding_mode=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
