@@ -24,7 +24,7 @@ class TestPool(unittest.TestCase):
 
         self.backprop_test_inps = np.array(
                                     [[
-                                        [0,1,2,3],
+                                        [0,1,4,3],
                                         [3,2,1,0]],
                                     [[0,-1,-2,-3],
                                      [-3,-2,-1,0]
@@ -69,10 +69,10 @@ class TestPool(unittest.TestCase):
         np.testing.assert_almost_equal(func(self.backprop_test_inps),
                                        np.array(
                                         [[
-                                            [1,2,3],
-                                            [3,2,1]],
-                                        [[0,-1,-2],
-                                         [-2,-1,0]
+                                         [1,4,4],
+                                         [3,2,1]],
+                                        [[ 0,-1,-2],
+                                         [-2,-1, 0]
                                         ]]).transpose(0,2,1))
 
     def test_fprop_avgpool(self): 
@@ -81,75 +81,58 @@ class TestPool(unittest.TestCase):
                                   stride=1,
                                   padding_mode=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
-                                              outputs_per_channel=9)
+                                              outputs_per_channel=3)
 
         func = compile_func([self.input_layer.get_activation_vars()],
                            self.pool_layer.get_activation_vars())
         np.testing.assert_almost_equal(func(self.backprop_test_inps),
                                         np.array(
                                         [[
-                                          [0.5,1.5,2.5],
+                                          [0.5,2.5,3.5],
                                           [2.5,1.5,0.5]],
                                          [[-0.5,-1.5,-2.5],
                                           [-2.5,-1.5,-0.5]
                                          ]]).transpose(0,2,1))
 
-    @skip
-    def test_backprop_maxpool_gradients(self):
-        pool_layer = blobs.MaxPool1D(pool_size=(2,2),
-                  strides=(1,1),
-                  padding_mode=PaddingMode.valid,
-                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
-        self.create_small_net_with_pool_layer(pool_layer,
-                                              outputs_per_channel=9)
 
+    def test_backprop_maxpool_gradients(self):
+        pool_layer = blobs.MaxPool1D(pool_length=2,
+                      stride=1,
+                      padding_mode=PaddingMode.valid,
+                      maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+        self.create_small_net_with_pool_layer(pool_layer,
+                                              outputs_per_channel=3)
         self.dense_layer.update_task_index(task_index=0)
         func = compile_func([
-                self.input_layer.get_activation_vars(),
-                self.input_layer.get_reference_vars()],
-                                   self.input_layer.get_mxts())
+                    self.input_layer.get_activation_vars(),
+                    self.input_layer.get_reference_vars()],
+                self.input_layer.get_mxts())
         np.testing.assert_almost_equal(
             func(self.backprop_test_inps,
                  np.ones_like(self.backprop_test_inps)*self.reference_inps),
-                                  np.array(
-                                  [[np.array([[1, 0, 0, 0],
-                                     [0, 0, 2, 0],
-                                     [2, 1, 1, 0],
-                                     [0, 0, 1, 1]])*2,
-                                    np.array([[0, 0, 1, 1],
-                                     [0, 1, 0, 0],
-                                     [0, 2, 1, 0],
-                                     [1, 0, 1, 1]])*3], 
-                                   [np.array([[0, 0, 1, 1],
-                                     [0, 1, 0, 0],
-                                     [0, 2, 1, 0],
-                                     [1, 0, 1, 1]])*2,
-                                    np.array([[1, 0, 0, 0],
-                                     [0, 0, 2, 0],
-                                     [2, 1, 1, 0],
-                                     [0, 0, 1, 1]])*3]]).transpose(0,2,3,1))
+                  np.array([
+                  [np.array([0, 1, 2, 0])*2,
+                   np.array([1, 1, 1, 0])*3],
+                  [np.array([1, 1, 1, 0])*2,
+                   np.array([0, 1, 1, 1])*3]]).transpose(0,2,1))
 
-    @skip
+
     def test_backprop_avgpool(self):
-        pool_layer = blobs.AvgPool1D(pool_size=(2,2),
-                  strides=(1,1),
-                  padding_mode=PaddingMode.valid)
+        pool_layer = blobs.AvgPool1D(pool_length=2, stride=1,
+                                     padding_mode=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
-                                              outputs_per_channel=9)
+                                              outputs_per_channel=3)
 
         self.dense_layer.update_task_index(task_index=0)
         func = compile_func([self.input_layer.get_activation_vars(), 
                            self.input_layer.get_reference_vars()],
                            self.input_layer.get_mxts())
-        avg_pool_grads = np.array([[1, 2, 2, 1],
-                                   [2, 4, 4, 2],
-                                   [2, 4, 4, 2],
-                                   [1, 2, 2, 1]]).astype("float32") 
+        avg_pool_grads = np.array([1, 2, 2, 1]).astype("float32")*0.5 
         np.testing.assert_almost_equal(func(
                   self.backprop_test_inps,
                   np.ones_like(self.backprop_test_inps)*self.reference_inps),
-                              np.array(
-                              [[avg_pool_grads*2*0.25,
-                                avg_pool_grads*3*0.25], 
-                               [avg_pool_grads*2*0.25,
-                                avg_pool_grads*3*0.25]]).transpose(0,2,3,1))
+                              np.array([
+                              [avg_pool_grads*2,
+                                avg_pool_grads*3], 
+                              [avg_pool_grads*2,
+                               avg_pool_grads*3]]).transpose(0,2,1))
