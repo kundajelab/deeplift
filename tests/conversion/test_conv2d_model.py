@@ -27,7 +27,6 @@ class TestConvolutionalModel(unittest.TestCase):
                         nb_filter=2, nb_row=4, nb_col=4, subsample=(2,2),
                         activation="relu", input_shape=(51,51,10))
         self.keras_model.add(conv_layer)
-        #for 1.0, Pooling2D is moved to layers.pooling
         self.keras_model.add(keras.layers.pooling.MaxPooling2D(
                              pool_size=(4,4), strides=(2,2))) 
         self.keras_model.add(keras.layers.Flatten())
@@ -47,7 +46,7 @@ class TestConvolutionalModel(unittest.TestCase):
              K.learning_phase()], grad)
          
 
-    def test_convert_model_fprop(self): 
+    def test_convert_conv2d_model_fprop(self): 
         deeplift_model = kc.convert_sequential_model(model=self.keras_model)
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
@@ -58,10 +57,9 @@ class TestConvolutionalModel(unittest.TestCase):
             decimal=6)
          
 
-    def test_convert_model_backprop(self): 
+    def test_convert_conv2d_model_backprop(self): 
         deeplift_model = kc.convert_sequential_model(
                           model=self.keras_model)
-
         deeplift_multipliers_func = deeplift_model.\
                                      get_target_multipliers_func(
                                       find_scores_layer_idx=0,

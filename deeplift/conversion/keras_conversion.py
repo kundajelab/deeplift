@@ -117,7 +117,7 @@ def maxpool1d_conversion(layer, name, verbose,
     pool1d_kwargs = prep_pool1d_kwargs(layer=layer, name=name, verbose=verbose)
     return [blobs.MaxPool1D(
              maxpool_deeplift_mode=maxpool_deeplift_mode,
-             **pool2d_kwargs)]
+             **pool1d_kwargs)]
 
 
 def avgpool1d_conversion(layer, name, verbose, **kwargs):
