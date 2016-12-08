@@ -70,7 +70,7 @@ class TestPool(unittest.TestCase):
         self.dense_layer.set_active()
         self.input_layer.update_mxts()
         
-    def test_fprop_maxpool(self): 
+    def test_fprop_maxpool2d(self): 
 
         pool_layer = blobs.MaxPool2D(pool_size=(2,2),
                           strides=(1,1),
@@ -98,7 +98,7 @@ class TestPool(unittest.TestCase):
                                           [5,5,4],
                                           [6,7,8]]]]))
 
-    def test_fprop_avgpool(self): 
+    def test_fprop_avgpool2d(self): 
 
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                                   strides=(1,1),
@@ -125,7 +125,7 @@ class TestPool(unittest.TestCase):
                                           [ 6,10, 4],
                                           [11,16,19]]]]))
 
-    def test_backprop_maxpool_gradients(self):
+    def test_backprop_maxpool2d_gradients(self):
         pool_layer = blobs.MaxPool2D(pool_size=(2,2),
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
@@ -160,7 +160,7 @@ class TestPool(unittest.TestCase):
                                      [2, 1, 1, 0],
                                      [0, 0, 1, 1]])*3]]))
 
-    def test_backprop_maxpool_scaled_contribs(self):
+    def test_backprop_maxpool2d_scaled_contribs(self):
         pool_layer = blobs.MaxPool2D(pool_size=(2,2),
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
@@ -196,7 +196,7 @@ class TestPool(unittest.TestCase):
                                      [2./7 + 1./7, 1, 1, 0],
                                      [0, 0, 1, 1]])*3]]))
 
-    def test_backprop_avgpool(self):
+    def test_backprop_avgpool2d(self):
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
