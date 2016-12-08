@@ -4,6 +4,73 @@ from __future__ import absolute_import
 from .core import *
 
 
+class Conv1D(SingleInputMixin, Node):
+    """
+        Note: this is ACTUALLY a convolution, not cross-correlation i.e.
+            the weights are 'flipped'
+    """
+
+    def __init__(self, W, b, stride, border_mode, **kwargs):
+        """
+            The ordering of the dimensions is assumed to be:
+                channels, rows, columns (i.e. theano consistent)
+            Note: this is ACTUALLY a convolution and not a cross-correlation,
+                i.e. the weights are 'flipped' and then you do cross-corr.
+                This is the behaviour that keras has, but not all deep
+                learning packages actually do this.
+        """
+        super(Conv1D, self).__init__(**kwargs)
+        #W has dimensions:
+        #num_output_channels x num_inp_channels x cols_kern_width
+        self.W = W
+        self.b = b
+        self.stride = stride
+        self.border_mode = border_mode
+
+    def get_yaml_compatible_object_kwargs(self):
+        kwargs_dict = super(Conv2D,self).\
+                       get_yaml_compatible_object_kwargs()
+        kwargs_dict['W'] = self.W
+        kwargs_dict['b'] = self.b
+        kwargs_dict['stride'] = self.stride
+        kwargs_dict['border_mode'] = self.border_mode
+        return kwargs_dict
+
+    def _compute_shape(self, input_shape):
+        #assuming a theano dimension ordering here...
+        shape_to_return = [None, self.W.shape[0]]
+        if (input_shape is None):
+            shape_to_return += [None]
+        else:
+            if (self.border_mode != B.BorderMode.valid):
+                raise RuntimeError("Please implement shape inference for"
+                                   " border mode: "+str(self.border_mode))
+            #assuming that overhangs are excluded
+            shape_to_return.append(
+             1+int((input_shape[2]-self.W.shape[2])/self.stride)) 
+        return shape_to_return
+
+    def _build_activation_vars(self, input_act_vars):
+        conv_without_bias = self._compute_conv_without_bias(
+                                  input_act_vars)[:,:,0,:]
+        return conv_without_bias + self.b[None,:,None]
+
+    def _compute_conv_without_bias(self, x):
+        conv_without_bias =  B.conv2d(inp=x[:,:,None,:],
+                                  filters=self.W[:,:,None,:],
+                                  border_mode=self.border_mode,
+                                  subsample=(1,self.stride))
+        return conv_without_bias
+
+    def _get_mxts_increments_for_inputs(self): 
+        return B.conv2d_grad(
+                out_grad=self.get_mxts()[:,:,None,:],
+                conv_in=self._get_input_activation_vars()[:,:,None,:],
+                filters=self.W[:,:,None,:],
+                border_mode=self.border_mode,
+                subsample=(1,self.stride))[:,:,0,:]
+
+
 class Conv2D(SingleInputMixin, Node):
     """
         Note: this is ACTUALLY a convolution, not cross-correlation i.e.
@@ -117,73 +184,6 @@ class Conv2D(SingleInputMixin, Node):
                 subsample=self.strides)
 
 
-class Conv1D(SingleInputMixin, Node):
-    """
-        Note: this is ACTUALLY a convolution, not cross-correlation i.e.
-            the weights are 'flipped'
-    """
-
-    def __init__(self, W, b, stride, border_mode, **kwargs):
-        """
-            The ordering of the dimensions is assumed to be:
-                channels, rows, columns (i.e. theano consistent)
-            Note: this is ACTUALLY a convolution and not a cross-correlation,
-                i.e. the weights are 'flipped' and then you do cross-corr.
-                This is the behaviour that keras has, but not all deep
-                learning packages actually do this.
-        """
-        super(Conv1D, self).__init__(**kwargs)
-        #W has dimensions:
-        #num_output_channels x num_inp_channels x cols_kern_width
-        self.W = W
-        self.b = b
-        self.stride = stride
-        self.border_mode = border_mode
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Conv2D,self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['W'] = self.W
-        kwargs_dict['b'] = self.b
-        kwargs_dict['stride'] = self.stride
-        kwargs_dict['border_mode'] = self.border_mode
-        return kwargs_dict
-
-    def _compute_shape(self, input_shape):
-        #assuming a theano dimension ordering here...
-        shape_to_return = [None, self.W.shape[0]]
-        if (input_shape is None):
-            shape_to_return += [None]
-        else:
-            if (self.border_mode != B.BorderMode.valid):
-                raise RuntimeError("Please implement shape inference for"
-                                   " border mode: "+str(self.border_mode))
-            #assuming that overhangs are excluded
-            shape_to_return.append(
-             1+int((input_shape[2]-self.W.shape[2])/self.stride)) 
-        return shape_to_return
-
-    def _build_activation_vars(self, input_act_vars):
-        conv_without_bias = self._compute_conv_without_bias(
-                                  input_act_vars)[:,:,0,:]
-        return conv_without_bias + self.b[None,:,None]
-
-    def _compute_conv_without_bias(self, x):
-        conv_without_bias =  B.conv2d(inp=x[:,:,None,:],
-                                  filters=self.W[:,:,None,:],
-                                  border_mode=self.border_mode,
-                                  subsample=(1,self.stride))
-        return conv_without_bias
-
-    def _get_mxts_increments_for_inputs(self): 
-        return B.conv2d_grad(
-                out_grad=self.get_mxts()[:,:,None,:],
-                conv_in=self._get_input_activation_vars()[:,:,None,:],
-                filters=self.W[:,:,None,:],
-                border_mode=self.border_mode,
-                subsample=(1,self.stride))[:,:,0,:]
-
-
 class ZeroPad2D(SingleInputMixin, Node):
 
     def __init__(self, padding, **kwargs):
@@ -263,6 +263,37 @@ class Pool1D(SingleInputMixin, Node):
         return to_return
 
 
+class MaxPool1D(Pool1D):
+    """
+    Heads-up: an all-or-none MaxPoolDeepLiftMode is only 
+        appropriate when all inputs falling within a single
+        kernel have the same default value.
+    """ 
+    def __init__(self, maxpool_deeplift_mode,
+                       **kwargs):
+        super(MaxPool1D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
+        self.maxpool_deeplift_mode = maxpool_deeplift_mode
+
+    def _get_mxts_increments_for_inputs(self):
+        if (self.maxpool_deeplift_mode==
+            MaxPoolDeepLiftMode.gradient):
+            return (self.
+                    _get_input_grad_given_outgrad(out_grad=self.get_mxts()))
+        else:
+            raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
+                               str(self.maxpool_deeplift_mode))
+
+
+class AvgPool1D(Pool1D):
+
+    def __init__(self, **kwargs):
+        super(AvgPool1D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
+
+    def _get_mxts_increments_for_inputs(self):
+        return super(AvgPool1D, self)._get_input_grad_given_outgrad(
+                                       out_grad=self.get_mxts())
+
+
 class Pool2D(SingleInputMixin, Node):
 
     def __init__(self, pool_size, strides, border_mode,
@@ -325,27 +356,6 @@ MaxPoolDeepLiftMode = deeplift.util.enum(
                        scaled_gradient = 'scaled_gradient')
 
 
-class MaxPool1D(Pool1D):
-    """
-    Heads-up: an all-or-none MaxPoolDeepLiftMode is only 
-        appropriate when all inputs falling within a single
-        kernel have the same default value.
-    """ 
-    def __init__(self, maxpool_deeplift_mode,
-                       **kwargs):
-        super(MaxPool1D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
-        self.maxpool_deeplift_mode = maxpool_deeplift_mode
-
-    def _get_mxts_increments_for_inputs(self):
-        if (self.maxpool_deeplift_mode==
-            MaxPoolDeepLiftMode.gradient):
-            return (self.
-                    _get_input_grad_given_outgrad(out_grad=self.get_mxts()))
-        else:
-            raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
-                               str(self.maxpool_deeplift_mode))
-
-
 class MaxPool2D(Pool2D):
     """
     Heads-up: an all-or-none MaxPoolDeepLiftMode is only 
@@ -375,17 +385,7 @@ class MaxPool2D(Pool2D):
         else:
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
                                str(self.maxpool_deeplift_mode))
-
-
-class AvgPool1D(Pool1D):
-
-    def __init__(self, **kwargs):
-        super(AvgPool1D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
-
-    def _get_mxts_increments_for_inputs(self):
-        return super(AvgPool1D, self)._get_input_grad_given_outgrad(
-                                       out_grad=self.get_mxts())
-            
+ 
 
 class AvgPool2D(Pool2D):
 
