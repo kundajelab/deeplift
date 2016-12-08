@@ -241,7 +241,7 @@ class Pool1D(SingleInputMixin, Node):
 
     def _build_activation_vars(self, input_act_vars):
         return B.pool2d(input_act_vars[:,:,None,:], 
-                      pool_size=self.pool_size,
+                      pool_size=(1,self.pool_length),
                       strides=(1,self.stride),
                       border_mode=self.border_mode,
                       ignore_border=self.ignore_border,
