@@ -29,6 +29,8 @@ class TestConvolutionalModel(unittest.TestCase):
         self.keras_model.add(conv_layer)
         self.keras_model.add(keras.layers.pooling.MaxPooling2D(
                              pool_size=(4,4), strides=(2,2))) 
+        self.keras_model.add(keras.layers.pooling.AveragePooling2D(
+                             pool_size=(4,4), strides=(2,2))) 
         self.keras_model.add(keras.layers.Flatten())
         self.keras_model.add(keras.layers.Dense(output_dim=1))
         self.keras_model.add(keras.layers.core.Activation("sigmoid"))
