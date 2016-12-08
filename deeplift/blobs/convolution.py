@@ -132,7 +132,7 @@ class Conv1D(SingleInputMixin, Node):
                 This is the behaviour that keras has, but not all deep
                 learning packages actually do this.
         """
-        super(Conv2D, self).__init__(**kwargs)
+        super(Conv1D, self).__init__(**kwargs)
         #W has dimensions:
         #num_output_channels x num_inp_channels x cols_kern_width
         self.W = W
@@ -165,23 +165,23 @@ class Conv1D(SingleInputMixin, Node):
 
     def _build_activation_vars(self, input_act_vars):
         conv_without_bias = self._compute_conv_without_bias(
-                                  input_act_vars[:,:,None,:])[:,:,0,:]
+                                  input_act_vars)[:,:,0,:]
         return conv_without_bias + self.b[None,:,None]
 
     def _compute_conv_without_bias(self, x):
-        conv_without_bias =  B.conv2d(inp=x,
-                                  filters=self.W,
+        conv_without_bias =  B.conv2d(inp=x[:,:,None,:],
+                                  filters=self.W[:,:,None,:],
                                   border_mode=self.border_mode,
-                                  subsample=self.strides)
+                                  subsample=(1,self.stride))
         return conv_without_bias
 
     def _get_mxts_increments_for_inputs(self): 
         return B.conv2d_grad(
                 out_grad=self.get_mxts()[:,:,None,:],
                 conv_in=self._get_input_activation_vars()[:,:,None,:],
-                filters=self.W,
+                filters=self.W[:,:,None,:],
                 border_mode=self.border_mode,
-                subsample=self.strides)[:,:,0,:]
+                subsample=(1,self.stride))[:,:,0,:]
 
 
 class ZeroPad2D(SingleInputMixin, Node):
