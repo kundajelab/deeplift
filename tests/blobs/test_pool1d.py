@@ -61,7 +61,8 @@ class TestPool(unittest.TestCase):
                           stride=1,
                           border_mode=PaddingMode.valid,
                           ignore_border=True,
-                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient,
+                          channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
 
@@ -81,7 +82,8 @@ class TestPool(unittest.TestCase):
         pool_layer = blobs.AvgPool1D(pool_length=2,
                                   stride=1,
                                   border_mode=PaddingMode.valid,
-                                  ignore_border=True)
+                                  ignore_border=True,
+                                  channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
 
@@ -102,7 +104,8 @@ class TestPool(unittest.TestCase):
                       stride=1,
                       border_mode=PaddingMode.valid,
                       ignore_border=True,
-                      maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                      maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient,
+                      channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
         self.dense_layer.update_task_index(task_index=0)
@@ -123,7 +126,8 @@ class TestPool(unittest.TestCase):
     def test_backprop_avgpool(self):
         pool_layer = blobs.AvgPool1D(pool_length=2, stride=1,
                                      border_mode=PaddingMode.valid,
-                                     ignore_border=True)
+                                     ignore_border=True,
+                                     channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
 
