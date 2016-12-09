@@ -10,7 +10,8 @@ class Conv1D(SingleInputMixin, Node):
             the weights are 'flipped'
     """
 
-    def __init__(self, W, b, stride, border_mode, **kwargs):
+    def __init__(self, W, b, stride, border_mode,
+                  channels_come_last, **kwargs):
         """
             The ordering of the dimensions is assumed to be:
                 channels, rows, columns (i.e. theano consistent)
@@ -26,17 +27,21 @@ class Conv1D(SingleInputMixin, Node):
         self.b = b
         self.stride = stride
         self.border_mode = border_mode
+        self.channels_come_last = channels_come_last
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Conv2D,self).\
+        kwargs_dict = super(Conv1D,self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['W'] = self.W
         kwargs_dict['b'] = self.b
         kwargs_dict['stride'] = self.stride
         kwargs_dict['border_mode'] = self.border_mode
+        kwargs_dict['channels_come_last'] = self.channels_come_last
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
+        if (self.channels_come_last):
+            input_shape = [input_shape[0], input_shape[2], input_shape[1]]
         #assuming a theano dimension ordering here...
         shape_to_return = [None, self.W.shape[0]]
         if (input_shape is None):
@@ -48,12 +53,20 @@ class Conv1D(SingleInputMixin, Node):
             #assuming that overhangs are excluded
             shape_to_return.append(
              1+int((input_shape[2]-self.W.shape[2])/self.stride)) 
+        if (self.channels_come_last):
+            shape_to_return = [shape_to_return[0], shape_to_return[2],
+                               shape_to_return[1]]
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
+        if (self.channels_come_last):
+            input_act_vars = B.dimshuffle(input_act_vars, (0,2,1))
         conv_without_bias = self._compute_conv_without_bias(
                                   input_act_vars)[:,:,0,:]
-        return conv_without_bias + self.b[None,:,None]
+        to_return = conv_without_bias + self.b[None,:,None]
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,1))
+        return to_return
 
     def _compute_conv_without_bias(self, x):
         conv_without_bias =  B.conv2d(inp=x[:,:,None,:],
@@ -63,12 +76,20 @@ class Conv1D(SingleInputMixin, Node):
         return conv_without_bias
 
     def _get_mxts_increments_for_inputs(self): 
-        return B.conv2d_grad(
-                out_grad=self.get_mxts()[:,:,None,:],
-                conv_in=self._get_input_activation_vars()[:,:,None,:],
+        mxts = self.get_mxts() 
+        input_act_vars = self._get_input_activation_vars()
+        if (self.channels_come_last):
+            mxts = B.dimshuffle(mxts, (0,2,1))
+            input_act_vars = B.dimshuffle(input_act_vars, (0,2,1))
+        to_return = B.conv2d_grad(
+                out_grad=mxts[:,:,None,:],
+                conv_in=input_act_vars[:,:,None,:],
                 filters=self.W[:,:,None,:],
                 border_mode=self.border_mode,
                 subsample=(1,self.stride))[:,:,0,:]
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,1))
+        return to_return
 
 
 class Conv2D(SingleInputMixin, Node):
@@ -77,7 +98,8 @@ class Conv2D(SingleInputMixin, Node):
             the weights are 'flipped'
     """
 
-    def __init__(self, W, b, strides, border_mode, **kwargs):
+    def __init__(self, W, b, strides,
+                       border_mode, channels_come_last, **kwargs):
         """
             The ordering of the dimensions is assumed to be:
                 channels, rows, columns (i.e. theano consistent)
@@ -90,18 +112,19 @@ class Conv2D(SingleInputMixin, Node):
         #W has dimensions:
         #num_output_channels x num_inp_channels
         #                    x rows_kern_width x cols_kern_width
-        #FIXME: Assumes theano dim order!
         self.W = W
         self.b = b
         self.strides = strides
         self.border_mode = border_mode
+        self.channels_come_last = channels_come_last
+        if (self.channels_come_last):
+            print("Warning: channels_come_last setting is untested for Conv2D")
 
     def set_filter_references(self, filter_reference_activations,
                                     filter_input_references): 
         #filter_references is vec of length num_output_channels;
         #indicates the reference activations 
         #filter_input_references should have same dimensions as W
-        #FIXME: Assumes theano dim order!
         self.learned_reference = (B.ones_like(self.get_activation_vars())
                               *filter_reference_activations[None,:,None,None])
         self.filter_input_references = filter_input_references 
@@ -118,9 +141,13 @@ class Conv2D(SingleInputMixin, Node):
         kwargs_dict['b'] = self.b
         kwargs_dict['strides'] = self.strides
         kwargs_dict['border_mode'] = self.border_mode
+        kwargs_dict['channels_come_last'] = self.channels_come_last
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
+        if (self.channels_come_last):
+            input_shape = [input_shape[0], input_shape[3],
+                           input_shape[1], input_shape[2]]
         #assuming a theano dimension ordering here...
         shape_to_return = [None, self.W.shape[0]]
         if (input_shape is None):
@@ -134,11 +161,19 @@ class Conv2D(SingleInputMixin, Node):
                 #assuming that overhangs are excluded
                 shape_to_return.append(
                  1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+        if (self.channels_come_last):
+            shape_to_return = [shape_to_return[0], shape_to_return[2],
+                               shape_to_return[3], shape_to_return[1]]
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
+        if (self.channels_come_last):
+            input_act_vars = B.dimshuffle(input_act_vars,(0,3,1,2))   
         conv_without_bias = self._compute_conv_without_bias(input_act_vars)
-        return conv_without_bias + self.b[None,:,None,None]
+        to_return = conv_without_bias + self.b[None,:,None,None]
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return,(0,2,3,1))   
+        return to_return
 
     def _compute_conv_without_bias(self, x):
         conv_without_bias =  B.conv2d(inp=x,
@@ -150,6 +185,11 @@ class Conv2D(SingleInputMixin, Node):
     def get_contribs_of_inputs_with_filter_refs(self):
 
         effective_mxts = self.get_mxts()
+        input_act_vars = self._get_input_activation_vars()
+        if (self.channels_come_last):
+            effective_mxts = B.dimshuffle(effective_mxts,(0,3,1,2))   
+            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
+
         #apply silencer if applicable
         if (hasattr(self, 'filter_diff_from_ref_silencer')):
             silencer_mask = (B.abs(self._get_diff_from_reference_vars())
@@ -159,66 +199,99 @@ class Conv2D(SingleInputMixin, Node):
         #efficiently compute the contributions of the layer below
         mult_times_input_on_layer_below = B.conv2d_grad(
                 out_grad=effective_mxts,
-                conv_in=self._get_input_activation_vars(),
+                conv_in=input_act_vars,
                 filters=self.W,
                 border_mode=self.border_mode,
                 subsample=self.strides)*self._get_input_activation_vars()
         mult_times_filter_ref_on_layer_below = B.conv2d_grad(
                 out_grad=effective_mxts,
-                conv_in=self._get_input_activation_vars(),
+                conv_in=input_act_vars,
                 #reverse the rows and cols of filter_input_references
                 #so that weights line up with the actual position they
                 #act on (remember, convolutions flip things)
                 filters=self.W*self.filter_input_references[:,:,::-1,::-1],
                 border_mode=self.border_mode,
                 subsample=self.strides)
-        return (mult_times_input_on_layer_below
-                - mult_times_filter_ref_on_layer_below)
+        to_return = (mult_times_input_on_layer_below
+                     - mult_times_filter_ref_on_layer_below)
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return,(0,2,3,1))   
+        return to_return
          
     def _get_mxts_increments_for_inputs(self): 
-        return B.conv2d_grad(
-                out_grad=self.get_mxts(),
-                conv_in=self._get_input_activation_vars(),
+        effective_mxts = self.get_mxts()
+        input_act_vars = self._get_input_activation_vars()
+        if (self.channels_come_last):
+            effective_mxts = B.dimshuffle(effective_mxts,(0,3,1,2))   
+            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
+        to_return = B.conv2d_grad(
+                out_grad=effective_mxts,
+                conv_in=input_act_vars,
                 filters=self.W,
                 border_mode=self.border_mode,
                 subsample=self.strides)
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return,(0,2,3,1))   
+        return to_return
 
 
 class ZeroPad2D(SingleInputMixin, Node):
 
-    def __init__(self, padding, **kwargs):
+    def __init__(self, padding, channels_come_last, **kwargs):
         super(ZeroPad2D, self).__init__(**kwargs) 
         self.padding = padding
-
+        self.channels_come_last = channels_come_last
+        if (self.channels_come_last):
+            print("Warning: channels_come_last setting "
+                  "is untested for ZeroPad2D")
+            
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(ZeroPad2D, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['padding'] = self.padding
+        kwargs_dict['channels_come_last'] = self.channels_come_last
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
+        if (self.channels_come_last):
+            input_shape = [input_shape[0], input_shape[3],
+                           input_shape[2], input_shape[1]]
         shape_to_return = [None, input_shape[0]] #channel axis the same
         for dim_inp_len, dim_pad in zip(input_shape[2:], self.padding):
             shape_to_return.append(dim_inp_len + 2*dim_pad) 
+        if (self.channels_come_last):
+            shape_to_return = [input_shape[0], input_shape[2],
+                               input_shape[3], input_shape[1]]
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
-        return B.zeropad2d(input_act_vars, padding=self.padding) 
+        if (self.channels_come_last):
+            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
+        to_return = B.zeropad2d(input_act_vars, padding=self.padding) 
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,3,1))
+        return to_return
 
     def _get_mxts_increments_for_inputs(self):
-        return B.discard_pad2d(self.get_mxts(), padding=self.padding)
+        if (self.channels_come_last):
+            mxts = B.dimshuffle(self.get_mxts(), (0,3,1,2))
+        to_return = B.discard_pad2d(mxts, padding=self.padding)
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,3,1)) 
+        return to_return
 
 
 class Pool1D(SingleInputMixin, Node):
 
     def __init__(self, pool_length, stride, border_mode,
-                 ignore_border, pool_mode, **kwargs):
+                 ignore_border, pool_mode, channels_come_last, **kwargs):
         super(Pool1D, self).__init__(**kwargs) 
         self.pool_length = pool_length 
         self.stride = stride
         self.border_mode = border_mode
         self.ignore_border = ignore_border
         self.pool_mode = pool_mode
+        self.channels_come_last = channels_come_last
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Pool1D, self).\
@@ -228,30 +301,44 @@ class Pool1D(SingleInputMixin, Node):
         kwargs_dict['border_mode'] = self.border_mode
         kwargs_dict['ignore_border'] = self.ignore_border
         kwargs_dict['pool_mode'] = self.pool_mode
+        kwargs_dict['channels_come_last'] = self.channels_come_last
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
+        if (self.channels_come_last):
+            input_shape = [input_shape[0], input_shape[2], input_shape[1]]
         shape_to_return = [None, input_shape[1]] #num channels unchanged 
         if (self.border_mode != B.BorderMode.valid):
             raise RuntimeError("Please implement shape inference for"
                                " border mode: "+str(self.border_mode))
         shape_to_return.append(
             1+int((input_shape[1]-self.pool_length)/self.stride)) 
+        if (self.channels_come_last):
+            shape_to_return = [shape_to_return[0], shape_to_return[2],
+                               shape_to_return[1]]
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
-        return B.pool2d(input_act_vars[:,:,None,:], 
+        if (self.channels_come_last):
+            input_act_vars = B.dimshuffle(input_act_vars, (0,2,1))
+        to_return = B.pool2d(input_act_vars[:,:,None,:], 
                       pool_size=(1,self.pool_length),
                       strides=(1,self.stride),
                       border_mode=self.border_mode,
                       ignore_border=self.ignore_border,
                       pool_mode=self.pool_mode)[:,:,0,:]
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,1)) 
+        return to_return
 
     def _get_mxts_increments_for_inputs(self):
         raise NotImplementedError()
 
     def _get_input_grad_given_outgrad(self, out_grad):
         input_act_vars = self._get_input_activation_vars() 
+        if (self.channels_come_last):
+            input_act_vars = B.dimshuffle(input_act_vars, (0,2,1))
+            out_grad = B.dimshuffle(out_grad, (0,2,1))
         to_return = B.pool2d_grad(
                         out_grad=out_grad[:,:,None,:],
                         pool_in=input_act_vars[:,:,None,:],
@@ -260,6 +347,8 @@ class Pool1D(SingleInputMixin, Node):
                         border_mode=self.border_mode,
                         ignore_border=self.ignore_border,
                         pool_mode=self.pool_mode)[:,:,0,:]
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,1))
         return to_return
 
 
@@ -297,13 +386,14 @@ class AvgPool1D(Pool1D):
 class Pool2D(SingleInputMixin, Node):
 
     def __init__(self, pool_size, strides, border_mode,
-                 ignore_border, pool_mode, **kwargs):
+                 ignore_border, pool_mode, channels_come_last, **kwargs):
         super(Pool2D, self).__init__(**kwargs) 
         self.pool_size = pool_size 
         self.strides = strides
         self.border_mode = border_mode
         self.ignore_border = ignore_border
         self.pool_mode = pool_mode
+        self.channels_come_last = channels_come_last
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Pool2D, self).\
@@ -313,9 +403,13 @@ class Pool2D(SingleInputMixin, Node):
         kwargs_dict['border_mode'] = self.border_mode
         kwargs_dict['ignore_border'] = self.ignore_border
         kwargs_dict['pool_mode'] = self.pool_mode
+        kwargs_dict['channels_come_last'] = self.channels_come_last
         return kwargs_dict
 
     def _compute_shape(self, input_shape):
+        if (self.channels_come_last):
+            input_shape = [input_shape[0], input_shape[3],
+                           input_shape[1], input_shape[2]]
         shape_to_return = [None, input_shape[1]] #num channels unchanged 
         if (self.border_mode != B.BorderMode.valid):
             raise RuntimeError("Please implement shape inference for"
@@ -325,21 +419,32 @@ class Pool2D(SingleInputMixin, Node):
             #assuming that overhangs are excluded
             shape_to_return.append(
              1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+        if (self.channels_come_last):
+            shape_to_return = [shape_to_return[0], shape_to_return[2],
+                               shape_to_return[3], shape_to_return[1]] 
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
-        return B.pool2d(input_act_vars, 
+        if (self.channels_come_last):
+            input_act_vars = B.dimshuffle(input_act_vars,(0,3,1,2))   
+        to_return = B.pool2d(input_act_vars, 
                       pool_size=self.pool_size,
                       strides=self.strides,
                       border_mode=self.border_mode,
                       ignore_border=self.ignore_border,
                       pool_mode=self.pool_mode)
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,3,1))   
+        return to_return
 
     def _get_mxts_increments_for_inputs(self):
         raise NotImplementedError()
 
     def _get_input_grad_given_outgrad(self, out_grad):
         input_act_vars = self._get_input_activation_vars() 
+        if (self.channels_come_last):
+            out_grad = B.dimshuffle(out_grad, (0,3,1,2))
+            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
         to_return = B.pool2d_grad(
                         out_grad=out_grad,
                         pool_in=input_act_vars,
@@ -348,6 +453,8 @@ class Pool2D(SingleInputMixin, Node):
                         border_mode=self.border_mode,
                         ignore_border=self.ignore_border,
                         pool_mode=self.pool_mode)
+        if (self.channels_come_last):
+            to_return = B.dimshuffle(to_return, (0,2,3,1))
         return to_return
 
 
