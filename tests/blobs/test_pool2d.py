@@ -76,7 +76,8 @@ class TestPool(unittest.TestCase):
                           strides=(1,1),
                           border_mode=B.BorderMode.valid,
                           ignore_border=True,
-                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient,
+                          channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -103,7 +104,8 @@ class TestPool(unittest.TestCase):
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                                   strides=(1,1),
                                   border_mode=B.BorderMode.valid,
-                                  ignore_border=True)
+                                  ignore_border=True,
+                                  channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -130,7 +132,8 @@ class TestPool(unittest.TestCase):
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
                   ignore_border=True,
-                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient,
+                  channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -165,7 +168,8 @@ class TestPool(unittest.TestCase):
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
                   ignore_border=True,
-                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.scaled_gradient)
+                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.scaled_gradient,
+                  channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -200,7 +204,8 @@ class TestPool(unittest.TestCase):
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                   strides=(1,1),
                   border_mode=B.BorderMode.valid,
-                  ignore_border=True)
+                  ignore_border=True,
+                  channels_come_last=False)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 

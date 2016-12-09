@@ -57,7 +57,8 @@ class TestConv(unittest.TestCase):
     def test_fprop(self): 
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=1,
-                                  border_mode=PaddingMode.valid)
+                                  border_mode=PaddingMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=3)
         func = compile_func([self.input_layer.get_activation_vars()],
@@ -72,7 +73,8 @@ class TestConv(unittest.TestCase):
     def test_dense_backprop(self):
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=1,
-                                  border_mode=PaddingMode.valid)
+                                  border_mode=PaddingMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=3)
         self.dense_layer.update_task_index(task_index=0)
@@ -91,7 +93,8 @@ class TestConv(unittest.TestCase):
 
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=2,
-                                  border_mode=PaddingMode.valid)
+                                  border_mode=PaddingMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=3)
         func = compile_func([self.input_layer.get_activation_vars()],
@@ -106,7 +109,8 @@ class TestConv(unittest.TestCase):
     def test_dense_backprop_stride(self):
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=2,
-                                  border_mode=PaddingMode.valid)
+                                  border_mode=PaddingMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=2)
         self.dense_layer.update_task_index(task_index=0)

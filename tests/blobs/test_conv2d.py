@@ -52,7 +52,8 @@ class TestConv(unittest.TestCase):
 
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(1,1),
-                                  border_mode=B.BorderMode.valid)
+                                  border_mode=B.BorderMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -76,7 +77,8 @@ class TestConv(unittest.TestCase):
     def test_dense_backprop(self):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(1,1),
-                                  border_mode=B.BorderMode.valid)
+                                  border_mode=B.BorderMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -111,7 +113,8 @@ class TestConv(unittest.TestCase):
 
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
-                                  border_mode=B.BorderMode.valid)
+                                  border_mode=B.BorderMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -136,7 +139,8 @@ class TestConv(unittest.TestCase):
     def test_dense_backprop_stride(self):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
-                                  border_mode=B.BorderMode.valid)
+                                  border_mode=B.BorderMode.valid,
+                                  channels_come_last=False)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=4)
 

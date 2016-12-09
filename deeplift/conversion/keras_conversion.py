@@ -14,9 +14,12 @@ import numpy as np
 
 
 KerasKeys = deeplift.util.enum(name='name', activation='activation',
-                      subsample='subsample', border_mode='border_mode',
-                      output_dim='output_dim', pool_size='pool_size',
-                      strides='strides', padding='padding')
+                  subsample='subsample', subsample_length='subsample_length',
+                  border_mode='border_mode', output_dim='output_dim',
+                  pool_length='pool_length', stride='stride',
+                  pool_size='pool_size', strides='strides',
+                  padding='padding',
+                  dim_ordering='dim_ordering')
 
 
 ActivationTypes = deeplift.util.enum(relu='relu',
@@ -26,6 +29,7 @@ ActivationTypes = deeplift.util.enum(relu='relu',
                                      linear='linear')
 
 default_maxpool_deeplift_mode = MaxPoolDeepLiftMode.gradient
+
 
 def gru_conversion(layer, name, verbose, **kwargs):
     return [blobs.GRU(
@@ -61,30 +65,79 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
     )] 
 
 
+def conv1d_conversion(layer, name, verbose,
+                      nonlinear_mxts_mode, **kwargs):
+    #nonlinear_mxts_mode only used for activation
+    converted_activation = activation_conversion(
+                            layer, name, verbose,
+                            nonlinear_mxts_mode=nonlinear_mxts_mode)
+    W = layer.get_weights()[0]
+    if (W.shape[-1] != 1): #is NHWC and not NCHW - need to transpose
+        W = W.transpose(3,2,0,1)
+    to_return = [blobs.Conv1D(
+            name=("preact_" if len(converted_activation) > 0
+                        else "")+name,
+            W=np.squeeze(W,3),
+            b=layer.get_weights()[1],
+            stride=layer.get_config()[KerasKeys.subsample_length],
+            border_mode=layer.get_config()[KerasKeys.border_mode],
+            #for conv1d implementations, channels always seem to come last
+            channels_come_last=True)] 
+    to_return.extend(converted_activation)
+    return to_return
+
+
 def conv2d_conversion(layer, name, verbose,
                       nonlinear_mxts_mode, **kwargs):
     #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
                             layer, name, verbose,
                             nonlinear_mxts_mode=nonlinear_mxts_mode)
+    W = layer.get_weights()[0]
+    channels_come_last=False
+    if KerasKeys.dim_ordering in layer.get_config():
+        dim_ordering = layer.get_config()[KerasKeys.dim_ordering] 
+        if (dim_ordering=='tf'):
+            W = W.transpose(3,2,0,1)
+            channels_come_last=True
     to_return = [blobs.Conv2D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
-            W=layer.get_weights()[0],
+            W=W,
             b=layer.get_weights()[1],
             strides=layer.get_config()[KerasKeys.subsample],
-            border_mode=layer.get_config()[KerasKeys.border_mode])] 
+            border_mode=layer.get_config()[KerasKeys.border_mode],
+            channels_come_last=channels_come_last)] 
     to_return.extend(converted_activation)
     return to_return
 
 
 def prep_pool2d_kwargs(layer, name, verbose):
+
+    channels_come_last = False
+    if (KerasKeys.dim_ordering in layer.get_config()):
+        dim_ordering = layer.get_config()[KerasKeys.dim_ordering] 
+        if (dim_ordering in 'tf'):
+            channels_come_last = True 
+    if KerasKeys.strides in layer.get_config():
+        strides=layer.get_config()[KerasKeys.strides]
+    elif KerasKeys.stride in layer.get_config():
+        strides=layer.get_config()[KerasKeys.stride]
+    else:
+        raise RuntimeError("Unsure how to get strides argument")
+
+    if (KerasKeys.border_mode in layer.get_config()):
+        border_mode = layer.get_config()[KerasKeys.border_mode]
+    else:
+        border_mode = 'valid'
+
     return {'name': name,
             'verbose': verbose,
             'pool_size': layer.get_config()[KerasKeys.pool_size],
-            'strides': layer.get_config()[KerasKeys.strides],
-            'border_mode': layer.get_config()[KerasKeys.border_mode],
-            'ignore_border': True} #Keras implementations always seem to ignore
+            'strides': strides,
+            'border_mode': border_mode,
+            'ignore_border': True,
+            'channels_come_last': channels_come_last}
 
 
 def maxpool2d_conversion(layer, name, verbose,
@@ -100,22 +153,45 @@ def avgpool2d_conversion(layer, name, verbose, **kwargs):
     return [blobs.AvgPool2D(**pool2d_kwargs)]
 
 
-def pool2d_conversion(layer, name, verbose, pool_mode, **kwargs):
-    return [blobs.Pool2D(
-             name=name,
-             verbose=verbose,
-             pool_size=layer.get_config()[KerasKeys.pool_size],
-             strides=layer.get_config()[KerasKeys.strides],
-             border_mode=layer.get_config()[KerasKeys.border_mode],
-             ignore_border=True, #Keras implementations always seem to ignore
-             pool_mode=pool_mode)]
+def prep_pool1d_kwargs(layer, name, verbose):
+    if (KerasKeys.border_mode in layer.get_config()):
+        border_mode = layer.get_config()[KerasKeys.border_mode]
+    else:
+        border_mode = 'valid'
+    return {'name': name,
+            'verbose': verbose,
+            'pool_length': layer.get_config()[KerasKeys.pool_length],
+            'stride': layer.get_config()[KerasKeys.stride],
+            'border_mode': border_mode,
+            'ignore_border': True,
+            'channels_come_last': True #always applies to the 1D ops
+           }
+
+
+def maxpool1d_conversion(layer, name, verbose,
+                         maxpool_deeplift_mode, **kwargs):
+    pool1d_kwargs = prep_pool1d_kwargs(layer=layer, name=name, verbose=verbose)
+    return [blobs.MaxPool1D(
+             maxpool_deeplift_mode=maxpool_deeplift_mode,
+             **pool1d_kwargs)]
+
+
+def avgpool1d_conversion(layer, name, verbose, **kwargs):
+    pool1d_kwargs = prep_pool1d_kwargs(layer=layer, name=name, verbose=verbose)
+    return [blobs.AvgPool1D(**pool1d_kwargs)]
 
 
 def zeropad2d_conversion(layer, name, verbose, **kwargs):
+    channels_come_last = False
+    if (KerasKeys.dim_ordering in layer.get_config()):
+        dim_ordering = layer.get_config()[KerasKeys.dim_ordering] 
+        if (dim_ordering in 'tf'):
+            channels_come_last = True 
     return [blobs.ZeroPad2D(
              name=name,
              verbose=verbose,
-             padding=layer.get_config()[KerasKeys.padding])]
+             padding=layer.get_config()[KerasKeys.padding],
+             channels_come_last=channels_come_last)]
 
 
 def dropout_conversion(name, **kwargs):
@@ -208,6 +284,9 @@ activation_to_conversion_function = {
 
 
 layer_name_to_conversion_function = {
+    'Convolution1D': conv1d_conversion,
+    'MaxPooling1D': maxpool1d_conversion,
+    'AveragePooling1D': avgpool1d_conversion,
     'Convolution2D': conv2d_conversion,
     'MaxPooling2D': maxpool2d_conversion,
     'AveragePooling2D': avgpool2d_conversion,
