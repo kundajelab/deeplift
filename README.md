@@ -22,7 +22,11 @@ git clone https://github.com/kundajelab/deeplift.git #will clone the deeplift re
 pip install --editable deeplift/ #install deeplift from the cloned repository. The "editable" flag means changes to the code will be picked up automatically.
 ```
 
-DeepLIFT depends on theano (>= 0.8) and numpy (>= 1.9). It can also autoconvert keras models trained with keras 0.3. Support for keras 1.0 is in the works (on [this branch](https://github.com/kundajelab/deeplift/tree/keras_1_compatibility) started by @jisungk).
+While DeepLIFT does not require your models to be trained with any particular library, we have provided autoconversion functions to convert models trained using Keras into the DeepLIFT format. If you used a different library to train your models, you can still use DeepLIFT if you recreate the model using DeepLIFT layers.
+
+The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 0.12.0rc and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run `nosetests tests/*` to make sure all the unit tests pass on your machine.
+
+The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion was tested using keras 0.3. Support for keras 1.0 is in the works (on [this branch](https://github.com/kundajelab/deeplift/tree/keras_1_compatibility) started by @jisungk).
 
 The recommended way to obtain theano and numpy is through [anaconda](https://www.continuum.io/downloads).
 
@@ -68,7 +72,7 @@ scores = np.array(deeplift_contribs_func(task_idx=0,
                                          progress_update=1000))
 ```
 
-This will work for sequential models trained with keras 0.3 involving dense and/or conv2d layers and linear/relu/sigmoid/softmax or prelu activations. Please create a github issue or email the address at the top of the readme if you are interested in support for other layer types.
+This will work for sequential models involving dense and/or conv2d layers and linear/relu/sigmoid/softmax or prelu activations. Please create a github issue or email the address at the top of the readme if you are interested in support for other layer types.
 
 The syntax for autoconverting graph models is similar:
 
@@ -88,6 +92,8 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
     pre_activation_target_layer_name="name_goes_here")
 
 ```
+
+Support for the Keras functional API is in the works.
 
 ##Under the hood
 This section explains finer aspects of the deeplift implementation
@@ -159,9 +165,9 @@ Please email avanti [at] stanford [dot] edu with questions, ideas, feature reque
 
 ##Coming soon
 The following is a list of some features in the works:
-- Keras 1.0 compatibility
-- Tensorflow support
+- Keras functional API
 - RNNs
+- Improvements to DeepLIFT to address certain edge-case behaviour
 - Learning references from the data
 
 If you would like early access to any of those features, please contact us.
