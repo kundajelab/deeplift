@@ -29,9 +29,13 @@ class TestConvolutionalModel(unittest.TestCase):
         try:
             self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
                              pool_size=(4,4), strides=(2,2))) 
+            self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
+                             pool_size=(4,4), strides=(2,2)))
         except:
             self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
                              pool_size=(4,4), stride=(2,2)))  
+            self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
+                             pool_size=(4,4), stride=(2,2)))
         self.keras_model.add(keras.layers.core.Flatten())
         self.keras_model.add(keras.layers.core.Dense(output_dim=1))
         self.keras_model.add(keras.layers.core.Activation("sigmoid"))
