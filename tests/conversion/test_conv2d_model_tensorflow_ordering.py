@@ -24,10 +24,13 @@ class TestConvolutionalModel(unittest.TestCase):
         self.keras_model = keras.models.Sequential()
         conv_layer = keras.layers.convolutional.Convolution2D(
                         nb_filter=2, nb_row=4, nb_col=4, subsample=(2,2),
-                        activation="relu", input_shape=(10,51,51),
+                        activation="relu", input_shape=(51,51,10),
                         dim_ordering='tf')
         self.keras_model.add(conv_layer)
         self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
+                             pool_size=(4,4), strides=(2,2),
+                             dim_ordering='tf')) 
+        self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
                              pool_size=(4,4), strides=(2,2),
                              dim_ordering='tf')) 
         self.keras_model.add(keras.layers.core.Flatten())
