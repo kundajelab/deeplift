@@ -54,7 +54,7 @@ class TestConvolutionalModel(unittest.TestCase):
                     [deeplift_model.get_layers()[0].get_activation_vars()],
                     deeplift_model.get_layers()[-1].get_activation_vars())
         np.testing.assert_almost_equal(
-            deeplift_fprop_func(self.inp, False),
+            deeplift_fprop_func(self.inp),
             self.keras_output_fprop_func(self.inp),
             decimal=6)
          
