@@ -26,7 +26,8 @@ DenseMxtsMode = deeplift.util.enum(
                     Linear="Linear",
                     PosOnly="PosOnly",
                     RevealCancel="RevealCancel",
-                    Redist="Redist",
+                    #Redist is the newer name for Counterbalance
+                    Redist="Redist", Counterbalance="Counterbalance",
                     RevealCancelRedist="RevealCancelRedist")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
@@ -519,6 +520,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         if (self.dense_mxts_mode in
              [DenseMxtsMode.RevealCancel,
               DenseMxtsMode.Redist,
+              DenseMxtsMode.Counterbalance,
               DenseMxtsMode.RevealCancelRedist]):
             if (len(self.get_output_layers())!=1 or
                 (type(self.get_output_layers()[0]).__name__!="ReLU")):
@@ -535,6 +537,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         elif (self.dense_mxts_mode in 
               [DenseMxtsMode.RevealCancel,
                DenseMxtsMode.Redist,
+               DenseMxtsMode.Counterbalance,
                DenseMxtsMode.RevealCancelRedist]):
             #self.W has dims input x output; W.T is output x input
             #self._get_input_diff_from_reference_vars() has dims batch x input
@@ -547,7 +550,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 fwd_contribs*(tf.greater(fwd_contribs,0)), axis=2)
             total_neg_contribs = tf.abs(tf.reduce_sum(
                 fwd_contribs*(tf.less(fwd_contribs,0)), axis=2))
-            if (self.dense_mxts_mode==DenseMxtsMode.Redist):
+            if (self.dense_mxts_mode==DenseMxtsMode.Redist or
+                self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
                 #if output diff-from-def is positive but there are some neg
                 #contribs, temper positive by some portion of the neg
                 #to_distribute has dims batch x output
