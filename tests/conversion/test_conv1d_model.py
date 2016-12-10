@@ -32,25 +32,28 @@ class TestConv1DModel(unittest.TestCase):
         self.keras_model.add(conv_layer)
         self.keras_model.add(keras.layers.convolutional.MaxPooling1D(
                              pool_length=4, stride=2)) 
-        self.keras_model.add(keras.layers.convolutional.AveragePooling1D(
+        try:
+            self.keras_model.add(keras.layers.convolutional.AveragePooling1D(
                              pool_length=4, stride=2))
+        except:
+            pass #there was no average pooling in 0.2.0 it seems
         self.keras_model.add(keras.layers.core.Flatten())
         self.keras_model.add(keras.layers.core.Dense(output_dim=1))
-        #self.keras_model.add(keras.layers.core.Activation("sigmoid"))
+        self.keras_model.add(keras.layers.core.Activation("sigmoid"))
         self.keras_model.compile(loss="mse", optimizer="sgd")
         self.keras_output_fprop_func = compile_func(
                         [self.keras_model.layers[0].input],
                         self.keras_model.layers[-1].get_output(False))
 
         grad = theano.grad(theano.tensor.sum(
-                   self.keras_model.layers[-1].get_output(False)[:,0]),
+                   self.keras_model.layers[-2].get_output(False)[:,0]),
                    self.keras_model.layers[0].input)
         self.grad_func = theano.function(
                      [self.keras_model.layers[0].input],
                      grad, allow_input_downcast=True)
          
 
-    def test_convert_conv1d_model_fprop(self): 
+    def test_convert_conv1d_model_forward_prop(self): 
         deeplift_model = kc.convert_sequential_model(model=self.keras_model)
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
@@ -61,16 +64,16 @@ class TestConv1DModel(unittest.TestCase):
             decimal=6)
          
 
-    def test_convert_conv1d_model_backprop(self): 
+    def test_convert_conv1d_model_compute_scores(self): 
         deeplift_model = kc.convert_sequential_model(model=self.keras_model)
-        deeplift_multipliers_func = deeplift_model.\
-                                     get_target_multipliers_func(
+        deeplift_contribs_func = deeplift_model.\
+                                     get_target_contribs_func(
                                       find_scores_layer_idx=0,
-                                      target_layer_idx=-1)
+                                      target_layer_idx=-2)
         np.testing.assert_almost_equal(
-            deeplift_multipliers_func(task_idx=0,
+            deeplift_contribs_func(task_idx=0,
                                       input_data_list=[self.inp],
                                       batch_size=10,
                                       progress_update=None),
-            #when biases are 0, deeplift is the same as taking gradients 
-            self.grad_func(self.inp), decimal=6)
+            #when biases are 0 and ref is 0, deeplift is the same as grad*inp 
+            self.grad_func(self.inp)*self.inp, decimal=6)
