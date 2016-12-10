@@ -8,7 +8,7 @@ import os
 import numpy as np
 import deeplift.blobs as blobs
 from deeplift.blobs import DenseMxtsMode
-from deeplift import backend as B
+from deeplift.backend import function as compile_func
 import theano
 
 
@@ -37,11 +37,11 @@ class TestActivations(unittest.TestCase):
         out_layer.set_active()
         self.input_layer.update_mxts()
 
-        fprop_func = B.function([self.input_layer.get_activation_vars()],
+        fprop_func = compile_func([self.input_layer.get_activation_vars()],
                                 out_layer.get_activation_vars())
         fprop_results = [list(x) for x in fprop_func(self.inp)] 
 
-        bprop_func = B.function(
+        bprop_func = compile_func(
                           [self.input_layer.get_activation_vars(),
                            self.input_layer.get_reference_vars()],
                           self.input_layer.get_mxts())
@@ -88,3 +88,12 @@ class TestActivations(unittest.TestCase):
                                      np.array([np.zeros_like(self.w2),
                                                np.zeros_like(self.w2)]))
 
+    def test_running_of_different_activation_modes(self):
+        #just tests that things run, not a test for values 
+        for mode in [blobs.NonlinearMxtsMode.vals]:
+            out_layer = blobs.ReLU(
+             nonlinear_mxts_mode=blobs.NonlinearMxtsMode.DeepLIFT)
+            fprop_results, bprop_results_each_task =\
+                self.set_up_prediction_func_and_deeplift_func(out_layer) 
+            self.assertListEqual(fprop_results,
+                                 [[9.0,0.0], [19.0, 0.0]])
