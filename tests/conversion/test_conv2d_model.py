@@ -48,28 +48,27 @@ class TestConvolutionalModel(unittest.TestCase):
              K.learning_phase()], grad)
          
 
-    def test_convert_conv2d_model_fprop(self): 
+    def test_convert_conv1d_model_forward_prop(self): 
         deeplift_model = kc.convert_sequential_model(model=self.keras_model)
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
-                    deeplift_model.get_layers()[-1].get_activation_vars())
+                     deeplift_model.get_layers()[-1].get_activation_vars())
         np.testing.assert_almost_equal(
             deeplift_fprop_func(self.inp),
             self.keras_output_fprop_func(self.inp),
             decimal=6)
          
 
-    def test_convert_conv2d_model_backprop(self): 
-        deeplift_model = kc.convert_sequential_model(
-                          model=self.keras_model)
-        deeplift_multipliers_func = deeplift_model.\
-                                     get_target_multipliers_func(
+    def test_convert_conv1d_model_compute_scores(self): 
+        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_contribs_func = deeplift_model.\
+                                     get_target_contribs_func(
                                       find_scores_layer_idx=0,
                                       target_layer_idx=-2)
         np.testing.assert_almost_equal(
-            deeplift_multipliers_func(task_idx=0,
+            deeplift_contribs_func(task_idx=0,
                                       input_data_list=[self.inp],
                                       batch_size=10,
                                       progress_update=None),
-            #when biases are 0, deeplift is the same as taking gradients 
-            self.grad_func(self.inp, False), decimal=6)
+            #when biases are 0 and ref is 0, deeplift is the same as grad*inp 
+            self.grad_func(self.inp, False)*self.inp, decimal=6)
