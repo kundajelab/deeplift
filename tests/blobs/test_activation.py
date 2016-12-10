@@ -16,7 +16,6 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 class TestActivations(unittest.TestCase):
 
     def setUp(self):
-        tf.logging.set_verbosity(tf.logging.ERROR)
         self.input_layer = blobs.Input(num_dims=None,
                                        shape=(None,4))
         self.w1 = [1.0, 2.0, 3.0, 4.0]
@@ -94,3 +93,12 @@ class TestActivations(unittest.TestCase):
                                      np.array([np.zeros_like(self.w2),
                                                np.zeros_like(self.w2)]))
 
+    def test_running_of_different_activation_modes(self):
+        #just tests that things run, not a test for values 
+        for mode in [blobs.NonlinearMxtsMode.vals]:
+            out_layer = blobs.ReLU(
+             nonlinear_mxts_mode=blobs.NonlinearMxtsMode.DeepLIFT)
+            fprop_results, bprop_results_each_task =\
+                self.set_up_prediction_func_and_deeplift_func(out_layer) 
+            self.assertListEqual(fprop_results,
+                                 [[9.0,0.0], [19.0, 0.0]])

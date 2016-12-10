@@ -531,7 +531,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
             return tf.matmul(
-                    self.get_mxts()*(tf.greater(self.get_mxts(),0.0)),
+                    self.get_mxts()*(
+                    tf.cast(tf.greater(self.get_mxts(),0.0),tf.float32)),
                     self.W.T)
 
         elif (self.dense_mxts_mode in 
@@ -547,9 +548,11 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
             #total_pos_contribs and total_neg_contribs have dim batch x output
             total_pos_contribs = tf.reduce_sum(
-                fwd_contribs*(tf.greater(fwd_contribs,0)), axis=2)
+                fwd_contribs*(tf.cast(tf.greater(fwd_contribs,0),
+                              tf.float32)), axis=2)
             total_neg_contribs = tf.abs(tf.reduce_sum(
-                fwd_contribs*(tf.less(fwd_contribs,0)), axis=2))
+                fwd_contribs*(tf.cast(tf.less(fwd_contribs,0),
+                              tf.float32)), axis=2))
             if (self.dense_mxts_mode==DenseMxtsMode.Redist or
                 self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
                 #if output diff-from-def is positive but there are some neg
@@ -602,9 +605,11 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                                 hp.pseudocount_near_zero(total_neg_contribs)
             #new_Wt has dims batch x output x input
             new_Wt = self.W.T[None,:,:]*\
-                      tf.greater(fwd_contribs,0)*positive_rescale[:,:,None] 
+                tf.cast(tf.greater(fwd_contribs,0), tf.float32)*\
+                positive_rescale[:,:,None] 
             new_Wt += self.W.T[None,:,:]*\
-                       tf.greater(fwd_contribs,0)*negative_rescale[:,:,None] 
+                tf.cast(tf.greater(fwd_contribs,0), tf.float32)*\
+                negative_rescale[:,:,None] 
             return tf.reduce_sum(
                     self.get_mxts()[:,:,None]*new_Wt[:,:,:], axis=1)
 
