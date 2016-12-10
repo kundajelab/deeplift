@@ -18,6 +18,10 @@ from keras import backend as K
 class TestBatchNorm(unittest.TestCase):
 
     def setUp(self):
+        if (hasattr(keras, '__version__')==False):
+            self.keras_version = 0.2 #didn't have the __version__ tag
+        else:
+            self.keras_version = float(keras.__version__[0:2])
          
         self.inp = np.arange(16).reshape(2,2,2,2)
         self.keras_model = keras.models.Sequential()
@@ -48,25 +52,47 @@ class TestBatchNorm(unittest.TestCase):
         dense_layer.set_weights([np.ones((1,8)).T, np.zeros(1)])
         self.keras_model.compile(loss="mse", optimizer="sgd")
 
-        keras_batchnorm_fprop_func = theano.function(
-                        [self.keras_model.layers[0].input],        
-                         self.keras_model.layers[0].get_output(train=False),    
-                         allow_input_downcast=True)
-        self.keras_batchnorm_fprop_func = theano.function(
-                            [self.keras_model.layers[0].input],
-                            self.keras_model.layers[0].get_output(train=False),
-                            allow_input_downcast=True) 
-        self.keras_output_fprop_func = theano.function(
+        if (self.keras_version <= 0.3): 
+            self.keras_batchnorm_fprop_func = theano.function(
+                        [self.keras_model.layers[0].input],
+                        self.keras_model.layers[0].get_output(train=False),
+                        allow_input_downcast=True) 
+            self.keras_output_fprop_func = theano.function(
                         [self.keras_model.layers[0].input],
                         self.keras_model.layers[-1].get_output(train=False),
                         allow_input_downcast=True)
-
-        grad = theano.grad(theano.tensor.sum(
+            grad = theano.grad(theano.tensor.sum(
                    self.keras_model.layers[-1].get_output(train=False)[:,0]),
                    self.keras_model.layers[0].input)
-        self.grad_func = theano.function(
-                         [self.keras_model.layers[0].input],
-                         grad, allow_input_downcast=True)
+            self.grad_func = theano.function(
+                             [self.keras_model.layers[0].input],
+                             grad, allow_input_downcast=True)
+        else:
+            keras_batchnorm_fprop_func = theano.function(
+                        [self.keras_model.layers[0].input,
+                         keras.backend.learning_phase()],
+                        self.keras_model.layers[0].output,
+                        allow_input_downcast=True,
+                        on_unused_input='ignore') 
+            self.keras_batchnorm_fprop_func = (
+                lambda x: keras_batchnorm_fprop_func(x, False))
+            keras_output_fprop_func = theano.function(
+                        [self.keras_model.layers[0].input,
+                         keras.backend.learning_phase()],
+                        self.keras_model.layers[-1].output,
+                        allow_input_downcast=True,
+                        on_unused_input='ignore')
+            self.keras_output_fprop_func = (
+                lambda x: keras_output_fprop_func(x, False))
+            grad = theano.grad(theano.tensor.sum(
+                   self.keras_model.layers[-1].output[:,0]),
+                   self.keras_model.layers[0].input)
+            grad_func = theano.function(
+                   [self.keras_model.layers[0].input,
+                    keras.backend.learning_phase()],
+                   grad, allow_input_downcast=True,
+                   on_unused_input='ignore')
+            self.grad_func = (lambda x: grad_func(x, False))
 
 
     def prepare_batch_norm_deeplift_model(self, axis):
