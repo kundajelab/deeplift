@@ -53,16 +53,26 @@ def gru_conversion(layer, name, verbose, **kwargs):
 
 
 def batchnorm_conversion(layer, name, verbose, **kwargs):
-   return [blobs.BatchNormalization(
-        name=name,
-        verbose=verbose,
-        gamma=np.array(layer.gamma.get_value()),
-        beta=np.array(layer.beta.get_value()),
-        axis=layer.axis,
-        mean=np.array(layer.running_mean.get_value()),
-        std=np.sqrt(np.array(layer.running_std.get_value())+layer.epsilon),
-        epsilon=0#layer.epsilon 
-    )] 
+    import keras
+    if (hasattr(keras,'__version__')):
+        keras_version = float(keras.__version__[0:2])
+    else:
+        keras_version = 0.2
+    if (keras_version <= 0.3):
+        std = np.array(layer.running_std.get_value())
+        epsilon = layer.epsilon
+    else:
+        std = np.sqrt(np.array(layer.running_std.get_value()+layer.epsilon))
+        epsilon = 0
+    return [blobs.BatchNormalization(
+            name=name,
+            verbose=verbose,
+            gamma=np.array(layer.gamma.get_value()),
+            beta=np.array(layer.beta.get_value()),
+            axis=layer.axis,
+            mean=np.array(layer.running_mean.get_value()),
+            std=std,
+            epsilon=epsilon)] 
 
 
 def conv1d_conversion(layer, name, verbose,
