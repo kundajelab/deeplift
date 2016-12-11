@@ -60,8 +60,8 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
         beta=np.array(layer.beta.get_value()),
         axis=layer.axis,
         mean=np.array(layer.running_mean.get_value()),
-        std=np.array(layer.running_std.get_value()),
-        epsilon=layer.epsilon 
+        std=np.sqrt(np.array(layer.running_std.get_value())+layer.epsilon),
+        epsilon=0#layer.epsilon 
     )] 
 
 
