@@ -97,13 +97,19 @@ class TestBatchNorm(unittest.TestCase):
 
     def prepare_batch_norm_deeplift_model(self, axis):
         self.input_layer = blobs.Input(num_dims=None, shape=(None,2,2,2))
+        if (self.keras_version <= 0.3):
+            std = self.std
+            epsilon = self.epsilon
+        else:
+            std = np.sqrt(self.std+self.epsilon)
+            epsilon = 0
         self.batch_norm_layer = blobs.BatchNormalization(
                                  gamma=self.gamma,
                                  beta=self.beta,
                                  axis=axis,
                                  mean=self.mean,
-                                 std=np.sqrt(self.std+self.epsilon),
-                                 epsilon=0)
+                                 std=std,
+                                 epsilon=epsilon)
         self.batch_norm_layer.set_inputs(self.input_layer)
         self.flatten_layer = blobs.Flatten()
         self.flatten_layer.set_inputs(self.batch_norm_layer)
@@ -152,7 +158,7 @@ class TestBatchNorm(unittest.TestCase):
         np.testing.assert_almost_equal(deeplift_fprop_func(self.inp),
                                    self.keras_batchnorm_fprop_func(self.inp),
                                    decimal=5)
-    @skip 
+
     def test_batch_norm_positive_axis_backprop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis)
         deeplift_multipliers_func = theano.function(
@@ -164,7 +170,6 @@ class TestBatchNorm(unittest.TestCase):
                 deeplift_multipliers_func(self.inp, np.zeros_like(self.inp)),
                 self.grad_func(self.inp), decimal=6)
          
-    @skip
     def test_batch_norm_negative_axis_fwd_prop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
         deeplift_fprop_func = theano.function(
@@ -173,8 +178,8 @@ class TestBatchNorm(unittest.TestCase):
                                   allow_input_downcast=True)
         np.testing.assert_almost_equal(deeplift_fprop_func(self.inp),
                                     self.keras_batchnorm_fprop_func(self.inp),
-                                    decimal=6)
-    @skip 
+                                    decimal=5)
+
     def test_batch_norm_negative_axis_backprop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
         deeplift_multipliers_func = theano.function(
