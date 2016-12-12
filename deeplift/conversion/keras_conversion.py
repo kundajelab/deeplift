@@ -55,7 +55,7 @@ def gru_conversion(layer, name, verbose, **kwargs):
 def batchnorm_conversion(layer, name, verbose, **kwargs):
     import keras
     if (hasattr(keras,'__version__')):
-        keras_version = float(keras.__version__[0:2])
+        keras_version = float(keras.__version__[0:3])
     else:
         keras_version = 0.2
     if (keras_version <= 0.3):
