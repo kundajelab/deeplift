@@ -12,7 +12,6 @@ from deeplift.blobs import DenseMxtsMode
 import theano
 import keras
 from keras import models
-from keras import backend as K
 
 
 class TestBatchNorm(unittest.TestCase):
@@ -20,8 +19,9 @@ class TestBatchNorm(unittest.TestCase):
     def setUp(self):
         if (hasattr(keras, '__version__')==False):
             self.keras_version = 0.2 #didn't have the __version__ tag
+            assert False, "keras batch norm was buggy in 0.2 so no test for it"
         else:
-            self.keras_version = float(keras.__version__[0:2])
+            self.keras_version = float(keras.__version__[0:3])
          
         self.inp = np.arange(16).reshape(2,2,2,2)
         self.keras_model = keras.models.Sequential()
@@ -30,6 +30,7 @@ class TestBatchNorm(unittest.TestCase):
         self.beta = np.array([4.0, 5.0])
         self.mean = np.array([3.0, 3.0])
         self.std = np.array([4.0, 9.0])
+        from keras import backend as K
         k_backend = K._BACKEND
         if (k_backend=="theano"):
             self.axis=1
@@ -39,7 +40,6 @@ class TestBatchNorm(unittest.TestCase):
             raise RuntimeError("Unsupported backend: "+str(k_backend))
         batch_norm_layer = keras.layers.normalization.BatchNormalization(
                            axis=self.axis, input_shape=(2,2,2))
-
         self.keras_model.add(batch_norm_layer)
         batch_norm_layer.set_weights(np.array([
                                       self.gamma, #gamma (scaling)

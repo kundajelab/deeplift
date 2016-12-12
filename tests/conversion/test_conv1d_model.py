@@ -22,7 +22,7 @@ class TestConv1DModel(unittest.TestCase):
         if (hasattr(keras, '__version__')==False):
             self.keras_version = 0.2 #didn't have the __version__ tag
         else:
-            self.keras_version = float(keras.__version__[0:2])
+            self.keras_version = float(keras.__version__[0:3])
         self.inp = (np.random.randn(10*10*51)
                     .reshape(10,10,51).transpose(0,2,1))
         self.keras_model = keras.models.Sequential()

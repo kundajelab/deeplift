@@ -22,7 +22,7 @@ class TestConvolutionalModel(unittest.TestCase):
         if (hasattr(keras, '__version__')==False):
             self.keras_version = 0.2 #didn't have the __version__ tag
         else:
-            self.keras_version = float(keras.__version__[0:2])
+            self.keras_version = float(keras.__version__[0:3])
 
         self.inp = (np.random.randn(10*10*51*51)
                     .reshape(10,10,51,51))
@@ -37,6 +37,7 @@ class TestConvolutionalModel(unittest.TestCase):
             self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
                              pool_size=(4,4), strides=(2,2)))
         else:
+            print(self.keras_version)
             self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
                              pool_size=(4,4), stride=(2,2)))  
             #There is no average pooling in version 0.2.0
