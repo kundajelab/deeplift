@@ -26,7 +26,7 @@ While DeepLIFT does not require your models to be trained with any particular li
 
 The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 0.12.0rc and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run `nosetests tests/*` to make sure all the unit tests pass on your machine.
 
-The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion was tested using keras 0.3. Support for keras 1.0 is in the works (on [this branch](https://github.com/kundajelab/deeplift/tree/keras_1_compatibility) started by @jisungk).
+The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion with sequential models was tested using keras 0.2, 0.3 and 1.1.2. Graph models were tested with keras 0.3. Autoconversion for the functional API is on the way.
 
 The recommended way to obtain theano and numpy is through [anaconda](https://www.continuum.io/downloads).
 
@@ -165,7 +165,7 @@ Please email avanti [at] stanford [dot] edu with questions, ideas, feature reque
 
 ##Coming soon
 The following is a list of some features in the works:
-- Keras functional API
+- Autoconversion for the Keras functional API
 - RNNs
 - Improvements to DeepLIFT to address certain edge-case behaviour
 - Learning references from the data
