@@ -10,6 +10,6 @@ if __name__== '__main__':
                     'deeplift.blobs', 'deeplift.visualization',
                     'deeplift.conversion'],
           setup_requires=[],
-          install_requires=['numpy>=1.9', 'theano>=0.8'],
+          install_requires=['numpy>=1.9', 'tensorflow>=0.12'],
           scripts=[],
           name='deeplift')
