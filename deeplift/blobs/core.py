@@ -536,7 +536,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 #dims batch x output x input
                 other_ptot = (total_pos_contribs[:,:,None]
                               - (fwd_contribs*(fwd_contribs>0))) 
-                other_ntot = (total_neg_contribs
+                other_ntot = (total_neg_contribs[:,:,None]
                               - (fwd_contribs*(fwd_contribs<0)))
 
                 #height of fwd_contribs over area of triangle of length & width
@@ -548,7 +548,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 val2 = (fwd_contribs < 0)*(
                  #volumn of a pyramid with length, width and height
                  #of min(other_ptot,-fwd_contribs)
-                 (-1/6)*B.pow(B.minimum(other_ptot,-fwd_contribs),3)
+                 -(1.0/6)*B.pow(B.minimum(other_ptot,B.abs(fwd_contribs)),3)
                  #if other_ptot+fwd_contribs > 0 (remember relevant
                  #fwd_contribs are neg) then:
                  #prism where base is parallelogram of length
@@ -564,7 +564,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                  #uniform height of fwd_contribs (max possible contrib), but
                  #deduct pyramid with height min_ntot_fwdcontrib 
                  (fwd_contribs*0.5*B.pow(min_ntot_fwdcontrib,2)
-                  - (1/6)*B.pow(min_ntot_fwdcontrib,3))
+                  - (1.0/6)*B.pow(B.abs(min_ntot_fwdcontrib),3))
                  #if other_ntot-fwd_contribs > 0 (remember relevant
                  #fwd_contribs are pos) then:
                  #prism is base of parallelogram with length
@@ -578,12 +578,13 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 new_fwd_contribs_temp = val1 + val2 + val3 
                 #difference: batch x output
                 difference = ((total_pos_contribs-total_neg_contribs)
-                              - B.sum(new_fwd_contribs_tmp,axis=-1))
+                              - B.sum(new_fwd_contribs_temp,axis=-1))
                 #distribute the difference in proportion to absolute contribs
-                total_absolute = B.sum(B.abs(new_fwd_contribs),axis=-1)
+                total_absolute = B.sum(B.abs(new_fwd_contribs_temp),axis=-1)
                 new_fwd_contribs = (new_fwd_contribs_temp
                  + (difference[:,:,None]
-                    *B.abs(new_fwd_contribs_temp)/total_absolute[:,:,None]))
+                    *B.abs(new_fwd_contribs_temp)/
+                      pseudocount_near_zero(total_absolute[:,:,None])))
                 #new_Wt has dims batch x output x input
                 new_Wt = (self.W.T[None,:,:]*new_fwd_contribs
                           /pseudocount_near_zero(fwd_contribs))
