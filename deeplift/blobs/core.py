@@ -27,7 +27,8 @@ DenseMxtsMode = deeplift.util.enum(
                     RevealCancel="RevealCancel",
                     #Redist is the newer name for Counterbalance
                     Redist="Redist", Counterbalance="Counterbalance",
-                    RevealCancelRedist="RevealCancelRedist")
+                    RevealCancelRedist="RevealCancelRedist",
+                    ContinuousShapely="ContinuousShapely")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -503,7 +504,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
              [DenseMxtsMode.RevealCancel,
               DenseMxtsMode.Redist,
               DenseMxtsMode.Counterbalance,
-              DenseMxtsMode.RevealCancelRedist]):
+              DenseMxtsMode.RevealCancelRedist,
+              DenseMxtsMode.ContinuousShapely]):
             if (len(self.get_output_layers())!=1 or
                 (type(self.get_output_layers()[0]).__name__!="ReLU")):
                 print("Dense layer does not have sole output of ReLU so"
@@ -518,7 +520,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
               [DenseMxtsMode.RevealCancel,
                DenseMxtsMode.Redist,
                DenseMxtsMode.Counterbalance,
-               DenseMxtsMode.RevealCancelRedist]):
+               DenseMxtsMode.RevealCancelRedist,
+               DenseMxtsMode.ContinuousShapely]):
             #self.W has dims input x output; W.T is output x input
             #self._get_input_diff_from_reference_vars() has dims batch x input
             #fwd_contribs has dims batch x output x input
@@ -529,59 +532,110 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
             total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
                                        axis=-1))
-            if (self.dense_mxts_mode==DenseMxtsMode.Redist or
-                self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
-                #if output diff-from-def is positive but there are some neg
-                #contribs, temper positive by some portion of the neg
-                #to_distribute has dims batch x output
-                #neg_to_distribute is what dips below 0, accounting for ref
-                to_distribute = B.minimum(
-                    B.maximum(total_neg_contribs -
-                              B.maximum(self.get_reference_vars(),0.0),0.0),
-                    total_pos_contribs)/2.0
+            if (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
+                #dims batch x output x input
+                other_ptot = (total_pos_contribs[:,:,None]
+                              - (fwd_contribs*(fwd_contribs>0))) 
+                other_ntot = (total_neg_contribs
+                              - (fwd_contribs*(fwd_contribs<0)))
 
-                #total_pos_contribs_new has dims batch x output
-                total_pos_contribs_new = total_pos_contribs - to_distribute
-                total_neg_contribs_new = total_neg_contribs - to_distribute
-            elif (self.dense_mxts_mode in
-                   [DenseMxtsMode.RevealCancel,
+                #height of fwd_contribs over area of triangle of length & width
+                #min(other_ptot, other_ptot+fwd_contribs)
+                val1 = (fwd_contribs*0.5*B.pow(B.minimum(other_ptot,
+                        other_ptot+fwd_contribs),2))
+
+                #val2 is only relevant for negative fwd_contribs
+                val2 = (fwd_contribs < 0)*(
+                 #volumn of a pyramid with length, width and height
+                 #of min(other_ptot,-fwd_contribs)
+                 (-1/6)*B.pow(B.minimum(other_ptot,-fwd_contribs),3)
+                 #if other_ptot+fwd_contribs > 0 (remember relevant
+                 #fwd_contribs are neg) then:
+                 #prism where base is parallelogram of length
+                 #other_ptot+fwd_contribs. Side face is triangle of
+                 #width & height fwd_contribs
+                 - (0.5*B.pow(fwd_contribs,2)
+                       *B.maximum(0, other_ptot+fwd_contribs))) 
+
+                #val3 is only relevant for the positive fwd_contribs
+                min_ntot_fwdcontrib = B.minimum(other_ntot, fwd_contribs) 
+                val3 = (fwd_contribs > 0)*(
+                 #base of length and width of min_ntot_fwdcontrib, plus
+                 #uniform height of fwd_contribs (max possible contrib), but
+                 #deduct pyramid with height min_ntot_fwdcontrib 
+                 (fwd_contribs*0.5*B.pow(min_ntot_fwdcontrib,2)
+                  - (1/6)*B.pow(min_ntot_fwdcontrib,3))
+                 #if other_ntot-fwd_contribs > 0 (remember relevant
+                 #fwd_contribs are pos) then:
+                 #prism is base of parallelogram with length
+                 #other_ntot-fwd_contribs. Max contrib is rectangle
+                 #with height fwd_contribs, but deduct triangle of
+                 #width & height fwd_contribs 
+                  + (0.5*B.pow(fwd_contribs,2)
+                        *B.maximum(0, other_ntot-fwd_contribs))
+                ) 
+                
+                
+            #positive and negative values grouped for rescale:
+            elif (self.dense_mxts_mode in [DenseMxtsMode.Redist,
+                    DenseMxtsMode.Counterbalance, DenseMxtsMode.RevealCancel,
                     DenseMxtsMode.RevealCancelRedist]):
-
-                ##sanity check to see if we can implement the existing deeplift
-                #total_contribs = total_pos_contribs - total_neg_contribs
-                #effective_contribs = B.maximum(self.get_reference_vars() + total_contribs,0) -\
-                #                     B.maximum(self.get_reference_vars(),0)
-                #rescale = effective_contribs/total_contribs
-                # 
-                #return B.sum(self.get_mxts()[:,:,None]*self.W.T[None,:,:]*rescale[:,:,None], axis=1)
-
-                total_pos_contribs_new =\
-                 B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
-                 -B.maximum(self.get_reference_vars(),0)
-                total_neg_contribs_new =\
-                 B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
-                 -B.maximum(self.get_reference_vars()
-                            +total_pos_contribs-total_neg_contribs,0)
-                if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
+                if (self.dense_mxts_mode==DenseMxtsMode.Redist or
+                    self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
+                    #if output diff-from-def is positive but there are some neg
+                    #contribs, temper positive by some portion of the neg
+                    #to_distribute has dims batch x output
+                    #neg_to_distribute is what dips below 0, accounting for ref
                     to_distribute = B.minimum(
-                        B.maximum(total_neg_contribs_new -
+                        B.maximum(total_neg_contribs -
                                   B.maximum(self.get_reference_vars(),0.0),0.0),
-                        total_pos_contribs_new)/2.0
-                    total_pos_contribs_new = total_pos_contribs_new - to_distribute
-                    total_neg_contribs_new = total_neg_contribs_new - to_distribute
+                        total_pos_contribs)/2.0
+
+                    #total_pos_contribs_new has dims batch x output
+                    total_pos_contribs_new = total_pos_contribs - to_distribute
+                    total_neg_contribs_new = total_neg_contribs - to_distribute
+                elif (self.dense_mxts_mode in
+                       [DenseMxtsMode.RevealCancel,
+                        DenseMxtsMode.RevealCancelRedist]):
+
+                    ##sanity check to see if we can implement the existing deeplift
+                    #total_contribs = total_pos_contribs - total_neg_contribs
+                    #effective_contribs = B.maximum(self.get_reference_vars() + total_contribs,0) -\
+                    #                     B.maximum(self.get_reference_vars(),0)
+                    #rescale = effective_contribs/total_contribs
+                    # 
+                    #return B.sum(self.get_mxts()[:,:,None]*self.W.T[None,:,:]*rescale[:,:,None], axis=1)
+
+                    total_pos_contribs_new =\
+                     B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
+                     -B.maximum(self.get_reference_vars(),0)
+                    total_neg_contribs_new =\
+                     B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
+                     -B.maximum(self.get_reference_vars()
+                                +total_pos_contribs-total_neg_contribs,0)
+                    if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
+                        to_distribute = B.minimum(
+                            B.maximum(total_neg_contribs_new -
+                                      B.maximum(self.get_reference_vars(),0.0),0.0),
+                            total_pos_contribs_new)/2.0
+                        total_pos_contribs_new = total_pos_contribs_new - to_distribute
+                        total_neg_contribs_new = total_neg_contribs_new - to_distribute
+                else:
+                    raise RuntimeError("Unsupported dense_mxts_mode: "
+                                       +str(self.dense_mxts_mode))
+                #positive_rescale has dims batch x output
+                positive_rescale = total_pos_contribs_new/\
+                                    pseudocount_near_zero(total_pos_contribs)
+                negative_rescale = total_neg_contribs_new/\
+                                    pseudocount_near_zero(total_neg_contribs)
+                #new_Wt has dims batch x output x input
+                new_Wt = self.W.T[None,:,:]*\
+                          (fwd_contribs>0)*positive_rescale[:,:,None] 
+                new_Wt += self.W.T[None,:,:]*\
+                           (fwd_contribs<0)*negative_rescale[:,:,None] 
             else:
                 raise RuntimeError("Unsupported dense_mxts_mode: "
                                    +str(self.dense_mxts_mode))
-            #positive_rescale has dims batch x output
-            positive_rescale = total_pos_contribs_new/\
-                                pseudocount_near_zero(total_pos_contribs)
-            negative_rescale = total_neg_contribs_new/\
-                                pseudocount_near_zero(total_neg_contribs)
-            #new_Wt has dims batch x output x input
-            new_Wt = self.W.T[None,:,:]*\
-                      (fwd_contribs>0)*positive_rescale[:,:,None] 
-            new_Wt += self.W.T[None,:,:]*\
-                       (fwd_contribs<0)*negative_rescale[:,:,None] 
             return B.sum(self.get_mxts()[:,:,None]*new_Wt[:,:,:], axis=1)
 
         elif (self.dense_mxts_mode == DenseMxtsMode.Linear):
