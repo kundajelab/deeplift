@@ -574,7 +574,19 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                   + (0.5*B.pow(fwd_contribs,2)
                         *B.maximum(0, other_ntot-fwd_contribs))
                 ) 
-                
+                #new_fwd_contribs_temp: batch x output x input
+                new_fwd_contribs_temp = val1 + val2 + val3 
+                #difference: batch x output
+                difference = ((total_pos_contribs-total_neg_contribs)
+                              - B.sum(new_fwd_contribs_tmp,axis=-1))
+                #distribute the difference in proportion to absolute contribs
+                total_absolute = B.sum(B.abs(new_fwd_contribs),axis=-1)
+                new_fwd_contribs = (new_fwd_contribs_temp
+                 + (difference[:,:,None]
+                    *B.abs(new_fwd_contribs_temp)/total_absolute[:,:,None]))
+                #new_Wt has dims batch x output x input
+                new_Wt = (self.W.T[None,:,:]*new_fwd_contribs
+                          /pseudocount_near_zero(fwd_contribs))
                 
             #positive and negative values grouped for rescale:
             elif (self.dense_mxts_mode in [DenseMxtsMode.Redist,
