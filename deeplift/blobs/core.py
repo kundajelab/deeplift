@@ -633,7 +633,7 @@ def cont_shapely_neg_vol(v, pmax, nmax):
     #now: volumes over area where partial contrib is felt due to hitting floor
     
     #vol2 is a pyramid
-    vol2 = -(1.0/6)*B.pow(B.minimum(nmax, pmax, B.abs(v)),3)
+    vol2 = -(1.0/6)*B.pow(B.minimum(B.minimum(nmax, pmax),B.abs(v)),3)
     #vol3 ends up equal to cheese slice + upward-sheared cheese slice on top
     min_pmax_mv = B.minimum(pmax, -v)
     vol3 = (nmax < min_pmax_mv)*((0.5*nmax*min_pmax_mv*(nmax - min_pmax_mv))) 
