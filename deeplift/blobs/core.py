@@ -534,59 +534,18 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                                        axis=-1))
             if (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
                 #dims batch x output x input
-                other_ptot = (total_pos_contribs[:,:,None]
-                              - (fwd_contribs*(fwd_contribs>0))) 
-                other_ntot = (total_neg_contribs[:,:,None]
-                              - (fwd_contribs*(fwd_contribs<0)))
-
-                #height of fwd_contribs over area of triangle of length & width
-                #min(other_ptot, other_ptot+fwd_contribs)
-                val1 = (fwd_contribs*0.5*B.pow(B.minimum(other_ptot,
-                        other_ptot+fwd_contribs),2))
-
-                #val2 is only relevant for negative fwd_contribs
-                val2 = (fwd_contribs < 0)*(
-                 #volumn of a pyramid with length, width and height
-                 #of min(other_ptot,-fwd_contribs)
-                 -(1.0/6)*B.pow(B.minimum(other_ptot,B.abs(fwd_contribs)),3)
-                 #if other_ptot+fwd_contribs > 0 (remember relevant
-                 #fwd_contribs are neg) then:
-                 #prism where base is parallelogram of length
-                 #other_ptot+fwd_contribs. Side face is triangle of
-                 #width & height fwd_contribs
-                 - (0.5*B.pow(fwd_contribs,2)
-                       *B.maximum(0, other_ptot+fwd_contribs))) 
-
-                #val3 is only relevant for the positive fwd_contribs
-                min_ntot_fwdcontrib = B.minimum(other_ntot, fwd_contribs) 
-                val3 = (fwd_contribs > 0)*(
-                 #base of length and width of min_ntot_fwdcontrib, plus
-                 #uniform height of fwd_contribs (max possible contrib), but
-                 #deduct pyramid with height min_ntot_fwdcontrib 
-                 (fwd_contribs*0.5*B.pow(min_ntot_fwdcontrib,2)
-                  - (1.0/6)*B.pow(B.abs(min_ntot_fwdcontrib),3))
-                 #if other_ntot-fwd_contribs > 0 (remember relevant
-                 #fwd_contribs are pos) then:
-                 #prism is base of parallelogram with length
-                 #other_ntot-fwd_contribs. Max contrib is rectangle
-                 #with height fwd_contribs, but deduct triangle of
-                 #width & height fwd_contribs 
-                  + (0.5*B.pow(fwd_contribs,2)
-                        *B.maximum(0, other_ntot-fwd_contribs))
-                ) 
-                #new_fwd_contribs_temp: batch x output x input
-                new_fwd_contribs_temp = val1 + val2 + val3 
-                #difference: batch x output
-                difference = ((total_pos_contribs-total_neg_contribs)
-                              - B.sum(new_fwd_contribs_temp,axis=-1))
-                #distribute the difference in proportion to absolute contribs
-                total_absolute = B.sum(B.abs(new_fwd_contribs_temp),axis=-1)
-                new_fwd_contribs = (new_fwd_contribs_temp
-                 + (difference[:,:,None]
-                    *B.abs(new_fwd_contribs_temp)/
-                      pseudocount_near_zero(total_absolute[:,:,None])))
-                #new_Wt has dims batch x output x input
-                new_Wt = (self.W.T[None,:,:]*new_fwd_contribs
+                v = fwd_contribs 
+                pmax = (total_pos_contribs[:,:,None] - (v*(v>0))) 
+                nmax = (total_neg_contribs[:,:,None] - (v*(v<0)))
+                #pseudocount pmax and nmax
+                pmax = pmax + 10**-5
+                nmax = nmax + 10**-5
+                
+                neg_cont = cont_shapely_neg_vol(v=v, pmax=pmax, nmax=nmax) 
+                pos_cont = v*(v>0)*pmax*nmax - (
+                            cont_shapely_neg_vol(v=-v, pmax=nmax, nmax=pmax))
+                shapely_uncorrected = (neg_cont + pos_cont)/(pmax*nmax)
+                new_Wt = (self.W.T[None,:,:]*shapely_uncorrected
                           /pseudocount_near_zero(fwd_contribs))
                 
             #positive and negative values grouped for rescale:
@@ -657,6 +616,45 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             raise RuntimeError("Unsupported mxts mode: "
                                +str(self.dense_mxts_mode))
 
+
+def cont_shapely_neg_vol(v, pmax, nmax):
+    v = v*(v<0)
+    #It helps to remember that v is negative when reading these formulas! 
+
+    #vol1: volume over area where the full negative contrib is felt
+    #seg1_1 is only relevant when pmax > -v
+    #it is a triangle with base/height (min(pmax, nmax-v) + v)^2. It
+    seg1_1 = (-v < pmax)*0.5*B.square((B.minimum(pmax, nmax-v)+v))
+    #seg1_2 is only relevant when pmax > (nmax - v)
+    #it is a rectangle with base (pmax - (nmax -v)) and height nmax 
+    seg1_2 = B.maximum(0, pmax - (nmax-v))*(nmax) 
+    vol1 = v*(seg1_1 + seg1_2) #full impact of v over area - remember v is neg
+
+    #now: volumes over area where partial contrib is felt due to hitting floor
+    
+    #vol2 is a pyramid
+    vol2 = -(1.0/6)*B.pow(B.minimum(nmax, pmax, B.abs(v)),3)
+    #vol3 ends up equal to cheese slice + upward-sheared cheese slice on top
+    min_pmax_mv = B.minimum(pmax, -v)
+    vol3 = (nmax < min_pmax_mv)*((0.5*nmax*min_pmax_mv*(nmax - min_pmax_mv))) 
+    #vol4 and vol5 are only applicable when (pmax > -v)
+    #vol4 is sheared cheese slice with face of base & height v, and
+    #perpendicular length of (min(pmax, nmax) + v) - it's the main diag. bit
+    vol4 = -(pmax > -v)*(nmax > -v)*(0.5*B.pow(v,2)*(B.minimum(pmax, nmax)+v))
+    #vol5 is a sheared cheese slice with a pyramid end chopped off
+    #make variables to store the limits of the integration w.r.t. p:
+    vol5_end = B.minimum(nmax-v, pmax)
+    vol5_start = B.maximum(-v, nmax)
+    vol5 = (pmax > -v)*(pmax > nmax)*(
+        +(0.5*B.pow(nmax,2)*(vol5_end - vol5_start))
+        -(0.5*nmax)*(B.pow(vol5_end,2) - B.pow(vol5_start,2))
+        #vol5_end and vol5_start is positive for all cells that count;
+        #the abs is just to compensate for a theano bug that produces nans
+        +(1.0/6)*(B.pow(B.abs(vol5_end),3) - B.pow(B.abs(vol5_start),3))
+        -(0.5*B.pow(v,2)*(vol5_end - vol5_start)) #cheese slice
+    ) 
+    return vol1+vol2+vol3+vol4+vol5 
+    
 
 class BatchNormalization(SingleInputMixin, Node):
 
