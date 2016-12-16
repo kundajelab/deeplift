@@ -537,7 +537,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 other_ptot = (total_pos_contribs[:,:,None]
                               - (fwd_contribs*(fwd_contribs>0))) 
                 other_ntot = (total_neg_contribs[:,:,None]
-                              - (fwd_contribs*(fwd_contribs<0)))
+                              - B.abs(fwd_contribs*(fwd_contribs<0)))
 
                 #height of fwd_contribs over area of triangle of length & width
                 #min(other_ptot, other_ptot+fwd_contribs)
@@ -575,7 +575,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                         *B.maximum(0, other_ntot-fwd_contribs))
                 ) 
                 #new_fwd_contribs_temp: batch x output x input
-                new_fwd_contribs_temp = val1 + val2 + val3 
+                new_fwd_contribs_temp = ((val1 + val2 + val3)
+                                         /(other_ptot*other_ntot))
                 #difference: batch x output
                 difference = ((total_pos_contribs-total_neg_contribs)
                               - B.sum(new_fwd_contribs_temp,axis=-1))
@@ -586,7 +587,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                     *B.abs(new_fwd_contribs_temp)/
                       pseudocount_near_zero(total_absolute[:,:,None])))
                 #new_Wt has dims batch x output x input
-                new_Wt = (self.W.T[None,:,:]*new_fwd_contribs
+                new_Wt = (self.W.T[None,:,:]*new_fwd_contribs_temp
                           /pseudocount_near_zero(fwd_contribs))
                 
             #positive and negative values grouped for rescale:
