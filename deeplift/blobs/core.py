@@ -28,6 +28,7 @@ DenseMxtsMode = deeplift.util.enum(
                     #Redist is the newer name for Counterbalance
                     Redist="Redist", Counterbalance="Counterbalance",
                     RevealCancelRedist="RevealCancelRedist",
+                    RevealCancelRedist2="RevealCancelRedist2",
                     ContinuousShapely="ContinuousShapely")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
@@ -505,6 +506,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
               DenseMxtsMode.Redist,
               DenseMxtsMode.Counterbalance,
               DenseMxtsMode.RevealCancelRedist,
+              DenseMxtsMode.RevealCancelRedist2,
               DenseMxtsMode.ContinuousShapely]):
             if (len(self.get_output_layers())!=1 or
                 (type(self.get_output_layers()[0]).__name__!="ReLU")):
@@ -521,56 +523,101 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                DenseMxtsMode.Redist,
                DenseMxtsMode.Counterbalance,
                DenseMxtsMode.RevealCancelRedist,
+               DenseMxtsMode.RevealCancelRedist2,
                DenseMxtsMode.ContinuousShapely]):
             #self.W has dims input x output; W.T is output x input
             #self._get_input_diff_from_reference_vars() has dims batch x input
             #fwd_contribs has dims batch x output x input
             fwd_contribs = self._get_input_diff_from_reference_vars()[:,None,:]\
                            *self.W.T[None,:,:]
-            reference = self._get_input_reference_vars()[:,:,None]
+            #reference has dims batch x output
+            reference = self.get_reference_vars()
             #total_pos_contribs and total_neg_contribs have dim batch x output
             total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
             total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
                                        axis=-1))
-            if (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
+
+            #compute the positive and negative impact under revealcancel redist
+            #will rescale pos and neg contribs to add up to this I guess
+            rrd_pos_impact = 0.5*(
+             (B.maximum(0,reference+total_pos_contribs) -
+              B.maximum(0,reference)) +
+             (B.maximum(0,reference-total_neg_contribs+total_pos_contribs)-
+               B.maximum(0,reference-total_neg_contribs)))
+            rrd_neg_impact = 0.5*(
+             (B.maximum(0,reference-total_neg_contribs) -
+              B.maximum(0,reference)) +
+             (B.maximum(0,reference+total_pos_contribs-total_neg_contribs)-
+              B.maximum(0,reference+total_pos_contribs)))
+
+
+            if (self.dense_mxts_mode in [
+                DenseMxtsMode.RevealCancelRedist2,
+                DenseMxtsMode.ContinuousShapely]):
+
                 #dims batch x output x input
                 v = fwd_contribs 
                 pmax = (total_pos_contribs[:,:,None] - (v*(v>0))) 
                 nmax = (total_neg_contribs[:,:,None] - (v*(v<0)))
-                #pseudocount pmax and nmax
-                pmax = pmax + 10**-5
-                nmax = nmax + 10**-5
-                
-                neg_cont = (
-                 cont_shapely_neg_vol(v=v, pmax=pmax+B.maximum(0,reference),
-                              nmax=nmax)
-                 -B.switch(
-                   B.abs(reference)<NEAR_ZERO_THRESHOLD,0,
+
+                if (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
+                    #pseudocount pmax and nmax
+                    pmax = pmax + 10**-5
+                    nmax = nmax + 10**-5
+                    
+                    neg_cont = B.minimum(0,(
                      cont_shapely_neg_vol(v=v,
-                      pmax=B.switch(reference>=0, reference, pmax),
-                      nmax=B.switch(reference<=0, -reference, nmax)))) 
-                pos_cont = v*(v>0)*pmax*nmax + (
-                 cont_shapely_neg_vol(v=-v, pmax=nmax-B.minimum(0,reference),
-                                            nmax=pmax)
-                 -B.switch(B.abs(reference)<NEAR_ZERO_THRESHOLD,0,
-                    cont_shapely_neg_vol(
-                        v=-v, pmax=B.switch(reference<=0, -reference, nmax),
-                        nmax=B.switch(reference>=0, reference, pmax)
-                    ) 
-                  )
-                )
-                shapely_uncorrected = (neg_cont + pos_cont)/(pmax*nmax)
-                #difference: batch x output
-                #difference = ((total_pos_contribs-total_neg_contribs)
-                #              - B.sum(shapely_uncorrected,axis=-1))
-                #distribute the difference in proportion to absolute contribs
-                #total_absolute = B.sum(B.abs(shapely_uncorrected),axis=-1)
-                #shapely_corrected = (shapely_uncorrected
-                #                 + (difference[:,:,None]
-                #                    *B.abs(shapely_uncorrected)/
-                #              pseudocount_near_zero(total_absolute[:,:,None])))
-                new_Wt = (self.W.T[None,:,:]*shapely_uncorrected
-                          /pseudocount_near_zero(fwd_contribs))
+                                  pmax=pmax+B.maximum(0,reference[:,:,None]),
+                                  nmax=nmax)
+                     -B.switch(
+                       B.abs(reference[:,:,None])<NEAR_ZERO_THRESHOLD,0,
+                         cont_shapely_neg_vol(v=v,
+                          pmax=B.switch(reference[:,:,None]>=0,
+                                        reference[:,:,None], pmax),
+                          nmax=B.switch(reference[:,:,None]<=0,
+                                        -reference[:,:,None], nmax))))) 
+                    pos_cont = B.maximum(0,v*(v>0)*pmax*nmax + (
+                     cont_shapely_neg_vol(v=-v,
+                                        pmax=nmax-B.minimum(0,reference[:,:,None]),
+                                        nmax=pmax)
+                     -B.switch(B.abs(reference[:,:,None])<NEAR_ZERO_THRESHOLD,0,
+                        cont_shapely_neg_vol(
+                            v=-v, pmax=B.switch(reference[:,:,None]<=0,
+                                                -reference[:,:,None], nmax),
+                            nmax=B.switch(reference[:,:,None]>=0,
+                                          reference[:,:,None], pmax)
+                        ) 
+                      )
+                    ))
+                    shapely_uncorrected = (neg_cont + pos_cont)/(pmax*nmax)
+                    #distribute the difference in proportion to absolute contribs
+                    #total_absolute = B.sum(B.abs(shapely_uncorrected),axis=-1)
+                    #shapely_corrected = (shapely_uncorrected
+                    #                 + (difference[:,:,None]
+                    #                    *B.abs(shapely_uncorrected)/
+                    #              pseudocount_near_zero(total_absolute[:,:,None])))
+                    total_neg_uncorrected = B.sum(shapely_uncorrected*(v<0),
+                                                  axis=-1)
+                    total_pos_uncorrected = B.sum(shapely_uncorrected*(v>0),
+                                                  axis=-1) 
+                    shapely_neg_corrected = (
+                     shapely_uncorrected*(v<0)*
+                     (total_neg_uncorrected/
+                      pseudocount_near_zero(rrd_neg_impact))[:,:,None])
+                    shapely_pos_corrected = (
+                     shapely_uncorrected*(v>0)*
+                     (total_pos_uncorrected/
+                      pseudocount_near_zero(rrd_pos_impact))[:,:,None])
+
+                    shapely_corrected = (shapely_neg_corrected
+                                         + shapely_pos_corrected)
+
+                    new_Wt = (self.W.T[None,:,:]*shapely_corrected
+                              /pseudocount_near_zero(fwd_contribs))
+                elif (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist2):
+                    raise NotImplementedError()
+                else:
+                    raise RuntimeError(self.dense_mxts_mode+" not implemented")
                 
             #positive and negative values grouped for rescale:
             elif (self.dense_mxts_mode in [DenseMxtsMode.Redist,
@@ -610,12 +657,14 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                      -B.maximum(self.get_reference_vars()
                                 +total_pos_contribs-total_neg_contribs,0)
                     if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
-                        to_distribute = B.minimum(
-                            B.maximum(total_neg_contribs_new -
-                                      B.maximum(self.get_reference_vars(),0.0),0.0),
-                            total_pos_contribs_new)/2.0
-                        total_pos_contribs_new = total_pos_contribs_new - to_distribute
-                        total_neg_contribs_new = total_neg_contribs_new - to_distribute
+                        total_pos_contribs_new = rrd_pos_impact
+                        total_neg_contribs_new = B.abs(rrd_neg_impact)
+                        #to_distribute = B.minimum(
+                        #    B.maximum(total_neg_contribs_new -
+                        #              B.maximum(self.get_reference_vars(),0.0),0.0),
+                        #    total_pos_contribs_new)/2.0
+                        #total_pos_contribs_new = total_pos_contribs_new - to_distribute
+                        #total_neg_contribs_new = total_neg_contribs_new - to_distribute
                 else:
                     raise RuntimeError("Unsupported dense_mxts_mode: "
                                        +str(self.dense_mxts_mode))
