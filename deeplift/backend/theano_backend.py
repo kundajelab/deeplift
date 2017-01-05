@@ -5,6 +5,10 @@ from deeplift.util import NEAR_ZERO_THRESHOLD
 from .common import *
 
 
+def eq(a, b):
+    return T.eq(a,b)
+
+
 def dimshuffle(tensor, new_shape):
     return tensor.dimshuffle(new_shape)
 
