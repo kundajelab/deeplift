@@ -28,6 +28,8 @@ DenseMxtsMode = deeplift.util.enum(
                     #Redist is the newer name for Counterbalance
                     Redist="Redist", Counterbalance="Counterbalance",
                     RevealCancelRedist="RevealCancelRedist",
+                    RevealCancelRedist_ThroughZeros=
+                     "RevealCancelRedist_ThroughZeros",
                     RevealCancelRedist2="RevealCancelRedist2",
                     ContinuousShapely="ContinuousShapely")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
@@ -506,6 +508,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
               DenseMxtsMode.Redist,
               DenseMxtsMode.Counterbalance,
               DenseMxtsMode.RevealCancelRedist,
+              DenseMxtsMode.RevealCancelRedist_ThroughZeros,
               DenseMxtsMode.RevealCancelRedist2,
               DenseMxtsMode.ContinuousShapely]):
             if (len(self.get_output_layers())!=1 or
@@ -523,6 +526,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                DenseMxtsMode.Redist,
                DenseMxtsMode.Counterbalance,
                DenseMxtsMode.RevealCancelRedist,
+               DenseMxtsMode.RevealCancelRedist_ThroughZeros,
                DenseMxtsMode.RevealCancelRedist2,
                DenseMxtsMode.ContinuousShapely]):
             #self.W has dims input x output; W.T is output x input
@@ -622,7 +626,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             #positive and negative values grouped for rescale:
             elif (self.dense_mxts_mode in [DenseMxtsMode.Redist,
                     DenseMxtsMode.Counterbalance, DenseMxtsMode.RevealCancel,
-                    DenseMxtsMode.RevealCancelRedist]):
+                    DenseMxtsMode.RevealCancelRedist,
+                    DenseMxtsMode.RevealCancelRedist_ThroughZeros]):
                 if (self.dense_mxts_mode==DenseMxtsMode.Redist or
                     self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
                     #if output diff-from-def is positive but there are some neg
@@ -639,7 +644,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                     total_neg_contribs_new = total_neg_contribs - to_distribute
                 elif (self.dense_mxts_mode in
                        [DenseMxtsMode.RevealCancel,
-                        DenseMxtsMode.RevealCancelRedist]):
+                        DenseMxtsMode.RevealCancelRedist,
+                        DenseMxtsMode.RevealCancelRedist_ThroughZeros]):
 
                     ##sanity check to see if we can implement the existing deeplift
                     #total_contribs = total_pos_contribs - total_neg_contribs
@@ -656,7 +662,9 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                      B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
                      -B.maximum(self.get_reference_vars()
                                 +total_pos_contribs-total_neg_contribs,0)
-                    if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
+                    if (self.dense_mxts_mode in
+                        [DenseMxtsMode.RevealCancelRedist,
+                         DenseMxtsMode.RevealCancelRedist_ThroughZeros]):
                         total_pos_contribs_new = rrd_pos_impact
                         total_neg_contribs_new = B.abs(rrd_neg_impact)
                         #to_distribute = B.minimum(
@@ -678,6 +686,9 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                           (fwd_contribs>0)*positive_rescale[:,:,None] 
                 new_Wt += self.W.T[None,:,:]*\
                            (fwd_contribs<0)*negative_rescale[:,:,None] 
+                if (self.dense_mxts_mode ==
+                    DenseMxtsMode.RevealCancelRedist_ThroughZeros):
+                    new_Wt += self.W.T[None,:,:]*B.eq(fwd_contribs,0.0)
             else:
                 raise RuntimeError("Unsupported dense_mxts_mode: "
                                    +str(self.dense_mxts_mode))
