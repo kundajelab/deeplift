@@ -38,12 +38,12 @@ These examples show how to autoconvert a keras model and obtain importance score
 #Convert a keras sequential model
 import deeplift
 from deeplift.conversion import keras_conversion as kc
-#MxtsMode defines the method for computing importance scores. Other supported values are:
+#NonlinearMxtsMode defines the method for computing importance scores. Other supported values are:
 #Gradient, DeconvNet, GuidedBackprop and GuidedBackpropDeepLIFT (a hybrid of GuidedBackprop and DeepLIFT where
 #negative multipliers are ignored during backpropagation)
 deeplift_model = kc.convert_sequential_model(
                     keras_model,
-                    mxts_mode=deeplift.blobs.MxtsMode.DeepLIFT)
+                    mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
 
 #Specify the index of the layer to compute the importance scores of.
 #In the example below, we find scores for the input layer, which is idx 0 in deeplift_model.get_layers()
@@ -54,7 +54,7 @@ find_scores_layer_idx = 0
 #(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
 #For regression tasks with a linear output, target_layer_idx should be -1
 #(which simply refers to the last layer)
-#FYI: In the case of MxtsMode.DeepLIFT, the importance scores are also called "contribution scores"
+#FYI: In the case of NonlinearMxtsMode.DeepLIFT, the importance scores are also called "contribution scores"
 #If you want the multipliers instead of the contribution scores, you can use get_target_multipliers_func
 deeplift_contribs_func = deeplift_model.get_target_contribs_func(
                             find_scores_layer_idx=find_scores_layer_idx,
@@ -82,7 +82,7 @@ import deeplift
 from deeplift.conversion import keras_conversion as kc
 deeplift_model = kc.convert_graph_model(
                     keras_model,
-                    mxts_mode=deeplift.blobs.MxtsMode.DeepLIFT)
+                    mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
 #For sigmoid or softmax outputs, this should be the name of the linear layer preceding the final nonlinearity
 #(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
 #For regression tasks with a linear output, this should simply be the name of the final layer
@@ -146,7 +146,7 @@ Here are the steps necessary to implement the backward pass, which is where the 
     ```
     - The first argument represents the inputs to the function and should be a list of one symbolic tensor for the activations of each input layer (as for the forward pass), followed by a list of one symbolic tensor for the references of each input layer
     - The second argument represents the output of the function. In the example above, it is a single tensor containing the importance scores of a single blob, but it can also be a list of tensors if you wish to compute the scores for multiple blobs at once.
-    - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of `MxtsMode.DeepLIFT`, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
+    - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of `NonlinearMxtsMode.DeepLIFT`, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
 5. Now you are ready to call the function to find the importance scores.
     - Select a specific output blob to compute importance scores with respect to by calling `set_active()` on the blob.
     - Select a specific target neuron within the blob by calling `update_task_index(task_idx)` on the blob. Here `task_idx` is the index of a neuron within the blob.
