@@ -43,7 +43,7 @@ from deeplift.conversion import keras_conversion as kc
 #negative multipliers are ignored during backpropagation)
 deeplift_model = kc.convert_sequential_model(
                     keras_model,
-                    mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
+                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
 
 #Specify the index of the layer to compute the importance scores of.
 #In the example below, we find scores for the input layer, which is idx 0 in deeplift_model.get_layers()
@@ -82,7 +82,7 @@ import deeplift
 from deeplift.conversion import keras_conversion as kc
 deeplift_model = kc.convert_graph_model(
                     keras_model,
-                    mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
+                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
 #For sigmoid or softmax outputs, this should be the name of the linear layer preceding the final nonlinearity
 #(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
 #For regression tasks with a linear output, this should simply be the name of the final layer
