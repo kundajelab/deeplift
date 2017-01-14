@@ -1,0 +1,37 @@
+class_name: Sequential
+config:
+- class_name: Dense
+  config:
+    W_constraint: null
+    W_regularizer: null
+    activation: linear
+    activity_regularizer: null
+    b_constraint: null
+    b_regularizer: null
+    batch_input_shape: !!python/tuple [null, 784]
+    bias: true
+    init: lecun_uniform
+    input_dim: 784
+    input_dtype: float32
+    name: dense_1
+    output_dim: 512
+    trainable: true
+- class_name: PReLU
+  config: {init: zero, name: prelu_1, trainable: true}
+- class_name: Dropout
+  config: {name: dropout_1, p: 0.2, trainable: true}
+- class_name: Dense
+  config: {W_constraint: null, W_regularizer: null, activation: linear, activity_regularizer: null,
+    b_constraint: null, b_regularizer: null, bias: true, init: lecun_uniform, input_dim: 512,
+    name: dense_2, output_dim: 512, trainable: true}
+- class_name: PReLU
+  config: {init: zero, name: prelu_2, trainable: true}
+- class_name: Dropout
+  config: {name: dropout_2, p: 0.2, trainable: true}
+- class_name: Dense
+  config: {W_constraint: null, W_regularizer: null, activation: linear, activity_regularizer: null,
+    b_constraint: null, b_regularizer: null, bias: true, init: lecun_uniform, input_dim: 512,
+    name: dense_3, output_dim: 10, trainable: true}
+- class_name: Activation
+  config: {activation: softmax, name: activation_1, trainable: true}
+keras_version: 1.2.0
