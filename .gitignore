@@ -1,2 +1,4 @@
 _*
+*.pyc
+*pycache*
 .DS_Store
