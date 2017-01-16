@@ -256,7 +256,7 @@ def softmax_conversion(layer, name, verbose,
 
 def activation_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
     activation = layer.get_config()[KerasKeys.activation]
-    return activation_to_conversion_function[activation](
+    return activation_to_conversion_function(activation)(
                                      layer=layer, name=name, verbose=verbose,
                                      nonlinear_mxts_mode=nonlinear_mxts_mode) 
 
@@ -272,8 +272,8 @@ def sequential_container_conversion(layer, name, verbose,
     container=layer
     name_prefix=name
     for layer_idx, layer in enumerate(container.layers):
-        conversion_function = layer_name_to_conversion_function[
-                               type(layer).__name__]
+        conversion_function = layer_name_to_conversion_function(
+                               type(layer).__name__)
         converted_layers.extend(conversion_function(
                              layer=layer,
                              name=(name_prefix+"-" if name_prefix != ""
@@ -283,34 +283,42 @@ def sequential_container_conversion(layer, name, verbose,
                              dense_mxts_mode=dense_mxts_mode,
                              maxpool_deeplift_mode=maxpool_deeplift_mode)) 
     return converted_layers
-     
-
-activation_to_conversion_function = {
-    ActivationTypes.linear: linear_conversion,
-    ActivationTypes.relu: relu_conversion,
-    ActivationTypes.sigmoid: sigmoid_conversion,
-    ActivationTypes.softmax: softmax_conversion
-}
 
 
-layer_name_to_conversion_function = {
-    'Convolution1D': conv1d_conversion,
-    'MaxPooling1D': maxpool1d_conversion,
-    'AveragePooling1D': avgpool1d_conversion,
-    'Convolution2D': conv2d_conversion,
-    'MaxPooling2D': maxpool2d_conversion,
-    'AveragePooling2D': avgpool2d_conversion,
-    'BatchNormalization': batchnorm_conversion,
-    'ZeroPadding2D': zeropad2d_conversion,
-    'Flatten': flatten_conversion,
-    'Dense': dense_conversion,
-     #in current keras implementation, scaling is done during training
-     #and not predict time, so Dropout is a no-op at predict time
-    'Dropout': dropout_conversion, 
-    'Activation': activation_conversion, 
-    'PReLU': prelu_conversion,
-    'Sequential': sequential_container_conversion
-}
+def activation_to_conversion_function(activation):
+    activation_dict = {
+        ActivationTypes.linear: linear_conversion,
+        ActivationTypes.relu: relu_conversion,
+        ActivationTypes.sigmoid: sigmoid_conversion,
+        ActivationTypes.softmax: softmax_conversion
+    }
+
+    return activation_dict[activation]
+
+
+def layer_name_to_conversion_function(layer_name):
+    name_dict = {
+        'convolution1d': conv1d_conversion,
+        'maxpooling1d': maxpool1d_conversion,
+        'averagepooling1d': avgpool1d_conversion,
+        'convolution2d': conv2d_conversion,
+        'maxpooling2d': maxpool2d_conversion,
+        'averagepooling2d': avgpool2d_conversion,
+        'batchnormalization': batchnorm_conversion,
+        'zeropadding2d': zeropad2d_conversion,
+        'flatten': flatten_conversion,
+        'dense': dense_conversion,
+         #in current keras implementation, scaling is done during training
+         #and not predict time, so dropout is a no-op at predict time
+        'dropout': dropout_conversion, 
+        'activation': activation_conversion, 
+        'prelu': prelu_conversion,
+        'sequential': sequential_container_conversion
+    }
+
+    # lowercase to create resistance to capitalization changes
+    # was a problem with previous Keras versions
+    return name_dict[layer_name.lower()]
 
 
 def convert_sequential_model(model, num_dims=None,
@@ -372,8 +380,8 @@ def convert_graph_model(model,
     
     #convert the nodes/outputs 
     for layer_name, layer in list(model.nodes.items()):
-        conversion_function = layer_name_to_conversion_function[
-                               layer.get_config()[KerasKeys.name]]
+        conversion_function = layer_name_to_conversion_function(
+                               layer.get_config()[KerasKeys.name])
         keras_non_input_layers.append(layer)
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
