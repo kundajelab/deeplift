@@ -1,1 +1,209 @@
-Test
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>DeepLIFT API</title>
+    
+    <style>
+      .highlight table td { padding: 5px; }
+.highlight table pre { margin: 0; }
+.highlight, .highlight .w {
+  color: #f8f8f2;
+  background-color: #272822;
+}
+.highlight .err {
+  color: #272822;
+  background-color: #f92672;
+}
+.highlight .c, .highlight .cd, .highlight .cm, .highlight .c1, .highlight .cs {
+  color: #75715e;
+}
+.highlight .cp {
+  color: #f4bf75;
+}
+.highlight .nt {
+  color: #f4bf75;
+}
+.highlight .o, .highlight .ow {
+  color: #f8f8f2;
+}
+.highlight .p, .highlight .pi {
+  color: #f8f8f2;
+}
+.highlight .gi {
+  color: #a6e22e;
+}
+.highlight .gd {
+  color: #f92672;
+}
+.highlight .gh {
+  color: #66d9ef;
+  background-color: #272822;
+  font-weight: bold;
+}
+.highlight .k, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kv {
+  color: #ae81ff;
+}
+.highlight .kc {
+  color: #fd971f;
+}
+.highlight .kt {
+  color: #fd971f;
+}
+.highlight .kd {
+  color: #fd971f;
+}
+.highlight .s, .highlight .sb, .highlight .sc, .highlight .sd, .highlight .s2, .highlight .sh, .highlight .sx, .highlight .s1 {
+  color: #a6e22e;
+}
+.highlight .sr {
+  color: #a1efe4;
+}
+.highlight .si {
+  color: #cc6633;
+}
+.highlight .se {
+  color: #cc6633;
+}
+.highlight .nn {
+  color: #f4bf75;
+}
+.highlight .nc {
+  color: #f4bf75;
+}
+.highlight .no {
+  color: #f4bf75;
+}
+.highlight .na {
+  color: #66d9ef;
+}
+.highlight .m, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .il, .highlight .mo, .highlight .mb, .highlight .mx {
+  color: #a6e22e;
+}
+.highlight .ss {
+  color: #a6e22e;
+}
+    </style>
+    <link href="stylesheets/screen.css" rel="stylesheet" media="screen" />
+    <link href="stylesheets/print.css" rel="stylesheet" media="print" />
+      <script src="javascripts/all.js"></script>
+  </head>
+
+  <body class="index" data-languages="[]">
+    <a href="#" id="nav-button">
+      <span>
+        NAV
+        <img src="images/navbar.png" alt="Navbar" />
+      </span>
+    </a>
+    <div class="tocify-wrapper">
+      <img src="images/logo.png" alt="Logo" />
+        <div class="search">
+          <input type="text" class="search" id="input-search" placeholder="Search">
+        </div>
+        <ul class="search-results"></ul>
+      <div id="toc">
+      </div>
+        <ul class="toc-footer">
+            <li><a href='https://sites.google.com/site/anshulkundaje/'>Kundaje Lab</a></li>
+            <li><a href='https://github.com/kundajelab/deeplift'>Hosted on GitHub</a></li>
+        </ul>
+    </div>
+    <div class="page-wrapper">
+      <div class="dark-box"></div>
+      <div class="content">
+        <h1 id="introduction">Introduction</h1>
+
+<p>DeepLIFT (Deep Learning Important FeaTures) is an efficient method for computing importance scores in a neural network. DeepLIFT was originally presented in <a href="https://arxiv.org/abs/1605.01713">&ldquo;Learning Important Features Through Propagating Activation Differences&rdquo;</a> by Shrikumar, Greenside, Shcherbina &amp; Kundaje. </p>
+
+<p>DeepLIFT is implemented in Python, and can be used to compute importance scores for models built with <a href="https://keras.io">Keras</a>. DeepLIFT uses TensorFlow to perform the backend computations. </p>
+
+<h1 id="getting-started">Getting Started</h1>
+
+<h2 id="installation">Installation</h2>
+<pre class="highlight shell"><code><span class="c"># clone the deeplift repository</span>
+git clone https://github.com/kundajelab/deeplift.git 
+<span class="c"># install from clone; "editable" flag = automatic updates from changes to the code</span>
+pip install --editable deeplift/ 
+</code></pre>
+<p>DeepLIFT depends on Theano (&gt;= 0.8) and numpy (&gt;= 1.9). It can autoconvert models trained with Keras 0.3 &ndash; support for models built with newer versions of Keras is experimental.</p>
+
+<h2 id="quickstart">Quickstart</h2>
+<pre class="highlight python"><code><span class="kn">import</span> <span class="nn">deeplift</span>
+<span class="kn">from</span> <span class="nn">deeplift.conversion</span> <span class="kn">import</span> <span class="n">keras_conversion</span> <span class="k">as</span> <span class="n">kc</span>
+
+<span class="c"># 1) Convert a Keras sequential model</span>
+<span class="n">deeplift_model</span> <span class="o">=</span> <span class="n">kc</span><span class="o">.</span><span class="n">convert_sequential_model</span><span class="p">(</span>
+                    <span class="n">keras_model</span><span class="p">,</span>
+                    <span class="n">nonlinear_mxts_mode</span><span class="o">=</span><span class="n">deeplift</span><span class="o">.</span><span class="n">blobs</span><span class="o">.</span><span class="n">NonlinearMxtsMode</span><span class="o">.</span><span class="n">DeepLIFT</span><span class="p">)</span>
+
+<span class="c"># specify the index of the layer to compute the importance scores of</span>
+<span class="c"># typically the input layer (index of 0)</span>
+<span class="n">find_scores_layer_idx</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="c"># 2) Compile the function that compoutes important scores</span>
+<span class="c"># for the multipliers, instead use deeplift_model.get_target_multipliers_func</span>
+<span class="n">deeplift_contribs_func</span> <span class="o">=</span> <span class="n">deeplift_model</span><span class="o">.</span><span class="n">get_target_contribs_func</span><span class="p">(</span>
+                            <span class="n">find_scores_layer_idx</span><span class="o">=</span><span class="n">find_scores_layer_idx</span><span class="p">,</span>
+                            <span class="n">target_layer_idx</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c"># 3) Compute scores</span>
+<span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">deeplift_contribs_func</span><span class="p">(</span><span class="n">task_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                         <span class="n">input_data_list</span><span class="o">=</span><span class="p">[</span><span class="n">X</span><span class="p">],</span>
+                                         <span class="n">batch_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                                         <span class="n">progress_update</span><span class="o">=</span><span class="mi">1000</span><span class="p">))</span>
+</code></pre>
+<p>1) <strong>Convert a Keras sequential model</strong>:<br>
+<code class="prettyprint">NonlinearMxtsMode</code> defines the method for computing importance scores; other supported methods include:</p>
+
+<ul>
+<li>Gradient<br></li>
+<li>DeconvNet<br></li>
+<li>GuidedBackprop<br></li>
+<li>GuidedBackpropDeepLIFT (a hybrid of GuidedBackprop and DeepLIFT where negative multipliers are ignored during backpropagation)</li>
+</ul>
+
+<p>2) <strong>Compile the function that compoutes important scores</strong>:<br>
+In the case of <code class="prettyprint">NonlinearMxtsMode.DeepLIFT</code>, the importance scores are also called &ldquo;contribution scores&rdquo;</p>
+
+<ul>
+<li>For sigmoid or softmax outputs, <code class="prettyprint">target_layer_idx</code> should be -2 (the default, see <a href="https://arxiv.org/pdf/1605.01713v2.pdf">&ldquo;a note on final activation layers&rdquo;</a>)</li>
+<li>For regression tasks with a linear output, <code class="prettyprint">target_layer_idx</code> should be -1 (last layer)</li>
+</ul>
+
+<p>3) <strong>Compute scores</strong>:</p>
+
+<ul>
+<li><code class="prettyprint">input_data_list</code> is a list containing the data for different input layers (e.g., for MNIST, there is one input layer with with dimensions 1 x 28 x 28)</li>
+<li><code class="prettyprint">task_idx</code> represents the index of the node in the output layer that we wish to compute scores (e.g., if the output is a 10-way softmax, and task_idx is 0, we will compute scores for the first softmax class)</li>
+</ul>
+
+<h2 id="examples">Examples</h2>
+
+<p>Please explore the <code class="prettyprint">deeplift/examples</code> folder in the <a href="https://github.com/kundajelab/deeplift">GitHub repository</a> for ipython notebooks illustrating the use of deeplift, and stay tuned for updates as we will be adding more examples shortly.</p>
+
+<h1 id="coming-soon">Coming soon</h1>
+
+<p>The following is a list of some features in the works:</p>
+
+<ul>
+<li>Autoconversion for the Keras functional API</li>
+<li>RNNs</li>
+<li>Improvements to DeepLIFT to address certain edge-case behaviour</li>
+<li>Learning references from the data</li>
+</ul>
+
+<h1 id="about">About</h1>
+
+<p>Please email <em>avanti [at] stanford [dot] edu</em> with questions, ideas, feature requests, etc. We would love to hear from you!</p>
+
+<p>This website was built by <a href="https://jisungkim.com">Ji-Sung Kim</a> for the Kundaje Lab.</p>
+
+      </div>
+      <div class="dark-box">
+      </div>
+    </div>
+  </body>
+</html>
