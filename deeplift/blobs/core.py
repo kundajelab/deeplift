@@ -808,7 +808,7 @@ class Merge(ListInputMixin, Node):
         self.axis = axis
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Concat, self).\
+        kwargs_dict = super(Merge, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['axis'] = self.axis
         return kwargs_dict
