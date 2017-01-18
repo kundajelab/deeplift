@@ -242,3 +242,158 @@ def connect_list_of_layers(deeplift_layers):
 
 def format_json_dump(json_data, indent=2):
     return json.dumps(jsonData, indent=indent, separators=(',', ': ')) 
+
+
+def get_cross_corr_function(filters):
+    from deeplift import backend as B
+
+    if (len(filters.shape)==3):
+        filters = filters[:,None,:,:]
+    assert filters.shape[1]==1 #input channels=1
+    assert filters.shape[2]==4 #acgt
+
+    #set up the convolution. Note that convolutions reverse things
+    filters = np.array(filters[:,:,::-1,::-1]).astype("float32") 
+    input_var = B.tensor_with_dims(num_dims=4, name="input")
+    conv_out = B.conv2d(inp=input_var,
+                        filters=filters,
+                        border_mode="valid",
+                        subsample=(1,1))
+    compiled_func = B.function(inputs=[input_var], outputs=conv_out)
+
+    def cross_corr(regions_to_scan, batch_size, progress_update=None):
+        assert len(regions_to_scan.shape)==4
+        assert regions_to_scan.shape[1]==1 #input channels=1
+        assert regions_to_scan.shape[2]==4 #acgt
+        #run function in batches
+        conv_results = np.array(deeplift.util.run_function_in_batches(
+                                func=compiled_func,
+                                input_data_list=[regions_to_scan],
+                                batch_size=batch_size,
+                                progress_update=progress_update))
+        return conv_results
+    return cross_corr
+
+
+def get_smoothen_function(window_size, same_size_return=True):
+    """
+        Returns a function for smoothening inputs with a window
+         of size window_size.
+
+        Returned function has arguments of inp,
+         batch_size and progress_update
+    """
+    from deeplift import backend as B
+    inp_tensor = B.tensor_with_dims(2, "inp_tensor") 
+
+    if (same_size_return):
+        #do padding so that the output will have the same size as the input
+        #remember, the output will have length of input length - (window_size-1)
+        #so, we're going to pad with int(window_size/2), and for even window_size
+        #we will trim off the value from the front of the output later on
+        padding = int(window_size/2)  
+        new_dims = [inp_tensor.shape[0], inp_tensor.shape[1]+2*padding]
+        padded_inp = B.zeros(new_dims)
+        #fill the middle region with the original input
+        padded_inp = B.set_subtensor(
+                        padded_inp[:,padding:(inp_tensor.shape[1]+padding)],
+                        inp_tensor) 
+        #duplicate the left end for padding
+        padded_inp = B.set_subtensor(padded_inp[:,0:padding],
+                                     inp_tensor[:,0:padding])
+        #duplicate the right end for padding
+        padded_inp = B.set_subtensor(
+                        padded_inp[:,(inp_tensor.shape[1]+padding):],
+                        inp_tensor[:,(inp_tensor.shape[1]-padding):])
+    else:
+        padded_inp = inp_tensor
+    padded_inp = padded_inp[:,None,None,:]
+
+    averaged_padded_inp = B.pool2d(
+                            inp=padded_inp,
+                            pool_size=(1,window_size),
+                            strides=(1,1),
+                            border_mode="valid",
+                            ignore_border=True,
+                            pool_mode=B.PoolMode.avg) 
+
+    #if window_size is even, then we have an extra value in the output,
+    #so kick off the value from the front
+    if (window_size%2==0 and same_size_return):
+        averaged_padded_inp = averaged_padded_inp[:,:,:,1:]
+
+    averaged_padded_inp = averaged_padded_inp[:,0,0,:]
+    smoothen_func = B.function([inp_tensor], averaged_padded_inp)
+
+    def smoothen(inp, batch_size, progress_update=None):
+       return run_function_in_batches(
+                func=smoothen_func,
+                input_data_list=[inp],
+                batch_size=batch_size,
+                progress_update=progress_update)
+
+    return smoothen
+
+
+def get_top_n_scores_per_region(
+    scores, n, exclude_hits_within_window):
+    scores = scores.copy()
+    assert len(scores.shape)==2, scores.shape
+    if (n==1):
+        return np.max(scores, axis=1)[:,None]
+    else:
+        top_n_scores = []
+        top_n_indices = []
+        for i in range(scores.shape[0]):
+            top_n_scores_for_region=[]
+            top_n_indices_for_region=[]
+            for j in range(n):
+                max_idx = np.argmax(scores[i]) 
+                top_n_scores_for_region.append(scores[i][max_idx])
+                top_n_indices_for_region.append(max_idx)
+                scores[i][max_idx-exclude_hits_within_window:
+                          max_idx+exclude_hits_within_window-1] = -np.inf
+            top_n_scores.append(top_n_scores_for_region) 
+            top_n_indices.append(top_n_indices_for_region)
+        return np.array(top_n_scores), np.array(top_n_indices)
+
+
+def get_integrated_gradients_function(gradient_computation_function,
+                                      num_intervals):
+    def compute_integrated_gradients(
+        task_idx, input_data_list, input_references_list,
+        batch_size, progress_update):
+        outputs = [] 
+        mean_gradients = []
+        #remember, input_data_list and input_references_list are
+        #a list with one entry per mode
+        input_references_list =\
+        [np.ones_like(np.array(input_data)) *input_reference for
+         input_data, input_reference in
+         zip(input_data_list, input_references_list)]
+        #will flesh out multimodal case later...
+        assert len(input_data_list)==1
+        assert len(input_references_list)==1
+        for an_input, a_reference in zip(input_data_list[0],
+                                         input_references_list[0]):
+            #interpolate between reference and input with num_intervals 
+            vector = an_input - a_reference
+            step = vector/float(num_intervals)
+            interpolated_inputs = []
+            for i in range(num_intervals):
+                interpolated_inputs.append(
+                    a_reference + step*(i+0.5))
+            #find the gradients at different steps
+            interpolated_gradients =\
+             np.array(gradient_computation_function(
+                task_idx=task_idx,
+                input_data_list=[interpolated_inputs],
+                input_references_list=[a_reference],
+                batch_size=batch_size,
+                progress_update=None))
+            mean_gradient = np.mean(interpolated_gradients,axis=0)
+            contribs = mean_gradient*vector
+            outputs.append(contribs)
+            mean_gradients.append(mean_gradient)
+        return outputs, mean_gradients
+    return compute_integrated_gradients
