@@ -14,11 +14,24 @@ import deeplift.backend as B
 
 ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
-MxtsMode = deeplift.util.enum(Gradient="Gradient", DeepLIFT="DeepLIFT",
-                                    DeconvNet="DeconvNet",
-                                    GuidedBackprop="GuidedBackprop",
-                                    GuidedBackpropDeepLIFT=\
-                                     "GuidedBackpropDeepLIFT")
+NonlinearMxtsMode = deeplift.util.enum(
+                     Gradient="Gradient",
+                     DeepLIFT="DeepLIFT",
+                     DeconvNet="DeconvNet",
+                     GuidedBackprop="GuidedBackprop",
+                     GuidedBackpropDeepLIFT="GuidedBackpropDeepLIFT",
+                     PassThrough="PassThrough")
+DenseMxtsMode = deeplift.util.enum(
+                    Linear="Linear",
+                    PosOnly="PosOnly",
+                    RevealCancel="RevealCancel",
+                    #Redist is the newer name for Counterbalance
+                    Redist="Redist", Counterbalance="Counterbalance",
+                    RevealCancelRedist="RevealCancelRedist",
+                    RevealCancelRedist_ThroughZeros=
+                     "RevealCancelRedist_ThroughZeros",
+                    RevealCancelRedist2="RevealCancelRedist2",
+                    ContinuousShapely="ContinuousShapely")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -41,6 +54,14 @@ class Blob(object):
         self._mxts_updated = False
         self._mxts_for_inputs_updated = False
         self.verbose=verbose
+
+    def reset_built_fwd_pass_vars(self):
+        self._built_fwd_pass_vars = False
+        self._output_layers = []
+        self._reset_built_fwd_pass_vars_for_inputs()
+
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        raise NotImplementedError()
 
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
@@ -75,36 +96,36 @@ class Blob(object):
             self._layer_needs_to_be_built_message()
         return self._activation_vars
 
-    def _build_default_activation_vars(self):
+    def _build_reference_vars(self):
         raise NotImplementedError()
 
-    def _build_diff_from_default_vars(self):
+    def _build_diff_from_reference_vars(self):
         """
             instantiate theano vars whose value is the difference between
-                the activation and the default activaiton
+                the activation and the reference activation
         """
-        return self.get_activation_vars() - self._get_default_activation_vars()
+        return self.get_activation_vars() - self.get_reference_vars()
 
     def _build_target_contrib_vars(self):
         """
             the contrib to the target is mxts*(Ax - Ax0)
         """ 
-        return self.get_mxts()*self._get_diff_from_default_vars()
+        return self.get_mxts()*self._get_diff_from_reference_vars()
 
-    def _get_diff_from_default_vars(self):
+    def _get_diff_from_reference_vars(self):
         """
             return the theano vars representing the difference between
-                the activation and the default activation
+                the activation and the reference activation
         """
-        return self._diff_from_default_vars
+        return self._diff_from_reference_vars
 
-    def _get_default_activation_vars(self):
+    def get_reference_vars(self):
         """
             get the activation that corresponds to zero contrib
         """
-        if (hasattr(self, '_default_activation_vars')==False):
-            raise RuntimeError("_default_activation_vars is unset")
-        return self._default_activation_vars
+        if (hasattr(self, '_reference_vars')==False):
+            raise RuntimeError("_reference_vars is unset")
+        return self._reference_vars
 
     def _increment_mxts(self, increment_var):
         """
@@ -178,6 +199,7 @@ class Input(Blob):
         super(Input, self).__init__(**kwargs)
         assert num_dims is not None or shape is not None
         if (shape is not None):
+            shape = list(shape)
             if (shape[0] != None): #None in first pos represent batch axis
                 shape = [None]+shape
             shape_num_dims = len(shape)
@@ -194,8 +216,9 @@ class Input(Blob):
     def get_activation_vars(self):
         return self._activation_vars
     
-    def _build_default_activation_vars(self):
-        raise NotImplementedError()
+    def _build_reference_vars(self):
+        return B.tensor_with_dims(self._num_dims,
+                                  name="ref_"+str(self.get_name()))
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
@@ -204,25 +227,12 @@ class Input(Blob):
         return kwargs_dict
 
     def _build_fwd_pass_vars(self):
-        self._default_activation_vars = self._build_default_activation_vars()
-        self._diff_from_default_vars = self._build_diff_from_default_vars()
+        self._reference_vars = self._build_reference_vars()
+        self._diff_from_reference_vars = self._build_diff_from_reference_vars()
         self._mxts = B.zeros_like(self.get_activation_vars())
 
-
-class Input_FixedDefault(Input):
-     
-    def __init__(self, default=0.0, **kwargs):
-        super(Input_FixedDefault, self).__init__(**kwargs)
-        self.default = default
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Input_FixedDefault, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['default'] = self.default
-        return kwargs_dict
-
-    def _build_default_activation_vars(self):
-        return B.ones_like(self._activation_vars)*self.default
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        pass
 
 
 class Node(Blob):
@@ -256,13 +266,13 @@ class Node(Blob):
         return self._call_function_on_blobs_within_inputs(
                       'get_activation_vars') 
 
-    def _get_input_default_activation_vars(self):
+    def _get_input_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
-                    '_get_default_activation_vars')
+                    'get_reference_vars')
 
-    def _get_input_diff_from_default_vars(self):
+    def _get_input_diff_from_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
-                    '_get_diff_from_default_vars')
+                    '_get_diff_from_reference_vars')
 
     def _get_input_shape(self):
         return self._call_function_on_blobs_within_inputs('get_shape')
@@ -291,11 +301,11 @@ class Node(Blob):
         self._activation_vars =\
             self._build_activation_vars(
                 self._get_input_activation_vars())
-        self._default_activation_vars =\
-         self._build_default_activation_vars()
-        self._diff_from_default_vars =\
-         self._build_diff_from_default_vars()
-        self._mxts = B.zeros_like(self._get_default_activation_vars())
+        self._reference_vars =\
+         self._build_reference_vars()
+        self._diff_from_reference_vars =\
+         self._build_diff_from_reference_vars()
+        self._mxts = B.zeros_like(self.get_reference_vars())
 
     def _compute_shape(self, input_shape):
         """
@@ -310,9 +320,12 @@ class Node(Blob):
         """
         raise NotImplementedError()
 
-    def _build_default_activation_vars(self):
-        return self._build_activation_vars(
-                self._get_input_default_activation_vars())
+    def _build_reference_vars(self):
+        if (hasattr(self, 'learned_reference')): 
+            return self.learned_reference
+        else:
+            return self._build_activation_vars(
+                    self._get_input_reference_vars())
 
     def _update_mxts_for_inputs(self):
         """
@@ -354,6 +367,9 @@ class SingleInputMixin(object):
     def _build_fwd_pass_vars_for_all_inputs(self):
         self.inputs.build_fwd_pass_vars(output_layer=self)
 
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        self.inputs.reset_built_fwd_pass_vars()
+
     def _call_function_on_blobs_within_inputs(self, function_name):
         """
             call function_name on self.inputs
@@ -384,8 +400,12 @@ class ListInputMixin(object):
                                     instance_var_name="self.inputs[0]")
     
     def _build_fwd_pass_vars_for_all_inputs(self):
-        return [an_input.build_fwd_pass_vars(output_layer=self)
-                for an_input in self.inputs]
+        for an_input in self.inputs:
+            an_input.build_fwd_pass_vars(output_layer=self)
+                
+    def _reset_built_fwd_pass_vars_for_inputs(self):
+        for an_input in self.inputs:
+            an_input.reset_built_fwd_pass_vars()
 
     def _call_function_on_blobs_within_inputs(self, function_name):
         return [eval('self.inputs['+str(i)+'].'+function_name+'()') for
@@ -460,10 +480,11 @@ class NoOp(SingleInputMixin, Node):
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
-    def __init__(self, W, b, **kwargs):
+    def __init__(self, W, b, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
         self.W = W
         self.b = b
+        self.dense_mxts_mode = dense_mxts_mode
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Dense, self).\
@@ -479,8 +500,245 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         return B.dot(input_act_vars, self.W) + self.b
 
     def _get_mxts_increments_for_inputs(self):
-        return B.dot(self.get_mxts(),self.W.T)
+        #re. counterbalance: this modification is only appropriate
+        #when the output is a relu. So when the output is not a relu,
+        #hackily set the mode back to Linear.
+        if (self.dense_mxts_mode in
+             [DenseMxtsMode.RevealCancel,
+              DenseMxtsMode.Redist,
+              DenseMxtsMode.Counterbalance,
+              DenseMxtsMode.RevealCancelRedist,
+              DenseMxtsMode.RevealCancelRedist_ThroughZeros,
+              DenseMxtsMode.RevealCancelRedist2,
+              DenseMxtsMode.ContinuousShapely]):
+            if (len(self.get_output_layers())!=1 or
+                (type(self.get_output_layers()[0]).__name__!="ReLU")):
+                print("Dense layer does not have sole output of ReLU so"
+                      " cautiously reverting DenseMxtsMode from"
+                      " to Linear") 
+                self.dense_mxts_mode=DenseMxtsMode.Linear 
 
+        if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
+            return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
+
+        elif (self.dense_mxts_mode in 
+              [DenseMxtsMode.RevealCancel,
+               DenseMxtsMode.Redist,
+               DenseMxtsMode.Counterbalance,
+               DenseMxtsMode.RevealCancelRedist,
+               DenseMxtsMode.RevealCancelRedist_ThroughZeros,
+               DenseMxtsMode.RevealCancelRedist2,
+               DenseMxtsMode.ContinuousShapely]):
+            #self.W has dims input x output; W.T is output x input
+            #self._get_input_diff_from_reference_vars() has dims batch x input
+            #fwd_contribs has dims batch x output x input
+            fwd_contribs = self._get_input_diff_from_reference_vars()[:,None,:]\
+                           *self.W.T[None,:,:]
+            #reference has dims batch x output
+            reference = self.get_reference_vars()
+            #total_pos_contribs and total_neg_contribs have dim batch x output
+            total_pos_contribs = B.sum(fwd_contribs*(fwd_contribs>0), axis=-1)
+            total_neg_contribs = B.abs(B.sum(fwd_contribs*(fwd_contribs<0),
+                                       axis=-1))
+
+            #compute the positive and negative impact under revealcancel redist
+            #will rescale pos and neg contribs to add up to this I guess
+            rrd_pos_impact = 0.5*(
+             (B.maximum(0,reference+total_pos_contribs) -
+              B.maximum(0,reference)) +
+             (B.maximum(0,reference-total_neg_contribs+total_pos_contribs)-
+               B.maximum(0,reference-total_neg_contribs)))
+            rrd_neg_impact = 0.5*(
+             (B.maximum(0,reference-total_neg_contribs) -
+              B.maximum(0,reference)) +
+             (B.maximum(0,reference+total_pos_contribs-total_neg_contribs)-
+              B.maximum(0,reference+total_pos_contribs)))
+
+
+            if (self.dense_mxts_mode in [
+                DenseMxtsMode.RevealCancelRedist2,
+                DenseMxtsMode.ContinuousShapely]):
+
+                #dims batch x output x input
+                v = fwd_contribs 
+                pmax = (total_pos_contribs[:,:,None] - (v*(v>0))) 
+                nmax = (total_neg_contribs[:,:,None] - (v*(v<0)))
+
+                if (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
+                    #pseudocount pmax and nmax
+                    pmax = pmax + 10**-5
+                    nmax = nmax + 10**-5
+                    
+                    neg_cont = B.minimum(0,(
+                     cont_shapely_neg_vol(v=v,
+                                  pmax=pmax+B.maximum(0,reference[:,:,None]),
+                                  nmax=nmax)
+                     -B.switch(
+                       B.abs(reference[:,:,None])<NEAR_ZERO_THRESHOLD,0,
+                         cont_shapely_neg_vol(v=v,
+                          pmax=B.switch(reference[:,:,None]>=0,
+                                        reference[:,:,None], pmax),
+                          nmax=B.switch(reference[:,:,None]<=0,
+                                        -reference[:,:,None], nmax))))) 
+                    pos_cont = B.maximum(0,v*(v>0)*pmax*nmax + (
+                     cont_shapely_neg_vol(v=-v,
+                                        pmax=nmax-B.minimum(0,reference[:,:,None]),
+                                        nmax=pmax)
+                     -B.switch(B.abs(reference[:,:,None])<NEAR_ZERO_THRESHOLD,0,
+                        cont_shapely_neg_vol(
+                            v=-v, pmax=B.switch(reference[:,:,None]<=0,
+                                                -reference[:,:,None], nmax),
+                            nmax=B.switch(reference[:,:,None]>=0,
+                                          reference[:,:,None], pmax)
+                        ) 
+                      )
+                    ))
+                    shapely_uncorrected = (neg_cont + pos_cont)/(pmax*nmax)
+                    #distribute the difference in proportion to absolute contribs
+                    #total_absolute = B.sum(B.abs(shapely_uncorrected),axis=-1)
+                    #shapely_corrected = (shapely_uncorrected
+                    #                 + (difference[:,:,None]
+                    #                    *B.abs(shapely_uncorrected)/
+                    #              pseudocount_near_zero(total_absolute[:,:,None])))
+                    total_neg_uncorrected = B.sum(shapely_uncorrected*(v<0),
+                                                  axis=-1)
+                    total_pos_uncorrected = B.sum(shapely_uncorrected*(v>0),
+                                                  axis=-1) 
+                    shapely_neg_corrected = (
+                     shapely_uncorrected*(v<0)*
+                     (total_neg_uncorrected/
+                      pseudocount_near_zero(rrd_neg_impact))[:,:,None])
+                    shapely_pos_corrected = (
+                     shapely_uncorrected*(v>0)*
+                     (total_pos_uncorrected/
+                      pseudocount_near_zero(rrd_pos_impact))[:,:,None])
+
+                    shapely_corrected = (shapely_neg_corrected
+                                         + shapely_pos_corrected)
+
+                    new_Wt = (self.W.T[None,:,:]*shapely_corrected
+                              /pseudocount_near_zero(fwd_contribs))
+                elif (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist2):
+                    raise NotImplementedError()
+                else:
+                    raise RuntimeError(self.dense_mxts_mode+" not implemented")
+                
+            #positive and negative values grouped for rescale:
+            elif (self.dense_mxts_mode in [DenseMxtsMode.Redist,
+                    DenseMxtsMode.Counterbalance, DenseMxtsMode.RevealCancel,
+                    DenseMxtsMode.RevealCancelRedist,
+                    DenseMxtsMode.RevealCancelRedist_ThroughZeros]):
+                if (self.dense_mxts_mode==DenseMxtsMode.Redist or
+                    self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
+                    #if output diff-from-def is positive but there are some neg
+                    #contribs, temper positive by some portion of the neg
+                    #to_distribute has dims batch x output
+                    #neg_to_distribute is what dips below 0, accounting for ref
+                    to_distribute = B.minimum(
+                        B.maximum(total_neg_contribs -
+                                  B.maximum(self.get_reference_vars(),0.0),0.0),
+                        total_pos_contribs)/2.0
+
+                    #total_pos_contribs_new has dims batch x output
+                    total_pos_contribs_new = total_pos_contribs - to_distribute
+                    total_neg_contribs_new = total_neg_contribs - to_distribute
+                elif (self.dense_mxts_mode in
+                       [DenseMxtsMode.RevealCancel,
+                        DenseMxtsMode.RevealCancelRedist,
+                        DenseMxtsMode.RevealCancelRedist_ThroughZeros]):
+
+                    ##sanity check to see if we can implement the existing deeplift
+                    #total_contribs = total_pos_contribs - total_neg_contribs
+                    #effective_contribs = B.maximum(self.get_reference_vars() + total_contribs,0) -\
+                    #                     B.maximum(self.get_reference_vars(),0)
+                    #rescale = effective_contribs/total_contribs
+                    # 
+                    #return B.sum(self.get_mxts()[:,:,None]*self.W.T[None,:,:]*rescale[:,:,None], axis=1)
+
+                    total_pos_contribs_new =\
+                     B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
+                     -B.maximum(self.get_reference_vars(),0)
+                    total_neg_contribs_new =\
+                     B.maximum(self.get_reference_vars()+total_pos_contribs,0)\
+                     -B.maximum(self.get_reference_vars()
+                                +total_pos_contribs-total_neg_contribs,0)
+                    if (self.dense_mxts_mode in
+                        [DenseMxtsMode.RevealCancelRedist,
+                         DenseMxtsMode.RevealCancelRedist_ThroughZeros]):
+                        total_pos_contribs_new = rrd_pos_impact
+                        total_neg_contribs_new = B.abs(rrd_neg_impact)
+                        #to_distribute = B.minimum(
+                        #    B.maximum(total_neg_contribs_new -
+                        #              B.maximum(self.get_reference_vars(),0.0),0.0),
+                        #    total_pos_contribs_new)/2.0
+                        #total_pos_contribs_new = total_pos_contribs_new - to_distribute
+                        #total_neg_contribs_new = total_neg_contribs_new - to_distribute
+                else:
+                    raise RuntimeError("Unsupported dense_mxts_mode: "
+                                       +str(self.dense_mxts_mode))
+                #positive_rescale has dims batch x output
+                positive_rescale = total_pos_contribs_new/\
+                                    pseudocount_near_zero(total_pos_contribs)
+                negative_rescale = total_neg_contribs_new/\
+                                    pseudocount_near_zero(total_neg_contribs)
+                #new_Wt has dims batch x output x input
+                new_Wt = self.W.T[None,:,:]*\
+                          (fwd_contribs>0)*positive_rescale[:,:,None] 
+                new_Wt += self.W.T[None,:,:]*\
+                           (fwd_contribs<0)*negative_rescale[:,:,None] 
+                if (self.dense_mxts_mode ==
+                    DenseMxtsMode.RevealCancelRedist_ThroughZeros):
+                    new_Wt += self.W.T[None,:,:]*B.eq(fwd_contribs,0.0)
+            else:
+                raise RuntimeError("Unsupported dense_mxts_mode: "
+                                   +str(self.dense_mxts_mode))
+            return B.sum(self.get_mxts()[:,:,None]*new_Wt[:,:,:], axis=1)
+
+        elif (self.dense_mxts_mode == DenseMxtsMode.Linear):
+            return B.dot(self.get_mxts(),self.W.T)
+        else:
+            raise RuntimeError("Unsupported mxts mode: "
+                               +str(self.dense_mxts_mode))
+
+
+def cont_shapely_neg_vol(v, pmax, nmax):
+    v = v*(v<0)
+    #It helps to remember that v is negative when reading these formulas! 
+
+    #vol1: volume over area where the full negative contrib is felt
+    #seg1_1 is only relevant when pmax > -v
+    #it is a triangle with base/height (min(pmax, nmax-v) + v)^2. It
+    seg1_1 = (-v < pmax)*0.5*B.square((B.minimum(pmax, nmax-v)+v))
+    #seg1_2 is only relevant when pmax > (nmax - v)
+    #it is a rectangle with base (pmax - (nmax -v)) and height nmax 
+    seg1_2 = B.maximum(0, pmax - (nmax-v))*(nmax) 
+    vol1 = v*(seg1_1 + seg1_2) #full impact of v over area - remember v is neg
+
+    #now: volumes over area where partial contrib is felt due to hitting floor
+    
+    #vol2 is a pyramid
+    vol2 = -(1.0/6)*B.pow(B.minimum(B.minimum(nmax, pmax),B.abs(v)),3)
+    #vol3 ends up equal to cheese slice + upward-sheared cheese slice on top
+    min_pmax_mv = B.minimum(pmax, -v)
+    vol3 = (nmax < min_pmax_mv)*((0.5*nmax*min_pmax_mv*(nmax - min_pmax_mv))) 
+    #vol4 and vol5 are only applicable when (pmax > -v)
+    #vol4 is sheared cheese slice with face of base & height v, and
+    #perpendicular length of (min(pmax, nmax) + v) - it's the main diag. bit
+    vol4 = -(pmax > -v)*(nmax > -v)*(0.5*B.pow(v,2)*(B.minimum(pmax, nmax)+v))
+    #vol5 is a sheared cheese slice with a pyramid end chopped off
+    #make variables to store the limits of the integration w.r.t. p:
+    vol5_end = B.minimum(nmax-v, pmax)
+    vol5_start = B.maximum(-v, nmax)
+    vol5 = (pmax > -v)*(pmax > nmax)*(
+        (0.5*B.pow(nmax,2)*(vol5_end - vol5_start))
+        - (0.5*nmax)*(B.pow(vol5_end,2) - B.pow(vol5_start,2))
+        #vol5_end and vol5_start is positive for all cells that count;
+        #the abs is just to compensate for a theano bug that produces nans
+        + (1.0/6)*(B.pow(B.abs(vol5_end),3) - B.pow(B.abs(vol5_start),3))
+        - (0.5*B.pow(v,2)*(vol5_end - vol5_start)) #cheese slice
+    ) 
+    return vol1+vol2+vol3+vol4+vol5 
+    
 
 class BatchNormalization(SingleInputMixin, Node):
 
@@ -530,7 +788,7 @@ class BatchNormalization(SingleInputMixin, Node):
         self.reshaped_std = self.std.reshape(new_shape)
         self.reshaped_gamma = self.gamma.reshape(new_shape)
         self.reshaped_beta = self.beta.reshape(new_shape)
-        return B.batch_normalization(inputs=self._get_input_activation_vars(),
+        return B.batch_normalization(inputs=input_act_vars,
                                      gamma=self.reshaped_gamma,
                                      beta=self.reshaped_beta,
                                      mean=self.reshaped_mean,
@@ -608,6 +866,84 @@ class Concat(OneDimOutputMixin, Merge):
                 self.get_mxts()[slices_for_input])
 
         return mxts_increments_for_inputs
+
+
+class MaxMerge(OneDimOutputMixin, Merge):
+
+    def __init__(self, temp, **kwargs):
+        super(MaxMerge, self).__init__(**kwargs)
+        self.temp = temp
+
+    def compute_shape_for_merge_axis(self, lengths_for_merge_axis_dim):
+        assert len(set(lengths_for_merge_axis_dim))==1,\
+               "Not all elements in lengths_for_merge_axis_dim have the"+\
+               " same lengths: "+str(lengths_for_merge_axis_dim)
+        return lengths_for_merge_axis_dim[0]
+
+    def _build_activation_vars(self, input_act_vars):
+        return B.maximum_over_list(the_list=input_act_vars)
+
+    def _get_mxts_increments_for_inputs(self):
+        refs = self._get_input_reference_vars()
+        inp_acts = self._get_input_activation_vars()
+        output = self.get_activation_vars()
+        #1(a): Compute max(ref s.t. ref < output, -inf if ref >= output)
+        ref_st_ref_lt_output = [B.mask_if_not_condition(
+                                tensor=ref,
+                                mask_val=-np.inf,
+                                condition=(ref < output)) for ref in refs]
+        max_ref_st_ref_lt_output =\
+         B.maximum_over_list(the_list=ref_st_ref_lt_output)
+        #1(b): Compute max(act s.t. ref >= output, -inf if ref < output)
+        act_st_ref_gte_output = [B.mask_if_not_condition(
+                            tensor=inp_act,
+                            mask_val=-np.inf,
+                            condition=(ref >= output)) for (ref, inp_act) in
+                            zip(refs, inp_acts)] 
+        max_act_st_ref_gte_output = B.maximum_over_list(
+                                        act_st_ref_gte_output)
+        #Compute max(1(a), 1(b))
+        stations = B.maximum(max_ref_st_ref_lt_output,
+                             max_act_st_ref_gte_output)
+        #compute the negative rides as max(ref-stations,0)
+        negative_rides_arr = [B.maximum(ref-stations, 0) for ref in refs]
+        #compute the positive rides as max(act-stations,0)
+        positive_rides_arr = [B.maximum(inp_act-stations,0)
+                              for inp_act in inp_acts]
+        #compute the max negative ride, max positive ride
+        max_neg_ride = B.maximum_over_list(negative_rides_arr)
+        max_pos_ride = B.maximum_over_list(positive_rides_arr)
+        #allocate total negative and positive importance according to ratio of max ride lengths
+        out_diff_def = self._get_diff_from_reference_vars()
+        #distribute importance for individual pos and neg rides according to some function
+        exp_pos_rides_arr = [B.exp(pos_rides/self.temp)-1
+                             for pos_rides in positive_rides_arr]
+        exp_neg_rides_arr = [B.exp(neg_rides/self.temp)-1
+                             for neg_rides in negative_rides_arr]
+        sum_exp_pos_rides = pseudocount_near_zero(
+                             B.apply_iteratively_to_list(exp_pos_rides_arr,
+                                                         lambda x, y: x+y))
+        sum_exp_neg_rides = pseudocount_near_zero(
+                             B.apply_iteratively_to_list(exp_neg_rides_arr,
+                                                         lambda x, y: x+y))
+        contrib_pos_rides_arr = [((exp_pos_rides*max_pos_ride)/
+                                   sum_exp_pos_rides) for exp_pos_rides
+                                 in exp_pos_rides_arr]
+        contrib_neg_rides_arr = [((-exp_neg_rides*max_neg_ride)/
+                                   sum_exp_neg_rides) for exp_neg_rides
+                                 in exp_neg_rides_arr]
+        #compute multipliers as ratio of contrib to inp diff-from-reference
+        pcd_inp_diff_def_arr = [pseudocount_near_zero(inp_diff_def) for
+                                inp_diff_def in
+                                self._get_input_diff_from_reference_vars()]
+        multipliers_arr = [(contrib_pos_rides+contrib_neg_rides)/
+                            pcd_inp_diff_def for
+                           (contrib_pos_rides,
+                            contrib_neg_rides,
+                            pcd_inp_diff_def) in zip(contrib_pos_rides_arr,
+                                                     contrib_neg_rides_arr,
+                                                     pcd_inp_diff_def_arr)]
+        return multipliers_arr
 
 
 def compute_mult_for_sum_then_transform(

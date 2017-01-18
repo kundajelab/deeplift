@@ -15,7 +15,10 @@ from deeplift.blobs import ScoringMode
 import deeplift.backend as B
 
 
-FuncType = deeplift.util.enum(contribs="contribs", multipliers="multipliers")
+FuncType = deeplift.util.enum(
+    contribs="contribs",
+    multipliers="multipliers",
+    contribs_of_input_with_filter_refs="contribs_of_input_with_filter_refs")
 
 
 class Model(object):
@@ -25,6 +28,10 @@ class Model(object):
     def __init__(self):
         pass #at some point, I want to put in locking so that only
         #one function can be running at a time
+
+    def rebuild_fwd_pass_vars(self, target_layer):
+        target_layer.reset_built_fwd_pass_vars()
+        target_layer.build_fwd_pass_vars()
 
     def _get_func(self, find_scores_layer, 
                         target_layer,
@@ -37,14 +44,28 @@ class Model(object):
             output_symbolic_vars = find_scores_layer.get_target_contrib_vars()
         elif (func_type == FuncType.multipliers):
             output_symbolic_vars = find_scores_layer.get_mxts()
+        elif (func_type == FuncType.contribs_of_input_with_filter_refs):
+            output_symbolic_vars =\
+             find_scores_layer.get_contribs_of_inputs_with_filter_refs()
         else:
             raise RuntimeError("Unsupported func_type: "+func_type)
         if (slice_objects is not None):
             output_symbolic_vars = output_symbolic_vars[slice_objects]
         core_function = B.function([input_layer.get_activation_vars()
+                                    for input_layer in input_layers]+
+                                   [input_layer.get_reference_vars()
                                     for input_layer in input_layers],
-                          output_symbolic_vars)
-        def func(task_idx, input_data_list, batch_size, progress_update):
+                                   output_symbolic_vars)
+        def func(task_idx, input_data_list,
+                 batch_size, progress_update,
+                 input_references_list=None):
+            if (input_references_list is None):
+                print("No reference provided - using zeros")
+                input_references_list = [0.0 for x in input_data_list]
+            input_references_list = [
+                np.ones_like(input_data)*reference
+                for (input_data, reference) in
+                zip(input_data_list, input_references_list)]
             #WARNING: this is not thread-safe. Do not try to
             #parallelize or you can end up with multiple target_layers
             #active at once
@@ -52,7 +73,7 @@ class Model(object):
             target_layer.update_task_index(task_idx)
             to_return = deeplift.util.run_function_in_batches(
                     func = core_function,
-                    input_data_list = input_data_list,
+                    input_data_list = input_data_list+input_references_list,
                     batch_size = batch_size,
                     progress_update = progress_update)
             target_layer.set_inactive()
@@ -64,6 +85,13 @@ class Model(object):
 
     def get_target_multipliers_func(self, *args, **kwargs):
         return self._get_func(*args, func_type=FuncType.multipliers, **kwargs)
+
+    def get_target_contribs_of_input_with_filter_ref_func(
+        self, *args, **kwargs):
+        return self._get_func(
+                *args,
+                func_type=FuncType.contribs_of_input_with_filter_refs,
+                **kwargs)
 
     def _set_scoring_mode_for_target_layer(self, target_layer):
         if (deeplift.util.is_type(target_layer,
@@ -141,6 +169,18 @@ class Model(object):
         return model_class.load_model_from_yaml_contents_only(
                             yaml_data[Model.YamlKeys.yaml_contents])
 
+    def _get_prediction_function(self, inputs, output):
+        func = B.function(inputs=inputs, outputs=output) 
+        def prediction_function(input_data_list,
+                                batch_size, progress_update=None):
+            to_return = deeplift.util.run_function_in_batches(
+                    func=func,
+                    input_data_list=input_data_list,
+                    batch_size = batch_size,
+                    progress_update = progress_update)
+            return to_return
+        return prediction_function
+
 
 class SequentialModel(Model):
     
@@ -179,6 +219,11 @@ class SequentialModel(Model):
             layers.append(blob)
         deeplift.util.connect_list_of_layers(layers)
         return cls(layers)
+
+    def get_prediction_function(self, input_layer_idx, output_layer_idx):
+        return self._get_prediction_function(
+            inputs=[self.get_layers()[input_layer_idx].get_activation_vars()],
+            output=self.get_layers()[output_layer_idx].get_activation_vars())
         
 
 class GraphModel(Model):
@@ -204,3 +249,10 @@ class GraphModel(Model):
                 input_layers=[self.get_name_to_blob()[input_layer]
                               for input_layer in self.get_input_layer_names()],
                 **kwargs)
+
+    def get_prediction_function(self, input_layer_names, output_layer_name):
+        return self._get_prediction_function(
+    inputs=[
+     self.get_name_to_blob()[input_layer_name].get_activation_vars()
+     for input_layer_name in input_layer_names],
+    output=self.get_name_to_blob()[output_layer_name].get_activation_vars())

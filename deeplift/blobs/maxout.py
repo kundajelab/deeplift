@@ -80,7 +80,7 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
     def _get_weighted_active_gradients(self):
         """
          intuition for calculation: take the vector in the direction
-         of change ('input_diff_from_default') and find the 'theta'
+         of change ('input_diff_from_reference') and find the 'theta'
          representing where along this vector two planes intersect.
          Also find pairs of planes where the former is
          increasing faster than the latter along the direction of
@@ -109,11 +109,11 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #get gradients ("features") weighted by how much they
         #'dominate' on a vector
         #from the default value of the input to the actual input value
-        #input_diff_from_default has dimensions: batch x num_inputs
-        inp_diff_from_default = self._get_input_diff_from_default_vars() 
+        #input_diff_from_reference has dimensions: batch x num_inputs
+        inp_diff_from_reference = self._get_input_diff_from_reference_vars() 
 
         #compute differences in each feature activation at default
-        #_get_input_default_activation_vars() has dims: batch x num_inputs
+        #_get_input_reference_vars() has dims: batch x num_inputs
         #W_differences has dims:
         # num_features x num_features x num_inputs x num_outputs
         #b_differences has dims:
@@ -121,24 +121,24 @@ class Maxout(SingleInputMixin, OneDimOutputMixin, Node):
         #feature_diff_at_default therefore has dims:
         # batch x num_features x num_features x num_outputs
         feature_diff_at_default =\
-            B.dot(self._get_input_default_activation_vars()
+            B.dot(self._get_input_reference_vars()
                   , self.W_differences)\
             + self.b_differences
         self._debug_feature_diff_at_default = feature_diff_at_default
 
         #dot product with unit vector in the difference-from-default dir
         #change_vec_projection has dim batch x 
-        #inp_diff_from_default has dims: batch x num_inputs 
+        #inp_diff_from_reference has dims: batch x num_inputs 
         #W_differences has dims:
         # num_features x num_features x num_inputs x num_outputs
         #change_vec_projection therefore has dims:
         # batch x num_features x num_features x num_outputs
-        inp_diff_from_default_pc = inp_diff_from_default +\
+        inp_diff_from_reference_pc = inp_diff_from_reference +\
                                    (NEAR_ZERO_THRESHOLD*
-                                    (B.sum(B.abs(inp_diff_from_default)
+                                    (B.sum(B.abs(inp_diff_from_reference)
                                          ,axis=1)<NEAR_ZERO_THRESHOLD))[:,None]
         change_vec_projection =\
-            B.dot(inp_diff_from_default_pc,
+            B.dot(inp_diff_from_reference_pc,
                   self.W_differences)
         self._debug_change_vec_projection = change_vec_projection
 

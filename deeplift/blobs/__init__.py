@@ -5,4 +5,4 @@ from .core import *
 from .activations import *
 from .convolution import *
 from .maxout import *
-#from .rnn import *
+from .rnn import *
