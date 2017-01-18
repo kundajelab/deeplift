@@ -19,7 +19,8 @@ KerasKeys = deeplift.util.enum(name='name', activation='activation',
                   pool_length='pool_length', stride='stride',
                   pool_size='pool_size', strides='strides',
                   padding='padding',
-                  dim_ordering='dim_ordering')
+                  dim_ordering='dim_ordering',
+                  mode='mode', concat_axis='concat_axis')
 
 
 ActivationTypes = deeplift.util.enum(relu='relu',
@@ -261,6 +262,16 @@ def activation_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
                                      nonlinear_mxts_mode=nonlinear_mxts_mode) 
 
 
+def merge_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
+    if layer.get_config()[KerasKeys.mode] == "concat":
+        return [blobs.core.Concat(
+                 axis=layer.get_config()[KerasKeys.concat_axis],
+                 name=name, verbose=verbose)] 
+    else:
+        raise RuntimeError("Unsupported merge mode: "
+                           +str(layer.get_config()[KerasKeys.mode]))
+
+
 def sequential_container_conversion(layer, name, verbose,
                                     nonlinear_mxts_mode,
                                     dense_mxts_mode,
@@ -390,13 +401,19 @@ def convert_graph_model(model,
     for keras_non_input_layer in keras_non_input_layers:
         deeplift_layers =\
          keras_layer_to_deeplift_blobs[id(keras_non_input_layer)]
-        previous_keras_layer = get_previous_layer(keras_non_input_layer)
-        previous_deeplift_layer =\
-         keras_layer_to_deeplift_blobs[id(previous_keras_layer)][-1]
-        deeplift.util.apply_softmax_normalization_if_needed(
-                                              deeplift_layers[0],
-                                              previous_deeplift_layer)
-        deeplift_layers[0].set_inputs(previous_deeplift_layer) 
+        previous_keras_layers = get_previous_layer(keras_non_input_layer)
+        if (isinstance(previous_keras_layers, list)):
+            previous_deeplift_layers =\
+             [keras_layer_to_deeplift_blobs[id(x)][-1]
+              for x in previous_keras_layers]
+            deeplift_layers[0].set_inputs(previous_deeplift_layers)
+        else:
+            previous_deeplift_layer =\
+             keras_layer_to_deeplift_blobs[id(previous_keras_layers)][-1]
+            deeplift.util.apply_softmax_normalization_if_needed(
+                                                  deeplift_layers[0],
+                                                  previous_deeplift_layer)
+            deeplift_layers[0].set_inputs(previous_deeplift_layer) 
 
     if (auto_build_outputs):
         for layer in model.outputs.values():

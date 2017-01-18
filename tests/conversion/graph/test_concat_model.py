@@ -15,7 +15,7 @@ import keras
 from keras import models
 
 
-class TestConv1DModel(unittest.TestCase):
+class TestConcatModel(unittest.TestCase):
 
 
     def setUp(self):
@@ -23,25 +23,41 @@ class TestConv1DModel(unittest.TestCase):
             self.keras_version = 0.2 #didn't have the __version__ tag
         else:
             self.keras_version = float(keras.__version__[0:3])
-        self.inp = (np.random.randn(10*10*51)
+        self.inp1 = (np.random.randn(10*10*51)
                     .reshape(10,10,51).transpose(0,2,1))
-        self.keras_model = keras.models.Sequential()
-        conv_layer = keras.layers.convolutional.Convolution1D(
-                        nb_filter=2, filter_length=4, subsample_length=2,
-                        #re. input_shape=(51,10), that is, putting the channel
-                        #axis last; this is actually due to the bug
-                        #that seems to date back to v0.2.0...
-                        #https://github.com/fchollet/keras/blob/0.2.0/keras/layers/convolutional.py#L88
-                        activation="relu", input_shape=(51,10))
-        self.keras_model.add(conv_layer)
-        self.keras_model.add(keras.layers.convolutional.MaxPooling1D(
-                             pool_length=4, stride=2)) 
-        if (self.keras_version > 0.2):
-            self.keras_model.add(keras.layers.convolutional.AveragePooling1D(
-                             pool_length=4, stride=2))
-        else:
-            pass #there was no average pooling in 0.2.0 it seems
-        self.keras_model.add(keras.layers.core.Flatten())
+        self.inp2 = (np.random.randn(10*10*51)
+                    .reshape(10,10,51).transpose(0,2,1))
+        self.keras_model = keras.models.Graph()
+        self.keras_model.add_input(name="inp1", input_shape=(51,10))
+        self.keras_model.add_node(
+            keras.layers.convolutional.Convolution1D(
+                nb_filter=2, filter_length=4, subsample_length=2,
+                activation="relu"), name="conv1", input="inp1")
+        self.keras_model.add_node(
+            keras.layers.convolutional.MaxPooling1D(
+                pool_length=4, stride=2), name="mp1", input="conv1")
+        self.keras_model.add(keras.layers.core.Flatten(),
+                             name="flatten1", input="mp1")
+        self.keras_model.add(keras.layers.core.Dense(output_dim=5),
+                             name="dense1", input="flatten1")
+        self.keras_model.add(keras.layers.core.Activation("relu"),
+                             name="denserelu1", input="dense1")
+
+        self.keras_model.add_input(name="inp2", input_shape=(51,10))
+        self.keras_model.add_node(
+            keras.layers.convolutional.Convolution1D(
+                nb_filter=2, filter_length=4, subsample_length=2,
+                activation="relu"), name="conv2", input="inp2")
+        self.keras_model.add_node(
+            keras.layers.convolutional.MaxPooling1D(
+                pool_length=4, stride=2), name="mp2", input="conv2")
+        self.keras_model.add(keras.layers.core.Flatten(),
+                             name="flatten2", input="mp2")
+        self.keras_model.add(keras.layers.core.Dense(output_dim=5),
+                             name="dense2", input="flatten2")
+        self.keras_model.add(keras.layers.core.Activation("relu"),
+                             name="denserelu2", input="dense2")
+
         self.keras_model.add(keras.layers.core.Dense(output_dim=1))
         self.keras_model.add(keras.layers.core.Activation("sigmoid"))
         self.keras_model.compile(loss="mse", optimizer="sgd")
