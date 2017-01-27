@@ -487,14 +487,20 @@ def mean_normalise_softmax_weights(softmax_dense_layer):
     softmax_dense_layer.set_weights([new_weights, new_biases])
 
 
-def load_keras_model(weights, yaml,
+def load_keras_model(weights, yaml=None, json=None,
                      normalise_conv_for_one_hot_encoded_input=False,
                      normalise_across_rows=True,
                      name_of_conv_layer_to_normalise=None): 
-    #At the time of writing, I don't actually use this because
-    #I do the converion in convert_sequential_model to the deeplift_layer
-    from keras.models import model_from_yaml                                    
-    model = model_from_yaml(open(yaml).read()) 
+    assert yaml is not None or json is not None,\
+     "either yaml or json must be specified"
+    assert yaml is None or json is None,\
+     "only one of yaml or json must be specified"
+    if (yaml is not None):
+        from keras.models import model_from_yaml 
+        model = model_from_yaml(open(yaml).read()) 
+    else:
+        from keras.models import model_from_json 
+        model = model_from_json(open(json).read()) 
     model.load_weights(weights) 
     if (normalise_conv_for_one_hot_encoded_input):
         mean_normalise_first_conv_layer_weights(

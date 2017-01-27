@@ -31,7 +31,6 @@ class TestConvolutionalModel(unittest.TestCase):
                         nb_filter=2, nb_row=4, nb_col=4, subsample=(2,2),
                         activation="relu", input_shape=(10,51,51))
         self.keras_model.add(conv_layer)
-        self.keras_model.add(keras.layers.core.Activation("relu"))
         if (self.keras_version > 0.2):
             self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
                              pool_size=(4,4), strides=(2,2))) 
