@@ -34,7 +34,6 @@ class TestConv1DModel(unittest.TestCase):
                         #https://github.com/fchollet/keras/blob/0.2.0/keras/layers/convolutional.py#L88
                         activation="relu", input_shape=(51,10))
         self.keras_model.add(conv_layer)
-        self.keras_model.add(keras.layers.core.Activation("relu"))
         self.keras_model.add(keras.layers.convolutional.MaxPooling1D(
                              pool_length=4, stride=2)) 
         if (self.keras_version > 0.2):
