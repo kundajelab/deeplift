@@ -358,13 +358,12 @@ def get_top_n_scores_per_region(
         return np.array(top_n_scores), np.array(top_n_indices)
 
 
-def get_integrated_gradients_function(gradient_computation_function,
+def get_integrated_gradients_function(gradient_computation_function, 
                                       num_intervals):
     def compute_integrated_gradients(
         task_idx, input_data_list, input_references_list,
-        batch_size, progress_update):
-        outputs = [] 
-        mean_gradients = []
+        batch_size, progress_update=None):
+        outputs = []
         #remember, input_data_list and input_references_list are
         #a list with one entry per mode
         input_references_list =\
@@ -374,26 +373,39 @@ def get_integrated_gradients_function(gradient_computation_function,
         #will flesh out multimodal case later...
         assert len(input_data_list)==1
         assert len(input_references_list)==1
+        
+        vectors = []
+        interpolated_inputs = []
+        interpolated_inputs_references = []
         for an_input, a_reference in zip(input_data_list[0],
                                          input_references_list[0]):
-            #interpolate between reference and input with num_intervals 
+            #interpolate between reference and input with num_intervals
             vector = an_input - a_reference
+            vectors.append(vector)
             step = vector/float(num_intervals)
-            interpolated_inputs = []
+            #prepare the array that has the inputs at different steps
             for i in range(num_intervals):
                 interpolated_inputs.append(
                     a_reference + step*(i+0.5))
-            #find the gradients at different steps
-            interpolated_gradients =\
-             np.array(gradient_computation_function(
-                task_idx=task_idx,
-                input_data_list=[interpolated_inputs],
-                input_references_list=[a_reference],
-                batch_size=batch_size,
-                progress_update=None))
-            mean_gradient = np.mean(interpolated_gradients,axis=0)
-            contribs = mean_gradient*vector
-            outputs.append(contribs)
-            mean_gradients.append(mean_gradient)
-        return outputs, mean_gradients
+                interpolated_inputs_references.append(a_reference)        
+        #find the gradients at different steps for all the inputs
+        interpolated_gradients =\
+         np.array(gradient_computation_function(
+            task_idx=task_idx,
+            input_data_list=[interpolated_inputs],
+            input_references_list=[interpolated_inputs_references],
+            batch_size=batch_size,
+            progress_update=progress_update))
+        #reshape for taking the mean over all the steps
+        #the first dim is the sample idx, second dim is the step
+        #I've checked this is the appropriate axis ordering for the reshape
+        interpolated_gradients = np.reshape(
+                                interpolated_gradients,
+                                [input_data_list[0].shape[0], num_intervals]
+                                +list(input_data_list[0].shape[1:])) 
+        #take the mean gradient over all the steps, multiply by vector
+        #equivalent to the stepwise integral
+        mean_gradient = np.mean(interpolated_gradients,axis=1)
+        contribs = mean_gradient*np.array(vectors)
+        return contribs
     return compute_integrated_gradients
