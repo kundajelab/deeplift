@@ -518,6 +518,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                       " to Linear") 
                 self.dense_mxts_mode=DenseMxtsMode.Linear 
 
+        print(self.dense_mxts_mode)
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
             return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
 
@@ -561,69 +562,71 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
                 #dims batch x output x input
                 v = fwd_contribs 
+                r = reference[:,:,None]
+                #pmax and nmax are the pos and neg contribs *absent* the
+                #current contrib
                 pmax = (total_pos_contribs[:,:,None] - (v*(v>0))) 
                 nmax = (total_neg_contribs[:,:,None] - (v*(v<0)))
 
-                if (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
-                    #pseudocount pmax and nmax
-                    pmax = pmax + 10**-5
-                    nmax = nmax + 10**-5
-                    
-                    neg_cont = B.minimum(0,(
-                     cont_shapely_neg_vol(v=v,
-                                  pmax=pmax+B.maximum(0,reference[:,:,None]),
-                                  nmax=nmax)
-                     -B.switch(
-                       B.abs(reference[:,:,None])<NEAR_ZERO_THRESHOLD,0,
-                         cont_shapely_neg_vol(v=v,
-                          pmax=B.switch(reference[:,:,None]>=0,
-                                        reference[:,:,None], pmax),
-                          nmax=B.switch(reference[:,:,None]<=0,
-                                        -reference[:,:,None], nmax))))) 
-                    pos_cont = B.maximum(0,v*(v>0)*pmax*nmax + (
-                     cont_shapely_neg_vol(v=-v,
-                                        pmax=nmax-B.minimum(0,reference[:,:,None]),
-                                        nmax=pmax)
-                     -B.switch(B.abs(reference[:,:,None])<NEAR_ZERO_THRESHOLD,0,
-                        cont_shapely_neg_vol(
-                            v=-v, pmax=B.switch(reference[:,:,None]<=0,
-                                                -reference[:,:,None], nmax),
-                            nmax=B.switch(reference[:,:,None]>=0,
-                                          reference[:,:,None], pmax)
-                        ) 
-                      )
-                    ))
-                    shapely_uncorrected = (neg_cont + pos_cont)/(pmax*nmax)
-                    #distribute the difference in proportion to absolute contribs
-                    #total_absolute = B.sum(B.abs(shapely_uncorrected),axis=-1)
-                    #shapely_corrected = (shapely_uncorrected
-                    #                 + (difference[:,:,None]
-                    #                    *B.abs(shapely_uncorrected)/
-                    #              pseudocount_near_zero(total_absolute[:,:,None])))
-                    total_neg_uncorrected = B.sum(shapely_uncorrected*(v<0),
-                                                  axis=-1)
-                    total_pos_uncorrected = B.sum(shapely_uncorrected*(v>0),
-                                                  axis=-1) 
-                    shapely_neg_corrected = (
-                     shapely_uncorrected*(v<0)*
-                     (total_neg_uncorrected/
-                      pseudocount_near_zero(rrd_neg_impact))[:,:,None])
-                    shapely_pos_corrected = (
-                     shapely_uncorrected*(v>0)*
-                     (total_pos_uncorrected/
-                      pseudocount_near_zero(rrd_pos_impact))[:,:,None])
+                if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist2):
+                    #we will make the simplying assumption that the three
+                    #'players' are v, pmax and nmax  
+                    #possible orders are:
+                    # v, pmax, nmax & v, nmax, pmax <- 1
+                    # pmax, nmax, v & nmax, pmax, v <- 2
+                    # pmax, v, nmax <- 3
+                    # nmax, v, pmax <- 4
+                    #Let's find the marginal contribs in all cases
+                    # case 1:
+                    c1 = 2*(B.maximum(0, r+v) - B.maximum(0,r))
+                    c2 = 2*(B.maximum(0, r+(pmax-nmax)+v)
+                            -B.maximum(0,r+(pmax-nmax)))
+                    c3 = B.maximum(0, r+pmax+v) - B.maximum(0, r+pmax)
+                    c4 = B.maximum(0, r-nmax+v) - B.maximum(0,r-nmax)
+                    unscaled_contribs = (c1+c2+c3+c4)/6.0
+                    #add an adjustment to make sure that the total contribs
+                    #are the same.
+                    total_contribs = total_pos_contribs-total_neg_contribs
+                    zero_total_contribs_mask = B.eq(total_contribs, 0.0)
+                    total_unscaled_contribs = B.sum(unscaled_contribs, axis=-1)
+                    scale = (total_unscaled_contribs/
+                             pseudocount_near_zero(total_contribs))
+                    #in the 0.0/0.0 case where the scale is undefined, let
+                    #the scale factor be 1.0 
+                    scale += 1.0*(B.eq(total_contribs,0.0)
+                                  *B.eq(total_unscaled_contribs,0.0))
+                    final_contribs = unscaled_contribs*scale[:,:,None]
 
-                    shapely_corrected = (shapely_neg_corrected
-                                         + shapely_pos_corrected)
+                    #v is weight*diff-from-default
+                    #The multiplier = final_contribs/diff_from_default 
+                    #               = weight*(final_contribs/v)
+                    multiplier_adjustment = (
+                       final_contribs/pseudocount_near_zero(v))
+                    #for the case when v is zero, we need to find the partial
+                    #derivative of final_contribs w.r.t. v. This is:
+                    partialdv = (scale[:,:,None]* #dfinal/dunscaled
+                                   #dunscaled/dv (split into c1..c4):
+                                    (2*(r > 0.0) + 
+                                     2*(r+pmax-nmax > 0.0) + 
+                                     (r+pmax > 0.0) +
+                                     (r-nmax > 0.0))/6.0)
+                    #add partialdv to multiplier_adjustment when v is zero
+                    #(multiplier_adjustment should be 0 in those places
+                    # before this line)
+                    multiplier_adjustment += partialdv*B.eq(v, 0.0)
 
-                    new_Wt = (self.W.T[None,:,:]*shapely_corrected
-                              /pseudocount_near_zero(fwd_contribs))
-                elif (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist2):
-                    raise NotImplementedError()
+                    #dims of new_Wt: batch x output x input
+                    new_Wt = self.W.T[None,:,:]*multiplier_adjustment
+                    return B.sum(self.get_mxts()[:,:,None]
+                                 *new_Wt[:,:,:], axis=1)
+
+                elif (self.dense_mxts_mode == DenseMxtsMode.ContinuousShapely):
+                    raise NotImplementedError(
+                     "I scrapped this implementation; see git history for it")
                 else:
                     raise RuntimeError(self.dense_mxts_mode+" not implemented")
                 
-            #positive and negative values grouped for rescale:
+            #positive and negative values grouped together for rescale:
             elif (self.dense_mxts_mode in [DenseMxtsMode.Redist,
                     DenseMxtsMode.Counterbalance, DenseMxtsMode.RevealCancel,
                     DenseMxtsMode.RevealCancelRedist,
@@ -699,46 +702,7 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
         else:
             raise RuntimeError("Unsupported mxts mode: "
                                +str(self.dense_mxts_mode))
-
-
-def cont_shapely_neg_vol(v, pmax, nmax):
-    v = v*(v<0)
-    #It helps to remember that v is negative when reading these formulas! 
-
-    #vol1: volume over area where the full negative contrib is felt
-    #seg1_1 is only relevant when pmax > -v
-    #it is a triangle with base/height (min(pmax, nmax-v) + v)^2. It
-    seg1_1 = (-v < pmax)*0.5*B.square((B.minimum(pmax, nmax-v)+v))
-    #seg1_2 is only relevant when pmax > (nmax - v)
-    #it is a rectangle with base (pmax - (nmax -v)) and height nmax 
-    seg1_2 = B.maximum(0, pmax - (nmax-v))*(nmax) 
-    vol1 = v*(seg1_1 + seg1_2) #full impact of v over area - remember v is neg
-
-    #now: volumes over area where partial contrib is felt due to hitting floor
-    
-    #vol2 is a pyramid
-    vol2 = -(1.0/6)*B.pow(B.minimum(B.minimum(nmax, pmax),B.abs(v)),3)
-    #vol3 ends up equal to cheese slice + upward-sheared cheese slice on top
-    min_pmax_mv = B.minimum(pmax, -v)
-    vol3 = (nmax < min_pmax_mv)*((0.5*nmax*min_pmax_mv*(nmax - min_pmax_mv))) 
-    #vol4 and vol5 are only applicable when (pmax > -v)
-    #vol4 is sheared cheese slice with face of base & height v, and
-    #perpendicular length of (min(pmax, nmax) + v) - it's the main diag. bit
-    vol4 = -(pmax > -v)*(nmax > -v)*(0.5*B.pow(v,2)*(B.minimum(pmax, nmax)+v))
-    #vol5 is a sheared cheese slice with a pyramid end chopped off
-    #make variables to store the limits of the integration w.r.t. p:
-    vol5_end = B.minimum(nmax-v, pmax)
-    vol5_start = B.maximum(-v, nmax)
-    vol5 = (pmax > -v)*(pmax > nmax)*(
-        (0.5*B.pow(nmax,2)*(vol5_end - vol5_start))
-        - (0.5*nmax)*(B.pow(vol5_end,2) - B.pow(vol5_start,2))
-        #vol5_end and vol5_start is positive for all cells that count;
-        #the abs is just to compensate for a theano bug that produces nans
-        + (1.0/6)*(B.pow(B.abs(vol5_end),3) - B.pow(B.abs(vol5_start),3))
-        - (0.5*B.pow(v,2)*(vol5_end - vol5_start)) #cheese slice
-    ) 
-    return vol1+vol2+vol3+vol4+vol5 
-    
+ 
 
 class BatchNormalization(SingleInputMixin, Node):
 
