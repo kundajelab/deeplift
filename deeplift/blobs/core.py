@@ -518,7 +518,6 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                       " to Linear") 
                 self.dense_mxts_mode=DenseMxtsMode.Linear 
 
-        print(self.dense_mxts_mode)
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
             return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
 
@@ -589,8 +588,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                     total_contribs = total_pos_contribs-total_neg_contribs
                     zero_total_contribs_mask = B.eq(total_contribs, 0.0)
                     total_unscaled_contribs = B.sum(unscaled_contribs, axis=-1)
-                    scale = (total_unscaled_contribs/
-                             pseudocount_near_zero(total_contribs))
+                    scale = (total_contribs/
+                             pseudocount_near_zero(total_unscaled_contribs))
                     #in the 0.0/0.0 case where the scale is undefined, let
                     #the scale factor be 1.0 
                     scale += 1.0*(B.eq(total_contribs,0.0)
@@ -691,7 +690,11 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                            (fwd_contribs<0)*negative_rescale[:,:,None] 
                 if (self.dense_mxts_mode ==
                     DenseMxtsMode.RevealCancelRedist_ThroughZeros):
-                    new_Wt += self.W.T[None,:,:]*B.eq(fwd_contribs,0.0)
+                    #for 0/0, set multiplier to half of pos and neg rescales
+                    new_Wt += (self.W.T[None,:,:]*
+                               (0.5*(positive_rescale[:,:,None]
+                                     +negative_rescale[:,:,None]))
+                              *B.eq(fwd_contribs,0.0))
             else:
                 raise RuntimeError("Unsupported dense_mxts_mode: "
                                    +str(self.dense_mxts_mode))
