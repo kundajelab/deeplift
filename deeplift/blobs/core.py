@@ -32,6 +32,10 @@ DenseMxtsMode = deeplift.util.enum(
                      "RevealCancelRedist_ThroughZeros",
                     RevealCancelRedist2="RevealCancelRedist2",
                     ContinuousShapely="ContinuousShapely")
+ConvMxtsMode = deeplift.util.enum(
+                    Linear="Linear",
+                    RevealCancelRedist_ThroughZeros=
+                     "RevealCancelRedist_ThroughZeros")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -514,8 +518,8 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             if (len(self.get_output_layers())!=1 or
                 (type(self.get_output_layers()[0]).__name__!="ReLU")):
                 print("Dense layer does not have sole output of ReLU so"
-                      " cautiously reverting DenseMxtsMode from"
-                      " to Linear") 
+                      +" cautiously reverting DenseMxtsMode from "
+                      +str(self.dense_mxts_mode)+" to Linear") 
                 self.dense_mxts_mode=DenseMxtsMode.Linear 
 
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
