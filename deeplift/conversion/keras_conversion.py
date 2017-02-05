@@ -7,7 +7,7 @@ from collections import OrderedDict
 import deeplift
 from deeplift import models, blobs
 from deeplift.blobs import NonlinearMxtsMode,\
- DenseMxtsMode, MaxPoolDeepLiftMode
+ DenseMxtsMode, ConvMxtsMode, MaxPoolDeepLiftMode
 import deeplift.util  
 from deeplift.backend import PoolMode, BorderMode
 import numpy as np
@@ -76,7 +76,7 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
 
 
 def conv1d_conversion(layer, name, verbose,
-                      nonlinear_mxts_mode, **kwargs):
+                      nonlinear_mxts_mode, conv_mxts_mode, **kwargs):
     #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
                             layer, name, verbose,
@@ -92,13 +92,15 @@ def conv1d_conversion(layer, name, verbose,
             stride=layer.get_config()[KerasKeys.subsample_length],
             border_mode=layer.get_config()[KerasKeys.border_mode],
             #for conv1d implementations, channels always seem to come last
-            channels_come_last=True)] 
+            channels_come_last=True,
+            conv_mxts_mode=conv_mxts_mode
+           )] 
     to_return.extend(converted_activation)
     return to_return
 
 
 def conv2d_conversion(layer, name, verbose,
-                      nonlinear_mxts_mode, **kwargs):
+                      nonlinear_mxts_mode, conv_mxts_mode, **kwargs):
     #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
                             layer, name, verbose,
@@ -117,7 +119,8 @@ def conv2d_conversion(layer, name, verbose,
             b=layer.get_weights()[1],
             strides=layer.get_config()[KerasKeys.subsample],
             border_mode=layer.get_config()[KerasKeys.border_mode],
-            channels_come_last=channels_come_last)] 
+            channels_come_last=channels_come_last,
+            conv_mxts_mode=conv_mxts_mode)] 
     to_return.extend(converted_activation)
     return to_return
 
@@ -264,6 +267,7 @@ def activation_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
 def sequential_container_conversion(layer, name, verbose,
                                     nonlinear_mxts_mode,
                                     dense_mxts_mode,
+                                    conv_mxts_mode,
                                     maxpool_deeplift_mode,
                                     converted_layers=None):
     if (converted_layers is None):
@@ -281,6 +285,7 @@ def sequential_container_conversion(layer, name, verbose,
                              verbose=verbose,
                              nonlinear_mxts_mode=nonlinear_mxts_mode,
                              dense_mxts_mode=dense_mxts_mode,
+                             conv_mxts_mode=conv_mxts_mode,
                              maxpool_deeplift_mode=maxpool_deeplift_mode)) 
     return converted_layers
      
@@ -317,6 +322,7 @@ def convert_sequential_model(model, num_dims=None,
                         nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
                         verbose=True,
                         dense_mxts_mode=DenseMxtsMode.Linear,
+                        conv_mxts_mode=ConvMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode):
     converted_layers = []
     if (model.layers[0].input_shape is not None):
@@ -339,6 +345,7 @@ def convert_sequential_model(model, num_dims=None,
                 layer=model, name="", verbose=verbose,
                 nonlinear_mxts_mode=nonlinear_mxts_mode,
                 dense_mxts_mode=dense_mxts_mode,
+                conv_mxts_mode=conv_mxts_mode,
                 maxpool_deeplift_mode=maxpool_deeplift_mode,
                 converted_layers=converted_layers)
     deeplift.util.connect_list_of_layers(converted_layers)
@@ -350,6 +357,7 @@ def convert_graph_model(model,
                         nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
                         verbose=True,
                         dense_mxts_mode=DenseMxtsMode.Linear,
+                        conv_mxts_mode=ConvMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode,
                         auto_build_outputs=True):
     name_to_blob = OrderedDict()
@@ -380,6 +388,7 @@ def convert_graph_model(model,
                                  verbose=verbose,
                                  nonlinear_mxts_mode=nonlinear_mxts_mode,
                                  dense_mxts_mode=dense_mxts_mode,
+                                 conv_mxts_mode=conv_mxts_mode,
                                  maxpool_deeplift_mode=maxpool_deeplift_mode)
         deeplift.util.connect_list_of_layers(deeplift_layers)
         keras_layer_to_deeplift_blobs[id(layer)] = deeplift_layers
