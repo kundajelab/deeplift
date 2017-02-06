@@ -234,21 +234,21 @@ class Conv2D(SingleInputMixin, Node):
                   +" cautiously reverting ConvMxtsMode from "
                   +str(self.conv_mxts_mode)+" to Linear") 
         effective_mxts = self.get_mxts()
-        input_act_vars = self._get_input_activation_vars()
+        deltain_act_vars = self._get_input_diff_from_reference_vars()
         if (self.channels_come_last):
             effective_mxts = B.dimshuffle(effective_mxts,(0,3,1,2))   
-            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
+            deltain_act_vars = B.dimshuffle(deltain_act_vars, (0,3,1,2))
         if (self.conv_mxts_mode == ConvMxtsMode.Linear):
             to_return = B.conv2d_grad(
                     out_grad=effective_mxts,
-                    conv_in=input_act_vars,
+                    conv_in=deltain_act_vars,
                     filters=self.W,
                     border_mode=self.border_mode,
                     subsample=self.strides)
         elif (self.conv_mxts_mode ==
               ConvMxtsMode.RevealCancelRedist_ThroughZeros):
-            pos_inputs = input_act_vars*(input_act_vars > 0.0) 
-            neg_inputs = input_act_vars*(input_act_vars < 0.0)
+            pos_inputs = deltain_act_vars*(deltain_act_vars > 0.0) 
+            neg_inputs = deltain_act_vars*(deltain_act_vars < 0.0)
             #find the total positive inputs per neuron
             raw_pos_contribs = (B.conv2d(inp=pos_inputs,
                                     filters=self.W*(self.W>0.0),
@@ -283,34 +283,34 @@ class Conv2D(SingleInputMixin, Node):
 
             to_return = B.conv2d_grad( #grads from pos weights on pos inputs
                     out_grad=effective_mxts*pos_scale_factor,
-                    conv_in=input_act_vars,
+                    conv_in=deltain_act_vars,
                     filters=self.W*(self.W > 0.0),
                     border_mode=self.border_mode,
-                    subsample=self.strides)*(input_act_vars > 0.0)
+                    subsample=self.strides)*(deltain_act_vars > 0.0)
             to_return += B.conv2d_grad( #grads from neg weights on neg inputs
                     out_grad=effective_mxts*pos_scale_factor,
-                    conv_in=input_act_vars,
+                    conv_in=deltain_act_vars,
                     filters=self.W*(self.W < 0.0),
                     border_mode=self.border_mode,
-                    subsample=self.strides)*(input_act_vars < 0.0)
+                    subsample=self.strides)*(deltain_act_vars < 0.0)
             to_return += B.conv2d_grad( #grads from pos weights on neg inputs
                     out_grad=effective_mxts*neg_scale_factor,
-                    conv_in=input_act_vars,
+                    conv_in=deltain_act_vars,
                     filters=self.W*(self.W > 0.0),
                     border_mode=self.border_mode,
-                    subsample=self.strides)*(input_act_vars < 0.0)
+                    subsample=self.strides)*(deltain_act_vars < 0.0)
             to_return += B.conv2d_grad( #grads from neg weights on pos inputs
                     out_grad=effective_mxts*neg_scale_factor,
-                    conv_in=input_act_vars,
+                    conv_in=deltain_act_vars,
                     filters=self.W*(self.W < 0.0),
                     border_mode=self.border_mode,
-                    subsample=self.strides)*(input_act_vars > 0.0)
+                    subsample=self.strides)*(deltain_act_vars > 0.0)
             to_return += B.conv2d_grad( #grads from neg weights on pos inputs
                     out_grad=effective_mxts*zero_scale_factor,
-                    conv_in=input_act_vars,
+                    conv_in=deltain_act_vars,
                     filters=self.W,
                     border_mode=self.border_mode,
-                    subsample=self.strides)*(B.eq(input_act_vars,0.0))
+                    subsample=self.strides)*(B.eq(deltain_act_vars,0.0))
         else:
             raise RuntimeError("Unsupported conv mxts mode: "
                                +str(self.conv_mxts_mode))
