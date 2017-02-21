@@ -515,9 +515,18 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
               DenseMxtsMode.RevealCancelRedist_ThroughZeros,
               DenseMxtsMode.RevealCancelRedist2,
               DenseMxtsMode.ContinuousShapely]):
-            if (len(self.get_output_layers())!=1 or
-                (type(self.get_output_layers()[0]).__name__!="ReLU")):
-                print("Dense layer does not have sole output of ReLU so"
+            revert=False
+            if (len(self.get_output_layers())!=1):
+                revert=True
+            else:
+                layer_to_check = self.get_output_layers()[0]
+                if (type(layer_to_check).__name__=="BatchNormalization"):
+                    layer_to_check = layer_to_check.get_output_layers()[0]
+                if (type(layer_to_check).__name__ !="ReLU"):
+                    revert=True
+            if (revert):
+                print("Dense layer "+self.get_name()
+                      +" does not have sole output of ReLU so"
                       +" cautiously reverting DenseMxtsMode from "
                       +str(self.dense_mxts_mode)+" to Linear") 
                 self.dense_mxts_mode=DenseMxtsMode.Linear 
