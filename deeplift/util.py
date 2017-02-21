@@ -431,7 +431,7 @@ def get_shuffle_seq_ref_function(score_computation_function,
                 if (progress_update is not None and
                     references_generated%progress_update==0):
                     print(str(references_generated)
-                          +" reference seqs generateod")
+                          +" reference seqs generated")
                 to_run_input_data_seqs.append(seq) 
                 to_run_input_data_refs.append(shuffle_func(seq)) 
         if (progress_update is not None):
