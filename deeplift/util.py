@@ -409,3 +409,60 @@ def get_integrated_gradients_function(gradient_computation_function,
         contribs = mean_gradient*np.array(vectors)
         return contribs
     return compute_integrated_gradients
+
+
+def get_shuffle_seq_ref_function(score_computation_function, 
+                                 shuffle_func, one_hot_func):
+    def compute_scores_with_shuffle_seq_refs(
+        task_idx, input_data_sequences, num_refs_per_seq,
+        batch_size, seed=1, progress_update=None):
+
+        import numpy as np
+        np.random.seed(seed)
+        import random
+        random.seed(seed)
+
+        to_run_input_data_seqs = []
+        to_run_input_data_refs = []
+        for seq in input_data_sequences:
+            for i in range(num_refs_per_seq):
+                to_run_input_data_seqs.append(seq) 
+                to_run_input_data_refs.append(shuffle_func(seq)) 
+        input_data_list = [one_hot_func(to_run_input_data_seqs)] 
+        input_references_list = [one_hot_func(to_run_input_data_refs)]
+
+        computed_scores = np.array(score_computation_function(
+            task_idx=task_idx,
+            input_data_list=input_data_list,
+            input_references_list=input_references_list,
+            batch_size=batch_size,
+            progress_update=progress_update))
+        
+        computed_scores = np.reshape(
+                            computed_scores,
+                            [len(input_data_sequences),
+                             num_refs_per_seq]
+                             +list(input_data_list[0].shape[1:])) 
+        #take the mean over all the refs
+        mean_scores = np.mean(computed_scores,axis=1)
+        return mean_scores
+    return compute_scores_with_shuffle_seq_refs
+
+
+def randomly_shuffle_seq(seq):
+    return "".join(in_place_shuffle([x for x in seq]))
+
+
+def in_place_shuffle(arr):
+    import random
+    len_of_arr = len(arr)
+    for i in xrange(0,len_of_arr):
+        #randomly select index:
+        chosen_index = random.randint(i,len_of_arr-1)
+        #swap
+        val_at_index = arr[chosen_index]
+        arr[chosen_index] = arr[i]
+        arr[i] = val_at_index
+    return arr
+
+
