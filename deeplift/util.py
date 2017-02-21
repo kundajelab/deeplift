@@ -424,12 +424,22 @@ def get_shuffle_seq_ref_function(score_computation_function,
 
         to_run_input_data_seqs = []
         to_run_input_data_refs = []
+        references_generated = 0
         for seq in input_data_sequences:
             for i in range(num_refs_per_seq):
+                references_generated += 1
+                if (progress_update is not None and
+                    references_generated%progress_update==0):
+                    print(str(references_generated)
+                          +" reference seqs generateod")
                 to_run_input_data_seqs.append(seq) 
                 to_run_input_data_refs.append(shuffle_func(seq)) 
+        if (progress_update is not None):
+            print("One hot encoding sequences...")
         input_data_list = [one_hot_func(to_run_input_data_seqs)] 
         input_references_list = [one_hot_func(to_run_input_data_refs)]
+        if (progress_update is not None):
+            print("One hot encoding done...")
 
         computed_scores = np.array(score_computation_function(
             task_idx=task_idx,
