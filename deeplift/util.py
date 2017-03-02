@@ -358,13 +358,12 @@ def get_top_n_scores_per_region(
         return np.array(top_n_scores), np.array(top_n_indices)
 
 
-def get_integrated_gradients_function(gradient_computation_function,
+def get_integrated_gradients_function(gradient_computation_function, 
                                       num_intervals):
     def compute_integrated_gradients(
         task_idx, input_data_list, input_references_list,
-        batch_size, progress_update):
-        outputs = [] 
-        mean_gradients = []
+        batch_size, progress_update=None):
+        outputs = []
         #remember, input_data_list and input_references_list are
         #a list with one entry per mode
         input_references_list =\
@@ -374,26 +373,106 @@ def get_integrated_gradients_function(gradient_computation_function,
         #will flesh out multimodal case later...
         assert len(input_data_list)==1
         assert len(input_references_list)==1
+        
+        vectors = []
+        interpolated_inputs = []
+        interpolated_inputs_references = []
         for an_input, a_reference in zip(input_data_list[0],
                                          input_references_list[0]):
-            #interpolate between reference and input with num_intervals 
+            #interpolate between reference and input with num_intervals
             vector = an_input - a_reference
+            vectors.append(vector)
             step = vector/float(num_intervals)
-            interpolated_inputs = []
+            #prepare the array that has the inputs at different steps
             for i in range(num_intervals):
                 interpolated_inputs.append(
                     a_reference + step*(i+0.5))
-            #find the gradients at different steps
-            interpolated_gradients =\
-             np.array(gradient_computation_function(
-                task_idx=task_idx,
-                input_data_list=[interpolated_inputs],
-                input_references_list=[a_reference],
-                batch_size=batch_size,
-                progress_update=None))
-            mean_gradient = np.mean(interpolated_gradients,axis=0)
-            contribs = mean_gradient*vector
-            outputs.append(contribs)
-            mean_gradients.append(mean_gradient)
-        return outputs, mean_gradients
+                interpolated_inputs_references.append(a_reference)        
+        #find the gradients at different steps for all the inputs
+        interpolated_gradients =\
+         np.array(gradient_computation_function(
+            task_idx=task_idx,
+            input_data_list=[interpolated_inputs],
+            input_references_list=[interpolated_inputs_references],
+            batch_size=batch_size,
+            progress_update=progress_update))
+        #reshape for taking the mean over all the steps
+        #the first dim is the sample idx, second dim is the step
+        #I've checked this is the appropriate axis ordering for the reshape
+        interpolated_gradients = np.reshape(
+                                interpolated_gradients,
+                                [input_data_list[0].shape[0], num_intervals]
+                                +list(input_data_list[0].shape[1:])) 
+        #take the mean gradient over all the steps, multiply by vector
+        #equivalent to the stepwise integral
+        mean_gradient = np.mean(interpolated_gradients,axis=1)
+        contribs = mean_gradient*np.array(vectors)
+        return contribs
     return compute_integrated_gradients
+
+
+def get_shuffle_seq_ref_function(score_computation_function, 
+                                 shuffle_func, one_hot_func):
+    def compute_scores_with_shuffle_seq_refs(
+        task_idx, input_data_sequences, num_refs_per_seq,
+        batch_size, seed=1, progress_update=None):
+
+        import numpy as np
+        np.random.seed(seed)
+        import random
+        random.seed(seed)
+
+        to_run_input_data_seqs = []
+        to_run_input_data_refs = []
+        references_generated = 0
+        for seq in input_data_sequences:
+            for i in range(num_refs_per_seq):
+                references_generated += 1
+                if (progress_update is not None and
+                    references_generated%progress_update==0):
+                    print(str(references_generated)
+                          +" reference seqs generated")
+                to_run_input_data_seqs.append(seq) 
+                to_run_input_data_refs.append(shuffle_func(seq)) 
+        if (progress_update is not None):
+            print("One hot encoding sequences...")
+        input_data_list = [one_hot_func(to_run_input_data_seqs)] 
+        input_references_list = [one_hot_func(to_run_input_data_refs)]
+        if (progress_update is not None):
+            print("One hot encoding done...")
+
+        computed_scores = np.array(score_computation_function(
+            task_idx=task_idx,
+            input_data_list=input_data_list,
+            input_references_list=input_references_list,
+            batch_size=batch_size,
+            progress_update=progress_update))
+        
+        computed_scores = np.reshape(
+                            computed_scores,
+                            [len(input_data_sequences),
+                             num_refs_per_seq]
+                             +list(input_data_list[0].shape[1:])) 
+        #take the mean over all the refs
+        mean_scores = np.mean(computed_scores,axis=1)
+        return mean_scores
+    return compute_scores_with_shuffle_seq_refs
+
+
+def randomly_shuffle_seq(seq):
+    return "".join(in_place_shuffle([x for x in seq]))
+
+
+def in_place_shuffle(arr):
+    import random
+    len_of_arr = len(arr)
+    for i in xrange(0,len_of_arr):
+        #randomly select index:
+        chosen_index = random.randint(i,len_of_arr-1)
+        #swap
+        val_at_index = arr[chosen_index]
+        arr[chosen_index] = arr[i]
+        arr[i] = val_at_index
+    return arr
+
+

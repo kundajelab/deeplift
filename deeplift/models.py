@@ -143,10 +143,10 @@ class Model(object):
                     #is common to two outputs, so should its symbolic vars
                     #TODO: I should put in a 'reset_fwd_pass' function and use
                     #it to invalidate the _built_fwd_pass_vars cache and recompile
-                assert np.allclose(target_layer.W, new_W),\
-                       "Please mean-normalise weights and biases of softmax layer" 
-                assert np.allclose(target_layer.b, new_b),\
-                       "Please mean-normalise weights and biases of softmax layer"
+                if (np.allclose(target_layer.W, new_W)==False):
+                    print("Consider mean-normalising softmax layer")
+                #assert np.allclose(target_layer.b, new_b),\
+                #       "Please mean-normalise weights and biases of softmax layer"
                 scoring_mode=ScoringMode.OneAndZeros
             else:
                 raise RuntimeError("Unsupported final_activation_type: "
