@@ -4,6 +4,7 @@ import deeplift.util
 from deeplift.util import NEAR_ZERO_THRESHOLD
 from .common import *
 
+theano_version = float(theano.__version__[:3]) 
 
 def eq(a, b):
     return T.eq(a,b)
@@ -122,9 +123,11 @@ def softmax(inp):
 
 
 def sigmoid_grad(inp):
-    out = sigmoid(inp)
-    grad = T.nnet.sigmoid.grad((inp,), (out,))
-    return grad
+    #T.nnet.sigmoid.grad has been deprecated
+    return T.exp(inp)/T.pow((T.exp(inp)+1),2)
+    #out = sigmoid(inp)
+    #grad = T.nnet.sigmoid.grad((inp,), (out,))
+    #return grad
 
 
 def softmax_grad(inp):
@@ -192,12 +195,21 @@ def pool2d(inp, pool_size, strides, border_mode, ignore_border, pool_mode):
     padding, theano_pool_mode = get_pooling_padding_and_theano_pool_mode(
                                     pool_size, border_mode, pool_mode)
 
-    to_return = T.signal.pool.pool_2d(input=inp,
-                    ds=pool_size,
-                    ignore_border=ignore_border,
-                    st=strides,
-                    padding=padding,
-                    mode=theano_pool_mode)
+    #there is an API-breaking change from 0.8 to 0.9
+    if (theano_version >= 0.9):
+        to_return = T.signal.pool.pool_2d(input=inp,
+                        ds=pool_size,
+                        ignore_border=ignore_border,
+                        st=strides,
+                        pad=padding,
+                        mode=theano_pool_mode)
+    else:
+        to_return = T.signal.pool.pool_2d(input=inp,
+                        ds=pool_size,
+                        ignore_border=ignore_border,
+                        st=strides,
+                        padding=padding,
+                        mode=theano_pool_mode)
 
     if border_mode==BorderMode.same:
         final_shape = [(inp.shape[2+i] + strides[i] - 1)//strides[i]
@@ -215,11 +227,18 @@ def pool2d_grad(out_grad, pool_in,
                            "'same' yet")
     padding, theano_pool_mode = get_pooling_padding_and_theano_pool_mode(
                                     pool_size, border_mode, pool_mode)
-    pool_op = T.signal.pool.Pool(ds=pool_size,
-                                 st=strides,
-                                 ignore_border=ignore_border,
-                                 padding=padding,
-                                 mode=theano_pool_mode)
+    if (theano_version >= 0.9): #there is an API breaking change
+        pool_op = T.signal.pool.Pool(ws=pool_size,
+                                     st=strides,
+                                     ignore_border=ignore_border,
+                                     pad=padding,
+                                     mode=theano_pool_mode)
+    else:
+        pool_op = T.signal.pool.Pool(ds=pool_size,
+                                     st=strides,
+                                     ignore_border=ignore_border,
+                                     padding=padding,
+                                     mode=theano_pool_mode)
     return pool_op.grad((pool_in,),
                         (out_grad,))[0]
     
