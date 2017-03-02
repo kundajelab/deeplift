@@ -63,9 +63,32 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         
     def _get_mxts_increments_for_inputs(self):
         if (self.nonlinear_mxts_mode in [NonlinearMxtsMode.PassThrough]):
-            if (type(self.get_inputs()).__name__!="Dense"):
-                print("Activation does not have single Dense input so reverting") 
-                self.nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT 
+            input_class_to_check = self.get_inputs()
+            if (type(input_class_to_check).__name__ == "BatchNormalization"):
+                #look at two layers before
+                input_class_to_check = input_class_to_check.get_inputs()
+            if (type(input_class_to_check).__name__ == "Dense"):
+                if (input_class_to_check.dense_mxts_mode
+                     == DenseMxtsMode.Linear):
+                    print("NonlinearMxtsMode for "+self.get_name()
+                          +" is PassThrough but "
+                          "preceding Dense layer has DenseMxtsMode Linear; "
+                          "cautiously reverting to DeepLIFT")
+                    self.nonlinear_mxts_mode = NonlinearMxtsMode.DeepLIFT
+            elif ("Conv" in type(input_class_to_check).__name__):
+                if (input_class_to_check.conv_mxts_mode
+                    == ConvMxtsMode.Linear):
+                    print("Warning: NonlinearMxtsMode for "+self.get_name()
+                          +" is PassThrough but "
+                          "preceding Conv layer has ConvMxtsMode Linear; "
+                          "cautiously reverting to DeepLIFT")
+                    self.nonlinear_mxts_mode = NonlinearMxtsMode.DeepLIFT
+            else:
+                raise RuntimeError("Preceding layer "
+                +type(input_class_to_check).__name__
+                +" is neither Conv or Dense;"
+                +" please implement a check to make sure the MxtsMode is"
+                +" compatible with PassThrough") 
         if (self.nonlinear_mxts_mode==NonlinearMxtsMode.DeconvNet):
             #apply the given nonlinearity in reverse
             mxts = self._build_activation_vars(self.get_mxts())
