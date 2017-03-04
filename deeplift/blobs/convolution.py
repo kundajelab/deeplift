@@ -230,9 +230,11 @@ class Conv2D(SingleInputMixin, Node):
     def _get_mxts_increments_for_inputs(self): 
         if (len(self.get_output_layers())!=1 or
             (type(self.get_output_layers()[0]).__name__!="ReLU")):
-            print("Conv layer does not have sole output of ReLU so"
-                  +" cautiously reverting ConvMxtsMode from "
-                  +str(self.conv_mxts_mode)+" to Linear") 
+            if (self.conv_mxts_mode != ConvMxtsMode.Linear):
+                print("Conv layer does not have sole output of ReLU so"
+                      +" cautiously reverting ConvMxtsMode from "
+                      +str(self.conv_mxts_mode)+" to Linear") 
+                self.conv_mxts_mode = ConvMxtsMode.Linear
         effective_mxts = self.get_mxts()
         deltain_act_vars = self._get_input_diff_from_reference_vars()
         if (self.channels_come_last):
