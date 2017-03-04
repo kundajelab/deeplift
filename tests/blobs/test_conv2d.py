@@ -7,7 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
-from deeplift.blobs import DenseMxtsMode
+from deeplift.blobs import DenseMxtsMode, ConvMxtsMode
 import deeplift.backend as B
 
 
@@ -53,7 +53,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(1,1),
                                   border_mode=B.BorderMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -78,7 +79,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(1,1),
                                   border_mode=B.BorderMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -114,7 +116,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
                                   border_mode=B.BorderMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -140,7 +143,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
                                   strides=(2,2),
                                   border_mode=B.BorderMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=4)
 

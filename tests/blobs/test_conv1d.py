@@ -7,7 +7,7 @@ import sys
 import os
 import numpy as np
 import deeplift.blobs as blobs
-from deeplift.blobs import DenseMxtsMode
+from deeplift.blobs import DenseMxtsMode, ConvMxtsMode
 from deeplift.backend import BorderMode as PaddingMode
 from deeplift.backend import PoolMode
 from deeplift.backend import function as compile_func
@@ -58,7 +58,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=1,
                                   border_mode=PaddingMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=3)
         func = compile_func([self.input_layer.get_activation_vars()],
@@ -74,7 +75,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=1,
                                   border_mode=PaddingMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=3)
         self.dense_layer.update_task_index(task_index=0)
@@ -94,7 +96,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=2,
                                   border_mode=PaddingMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=3)
         func = compile_func([self.input_layer.get_activation_vars()],
@@ -110,7 +113,8 @@ class TestConv(unittest.TestCase):
         conv_layer = blobs.Conv1D(W=self.conv_W, b=self.conv_b,
                                   stride=2,
                                   border_mode=PaddingMode.valid,
-                                  channels_come_last=False)
+                                  channels_come_last=False,
+                                  conv_mxts_mode=ConvMxtsMode.Linear)
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=2)
         self.dense_layer.update_task_index(task_index=0)
