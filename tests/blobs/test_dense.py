@@ -64,6 +64,6 @@ class TestDense(unittest.TestCase):
             input_layer.update_mxts()
             func = compile_func([input_layer.get_activation_vars(),
                                  input_layer.get_reference_vars()],
-                                dense_layer.get_mxts())
+                                input_layer.get_mxts())
             dense_layer.update_task_index(task_index=0)
             func(self.inp, np.zeros_like(self.inp))
