@@ -265,7 +265,7 @@ def activation_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
                                      nonlinear_mxts_mode=nonlinear_mxts_mode) 
 
 
-def merge_conversion(layer, name, verbose, nonlinear_mxts_mode, **kwargs):
+def merge_conversion(layer, name, verbose, **kwargs):
     if layer.get_config()[KerasKeys.mode] == "concat":
         return [blobs.core.Concat(
                  axis=layer.get_config()[KerasKeys.concat_axis],

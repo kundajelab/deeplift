@@ -109,7 +109,7 @@ class TestConcatModel(unittest.TestCase):
             return
         deeplift_model = kc.convert_graph_model(
                           model=self.keras_model,
-                          nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
+                          nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT)
         deeplift_fprop_func = compile_func(
          [deeplift_model.get_name_to_blob()['inp1'].get_activation_vars(),
           deeplift_model.get_name_to_blob()['inp1'].get_activation_vars()],
@@ -125,7 +125,7 @@ class TestConcatModel(unittest.TestCase):
             return
         deeplift_model = kc.convert_graph_model(
                             model=self.keras_model,
-                            nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
+                            nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT)
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
                                       find_scores_layer_name=["inp1", "inp2"],
