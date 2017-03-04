@@ -399,8 +399,23 @@ def convert_graph_model(model,
     
     #convert the nodes/outputs 
     for layer_name, layer in list(model.nodes.items()):
+        #need some special handling when previous layer
+        #is Merge as merge is not given its own node
+        if (type(get_previous_layer(layer)).__name__ == 'Merge'):
+            merge_layer = get_previous_layer(layer)
+            keras_non_input_layers.append(merge_layer)
+            deeplift_merge_layer = merge_conversion(
+                                    layer=merge_layer,
+                                    name='merge_before_'+layer_name,
+                                    verbose=verbose)
+            keras_layer_to_deeplift_blobs[id(merge_layer)] =\
+             deeplift_merge_layer
+            assert len(deeplift_merge_layer)==1
+            name_to_blob[deeplift_merge_layer[0].get_name()] =\
+             deeplift_merge_layer[0]
+        #now for converting the actual layer
         conversion_function = layer_name_to_conversion_function(
-                               layer.get_config()[KerasKeys.name])
+                               type(layer).__name__)
         keras_non_input_layers.append(layer)
         deeplift_layers = conversion_function(
                                  layer=layer, name=layer_name,
@@ -427,9 +442,6 @@ def convert_graph_model(model,
         else:
             previous_deeplift_layer =\
              keras_layer_to_deeplift_blobs[id(previous_keras_layers)][-1]
-            deeplift.util.apply_softmax_normalization_if_needed(
-                                                  deeplift_layers[0],
-                                                  previous_deeplift_layer)
             deeplift_layers[0].set_inputs(previous_deeplift_layer) 
 
     if (auto_build_outputs):
