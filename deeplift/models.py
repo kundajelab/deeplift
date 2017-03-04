@@ -104,7 +104,7 @@ class Model(object):
             target_layer.set_inactive()
             if (remove_list_wrapper_on_return):
                 #remove the enclosing []; should be only one element
-                assert len(to_return==1)
+                assert len(to_return)==1
                 to_return = to_return[0]
             return to_return
         return func
