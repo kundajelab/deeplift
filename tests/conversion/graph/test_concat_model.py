@@ -111,12 +111,12 @@ class TestConcatModel(unittest.TestCase):
                           model=self.keras_model,
                           nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT)
         deeplift_fprop_func = compile_func(
-         [deeplift_model.get_name_to_blob()['inp1'].get_activation_vars(),
-          deeplift_model.get_name_to_blob()['inp1'].get_activation_vars()],
-          deeplift_model.get_layers()[-1].get_activation_vars())
+ [deeplift_model.get_name_to_blob()['inp1'].get_activation_vars(),
+  deeplift_model.get_name_to_blob()['inp2'].get_activation_vars()],
+  deeplift_model.get_name_to_blob()['output_postact'].get_activation_vars())
         np.testing.assert_almost_equal(
-            deeplift_fprop_func(self.inp),
-            self.keras_output_fprop_func(self.inp),
+            deeplift_fprop_func(self.inp1, self.inp2),
+            self.keras_output_fprop_func(self.inp1, self.inp2),
             decimal=6)
          
 
@@ -128,8 +128,10 @@ class TestConcatModel(unittest.TestCase):
                             nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT)
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
-                                      find_scores_layer_name=["inp1", "inp2"],
-                                      target_layer_idx=-2)
+                              find_scores_layer_name=["inp1", "inp2"],
+                              pre_activation_target_layer_name="output_preact")
+
+        grads_inp1, grads_inp2 = self.grad_func(self.inp1, self.inp2)
         np.testing.assert_almost_equal(
             np.array(deeplift_contribs_func(task_idx=0,
                                       input_data_list={
@@ -138,4 +140,5 @@ class TestConcatModel(unittest.TestCase):
                                       batch_size=10,
                                       progress_update=None)),
             #when biases are 0 and ref is 0, deeplift is the same as grad*inp 
-            np.array(self.grad_func(self.inp)*self.inp), decimal=6)
+            np.array([grads_inp1*self.inp1,
+                      grads_inp2*self.inp2]), decimal=6)

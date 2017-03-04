@@ -72,20 +72,20 @@ class Model(object):
                  batch_size, progress_update,
                  input_references_list=None):
             if (isinstance(input_data_list, dict)):
-                assert hasattr(self, 'input_layer_names'),\
+                assert hasattr(self, '_input_layer_names'),\
                  ("Dictionary supplied for input_data_list but model does "
-                  "not have an attribute 'input_layer_names")
+                  "not have an attribute '_input_layer_names")
                 input_data_list = [input_data_list[x] for x in
-                                   self.input_layer_names]
+                                   self._input_layer_names]
             if (input_references_list is None):
                 print("No reference provided - using zeros")
                 input_references_list = [0.0 for x in input_data_list]
-            if (isinstance(input_references_list_list, dict)):
-                assert hasattr(self, 'input_layer_names'),\
+            if (isinstance(input_references_list, dict)):
+                assert hasattr(self, '_input_layer_names'),\
                  ("Dictionary supplied for input_references_list but model "
-                  "does not have an attribute 'input_layer_names")
+                  "does not have an attribute '_input_layer_names")
                 input_references_list = [input_references_list[x] for x in
-                                         self.input_layer_names]
+                                         self._input_layer_names]
             input_references_list = [
                 np.ones_like(input_data)*reference
                 for (input_data, reference) in
@@ -222,13 +222,13 @@ class SequentialModel(Model):
 
     def _get_func(self, find_scores_layer_idx,
                         target_layer_idx=-2, **kwargs):
-        if (isinstance(find_scores_layer_idx), list):
-            find_scores_layer = [self.get_layers()[x] for x in
+        if (isinstance(find_scores_layer_idx, list)):
+            find_scores_layers = [self.get_layers()[x] for x in
                                  find_scores_layer_idx]
         else:
-            find_scores_layer = self.get_layers()[find_scores_layer_idx] 
+            find_scores_layers = self.get_layers()[find_scores_layer_idx] 
         return super(SequentialModel, self)._get_func(
-                    find_scores_layer=find_scores_layer,
+                    find_scores_layers=find_scores_layers,
                     target_layer=self.get_layers()[target_layer_idx],
                     input_layers=[self.get_layers()[0]],
                     **kwargs) 
@@ -275,13 +275,14 @@ class GraphModel(Model):
     def _get_func(self, find_scores_layer_name,
                         pre_activation_target_layer_name,
                         **kwargs):
-        if (isinstance(find_scores_layer_name), list):
-            find_scores_layer = [
+        if (isinstance(find_scores_layer_name,list)):
+            find_scores_layers = [
              self.get_name_to_blob()[x] for x in find_scores_layer_name]
         else:
-            find_scores_layer = self.get_name_to_blob()[find_scores_layer_name]
+            find_scores_layers = self.get_name_to_blob()[
+                                  find_scores_layer_name]
         return super(GraphModel, self)._get_func(
-                find_scores_layer=find_scores_layer,
+                find_scores_layers=find_scores_layers,
                 target_layer=self.get_name_to_blob()\
                              [pre_activation_target_layer_name],
                 input_layers=[self.get_name_to_blob()[input_layer]

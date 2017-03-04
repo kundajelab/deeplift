@@ -457,6 +457,8 @@ def get_previous_layer(keras_layer):
         return keras_layer.previous
     elif (type(keras_layer).__name__ == 'Sequential'):
         return keras_layer.layers[0].previous
+    elif (type(keras_layer).__name__ == 'Merge'):
+        return keras_layer.layers
     else:
         raise RuntimeError("Not sure how to get prev layer for"
                            +" "+str(keras_layer))

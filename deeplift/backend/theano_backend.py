@@ -228,6 +228,7 @@ def pool2d_grad(out_grad, pool_in,
     padding, theano_pool_mode = get_pooling_padding_and_theano_pool_mode(
                                     pool_size, border_mode, pool_mode)
     if (theano_version >= 0.9): #there is an API breaking change
+        print(theano_version)
         pool_op = T.signal.pool.Pool(ws=pool_size,
                                      st=strides,
                                      ignore_border=ignore_border,
