@@ -525,11 +525,12 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
                 if (type(layer_to_check).__name__ !="ReLU"):
                     revert=True
             if (revert):
-                print("Dense layer "+str(self.get_name())
-                      +" does not have sole output of ReLU so"
-                      +" cautiously reverting DenseMxtsMode from "
-                      +str(self.dense_mxts_mode)+" to Linear") 
-                self.dense_mxts_mode=DenseMxtsMode.Linear 
+                if (self.dense_mxts_mode!=DenseMxtsMode.Linear):
+                    print("Dense layer "+str(self.get_name())
+                          +" does not have sole output of ReLU so"
+                          +" cautiously reverting DenseMxtsMode from "
+                          +str(self.dense_mxts_mode)+" to Linear") 
+                    self.dense_mxts_mode=DenseMxtsMode.Linear 
 
         if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
             return B.dot(self.get_mxts()*(self.get_mxts()>0.0),self.W.T)
