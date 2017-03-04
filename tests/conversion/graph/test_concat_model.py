@@ -27,7 +27,14 @@ class TestConcatModel(unittest.TestCase):
                     .reshape(10,10,51).transpose(0,2,1))
         self.inp2 = (np.random.randn(10*10*51)
                     .reshape(10,10,51).transpose(0,2,1))
-        self.keras_model = keras.models.Graph()
+        self.run_graph_tests = True
+        if (self.keras_version < 1.0):
+            self.keras_model = keras.models.Graph()
+        elif (hasattr(keras, 'legacy')):
+            self.keras_model = keras.legacy.models.Graph()
+        else:
+            self.run_graph_tests = False
+            return #skip setup
         self.keras_model.add_input(name="inp1", input_shape=(51,10))
         self.keras_model.add_node(
             keras.layers.convolutional.Convolution1D(
@@ -36,12 +43,6 @@ class TestConcatModel(unittest.TestCase):
         self.keras_model.add_node(
             keras.layers.convolutional.MaxPooling1D(
                 pool_length=4, stride=2), name="mp1", input="conv1")
-        self.keras_model.add(keras.layers.core.Flatten(),
-                             name="flatten1", input="mp1")
-        self.keras_model.add(keras.layers.core.Dense(output_dim=5),
-                             name="dense1", input="flatten1")
-        self.keras_model.add(keras.layers.core.Activation("relu"),
-                             name="denserelu1", input="dense1")
 
         self.keras_model.add_input(name="inp2", input_shape=(51,10))
         self.keras_model.add_node(
@@ -51,50 +52,68 @@ class TestConcatModel(unittest.TestCase):
         self.keras_model.add_node(
             keras.layers.convolutional.MaxPooling1D(
                 pool_length=4, stride=2), name="mp2", input="conv2")
-        self.keras_model.add(keras.layers.core.Flatten(),
-                             name="flatten2", input="mp2")
-        self.keras_model.add(keras.layers.core.Dense(output_dim=5),
-                             name="dense2", input="flatten2")
-        self.keras_model.add(keras.layers.core.Activation("relu"),
-                             name="denserelu2", input="dense2")
 
-        self.keras_model.add(keras.layers.core.Dense(output_dim=1))
-        self.keras_model.add(keras.layers.core.Activation("sigmoid"))
-        self.keras_model.compile(loss="mse", optimizer="sgd")
+        self.keras_model.add_node(keras.layers.core.Flatten(),
+                                  name='flatten',
+                                  inputs=['mp1','mp2'], merge_mode='concat',
+                                  concat_axis=2)
+        self.keras_model.add_node(keras.layers.core.Dense(output_dim=5),
+                                  name="dense1", input="flatten")
+        self.keras_model.add_node(keras.layers.core.Activation("relu"),
+                                  name="denserelu1", input="dense1")
+        self.keras_model.add_node(keras.layers.core.Dense(output_dim=1),
+                                  name='output_preact', input='denserelu1')
+        self.keras_model.add_node(keras.layers.core.Activation("sigmoid"),
+                                  name='output_postact', input='output_preact')
+        self.keras_model.add_output(name='output', input='output_postact')
+        self.keras_model.compile(loss={"output": "binary_crossentropy"},
+                                 optimizer="sgd")
         
         if (self.keras_version <= 0.3): 
             self.keras_output_fprop_func = compile_func(
-                            [self.keras_model.layers[0].input],
-                            self.keras_model.layers[-1].get_output(False))
+                        [self.keras_model.inputs['inp1'].input,
+                         self.keras_model.inputs['inp2'].input],
+                        self.keras_model.outputs['output'].get_output(False))
             grad = theano.grad(theano.tensor.sum(
-                       self.keras_model.layers[-2].get_output(False)[:,0]),
-                       self.keras_model.layers[0].input)
+                       (self.keras_model.nodes['output_preact']
+                            .get_output(False)[:,0])),
+                       [self.keras_model.inputs['inp1'].input,
+                        self.keras_model.inputs['inp2'].input])
             self.grad_func = theano.function(
-                         [self.keras_model.layers[0].input],
+                         [self.keras_model.inputs['inp1'].input,
+                        self.keras_model.inputs['inp2'].input],
                          grad, allow_input_downcast=True)
         else:
             keras_output_fprop_func = compile_func(
-                [self.keras_model.layers[0].input,
+                [self.keras_model.inputs['inp1'].input,
+                 self.keras_model.inputs['inp2'].input,
                  keras.backend.learning_phase()],
                 self.keras_model.layers[-1].output)
             self.keras_output_fprop_func =\
-                lambda x: keras_output_fprop_func(x,False)
+                lambda x,y: keras_output_fprop_func(x,y,False)
             grad = theano.grad(theano.tensor.sum(
-                       self.keras_model.layers[-2].output[:,0]),
-                       self.keras_model.layers[0].input)
+                       self.keras_model.nodes['output_preact'].output[:,0]),
+                       [self.keras_model.inputs['inp1'].input,
+                        self.keras_model.inputs['inp2'].input])
             grad_func = theano.function(
-                         [self.keras_model.layers[0].input,
+                         [self.keras_model.inputs['inp1'].input,
+                          self.keras_model.inputs['inp2'].input,
                           keras.backend.learning_phase()],
                          grad, allow_input_downcast=True,
                          on_unused_input='ignore')
-            self.grad_func = lambda x: grad_func(x, False)
+            self.grad_func = lambda x,y: grad_func(x,y,False)
  
 
     def test_convert_conv1d_model_forward_prop(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        if (self.run_graph_tests==False):
+            return
+        deeplift_model = kc.convert_graph_model(
+                          model=self.keras_model,
+                          nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
         deeplift_fprop_func = compile_func(
-                    [deeplift_model.get_layers()[0].get_activation_vars()],
-                     deeplift_model.get_layers()[-1].get_activation_vars())
+         [deeplift_model.get_name_to_blob()['inp1'].get_activation_vars(),
+          deeplift_model.get_name_to_blob()['inp1'].get_activation_vars()],
+          deeplift_model.get_layers()[-1].get_activation_vars())
         np.testing.assert_almost_equal(
             deeplift_fprop_func(self.inp),
             self.keras_output_fprop_func(self.inp),
@@ -102,15 +121,21 @@ class TestConcatModel(unittest.TestCase):
          
 
     def test_convert_conv1d_model_compute_scores(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        if (self.run_graph_tests==False):
+            return
+        deeplift_model = kc.convert_graph_model(
+                            model=self.keras_model,
+                            nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
-                                      find_scores_layer_idx=0,
+                                      find_scores_layer_name=["inp1", "inp2"],
                                       target_layer_idx=-2)
         np.testing.assert_almost_equal(
-            deeplift_contribs_func(task_idx=0,
-                                      input_data_list=[self.inp],
+            np.array(deeplift_contribs_func(task_idx=0,
+                                      input_data_list={
+                                       'inp1': self.inp1,
+                                       'inp2': self.inp2},
                                       batch_size=10,
-                                      progress_update=None),
+                                      progress_update=None)),
             #when biases are 0 and ref is 0, deeplift is the same as grad*inp 
-            self.grad_func(self.inp)*self.inp, decimal=6)
+            np.array(self.grad_func(self.inp)*self.inp), decimal=6)
