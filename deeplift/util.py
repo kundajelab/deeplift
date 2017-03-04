@@ -73,10 +73,13 @@ def run_function_in_batches(func,
                             input_data_list,
                             learning_phase=None,
                             batch_size=10,
-                            progress_update=1000):
+                            progress_update=1000,
+                            multimodal_output=False):
     #func has a return value such that the first index is the
     #batch. This function will run func in batches on the inputData
     #and will extend the result into one big list.
+    #if multimodal_output=True, func has a return value such that first
+    #index is the mode and second index is the batch
     assert isinstance(input_data_list, list), "input_data_list must be a list"
     #input_datas is an array of the different input_data modes.
     to_return = [];
@@ -86,10 +89,19 @@ def run_function_in_batches(func,
             if (i%progress_update == 0):
                 print("Done",i)
         print(len(input_data_list))
-        to_return.extend(func(*([x[i:i+batch_size] for x in input_data_list]
+        func_output = func(*([x[i:i+batch_size] for x in input_data_list]
                                 +([] if learning_phase is
                                    None else [learning_phase])
-                        )))
+                        ))
+        if (multimodal_output):
+            assert isinstance(func_output, list),\
+             "multimodal_output=True yet function return value is not a list"
+            if (len(to_return)==0):
+                to_return = [[] for x in func_output]
+            for to_extend, batch_results in zip(to_return, func_output):
+                to_extend.extend(batch_results)
+        else:
+            to_return.extend(func_output)
         i += batch_size;
     return to_return
 
