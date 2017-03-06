@@ -1,9 +1,0 @@
-{
-    "splits": {
-        "splitNameToSplitFiles": {
-            "train": "splits/train.gz"
-            ,"valid": "splits/valid.gz"
-            ,"test": "splits/test.gz"
-        }
-    }
-}

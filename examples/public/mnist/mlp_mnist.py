@@ -30,13 +30,12 @@ sys.path.append(DEEPLIFT_DIR)
 from deeplift.conversion import keras_conversion as kc
 from deeplift.blobs import NonlinearMxtsMode
 
-''' 
-Train a simple MLP on the MNIST dataset (~93% accuracy).
-Code adapted from a popular Keras vignette:
-    https://github.com/fchollet/keras/blob/master/examples/mnist_mlp.py
-''' 
-def train_mlp_on_mnist(batch_size=128, nb_epoch=3, directory='data'):
-    # the data, shuffled and split between train and test sets
+'''
+Downloads and preprocesses MNIST data. 
+Returns train and test partitions in standard X, y (features, class) form.
+'''
+def get_data():
+    # MNIST data, shuffled and split between train and test sets
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
     nb_classes = 10
 
@@ -46,10 +45,6 @@ def train_mlp_on_mnist(batch_size=128, nb_epoch=3, directory='data'):
     X_test = X_test.astype('float32')
     X_train /= 255
     X_test /= 255
-
-    # convert class vectors to binary class matrices
-    y_train = np_utils.to_categorical(y_train, nb_classes)
-    y_test = np_utils.to_categorical(y_test, nb_classes)
 
     # only use subset of data for speed & space
     # max filesize = 100MB
@@ -61,15 +56,20 @@ def train_mlp_on_mnist(batch_size=128, nb_epoch=3, directory='data'):
     print(X_train.shape[0], 'train samples')
     print(X_test.shape[0], 'test samples')
 
-    # save data
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+    # convert class vectors to binary class matrices
+    y_train = np_utils.to_categorical(y_train, nb_classes)
+    y_test = np_utils.to_categorical(y_test, nb_classes)
 
-    with open(directory + '/' + 'X_train.pkl', 'wb') as f:
-        pickle.dump(X_train, f)
-    with open(directory + '/' + 'X_test.pkl', 'wb') as f:
-        pickle.dump(X_test, f)
+    return X_train, y_train, X_test, y_test
 
+
+''' 
+Train a simple MLP on the MNIST dataset (~93% accuracy).
+Code adapted from a popular Keras vignette:
+    https://github.com/fchollet/keras/blob/master/examples/mnist_mlp.py
+''' 
+def train_mlp_on_mnist(X_train, y_train, X_test, y_test, batch_size=128, 
+    nb_epoch=3, directory='data'):
     # simple MLP architecture
     model = Sequential()
     model.add(Dense(512, input_shape=(784,), init='lecun_uniform'))
@@ -95,12 +95,16 @@ def train_mlp_on_mnist(batch_size=128, nb_epoch=3, directory='data'):
     print('Test accuracy:', score[1])
 
     # save model weights and architectures
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     model.save_weights(directory + '/' + 'mnist.h5')
     with open(directory + '/' + 'mnist.yaml', 'w+') as f:
         f.write(model.to_yaml())
 
-    return model, X_train, X_test
-
+    print('saved model to `{0}/mnist.h5` and `{0}/mnist.yaml`'
+        .format(directory))
+    
+    return model
 
 '''
 Apply the DeepLIFT algorithm to compute feature importance (Shrikumar, 
@@ -137,28 +141,31 @@ def apply_deeplift(keras_model, data, nb_classes):
 
 # if run as a script
 if (__name__ == '__main__'):
+    # get preprocessed data
+    X_train, y_train, X_test, y_test = get_data()
+
     try: # loading model, weights & data
         model_weights = 'data/mnist.h5'
         model_yaml = 'data/mnist.yaml'
-        X_train = pickle.load(open('data/X_train.pkl', 'rb'))
-        X_test = pickle.load(open('data/X_test.pkl', 'rb'))
 
         mnist_model = kc.load_keras_model(model_weights, 
             model_yaml, normalise_conv_for_one_hot_encoded_input=False)
+
+        print('loaded model successfully')
     except: # retrain model and get data as well
         print('retraining model...')
-        mnist_model, X_train, X_test = train_mlp_on_mnist()
+        mnist_model = train_mlp_on_mnist(X_train, y_train, X_test, y_test)
 
     # chose testing data to limit overfitting
     deeplift_contribs, guided_backprop_deeplift = \
         apply_deeplift(mnist_model, data=X_test, nb_classes=10)
 
     # sample output for first neuron, first sample
-    print('deeplift_contribs')
-    print(deeplift_contribs[0][0])
-    print()
-    print('guided_backprop_deeplift')
-    print(guided_backprop_deeplift[0][0])
-    print()
+    # print('deeplift_contribs')
+    # print(deeplift_contribs[0][0])
+    # print()
+    # print('guided_backprop_deeplift')
+    # print(guided_backprop_deeplift[0][0])
+    # print()
 
     
