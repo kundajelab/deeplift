@@ -137,6 +137,9 @@ class TestConcatModel(unittest.TestCase):
                                       input_data_list={
                                        'inp1': self.inp1,
                                        'inp2': self.inp2},
+                                      input_references_list={
+                                       'inp1': np.zeros_like(self.inp1),
+                                       'inp2': np.zeros_like(self.inp2)},
                                       batch_size=10,
                                       progress_update=None)),
             #when biases are 0 and ref is 0, deeplift is the same as grad*inp 
