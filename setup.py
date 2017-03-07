@@ -8,7 +8,7 @@ if __name__== '__main__':
           version='0.4.1',
           packages=['deeplift', 'deeplift.backend',
                     'deeplift.blobs', 'deeplift.visualization',
-                    'deeplift.conversion', 'deeplift.dinuc_shuffle'],
+                    'deeplift.conversion'],
           setup_requires=[],
           install_requires=['numpy>=1.9', 'theano>=0.8'],
           scripts=[],
