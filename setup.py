@@ -6,7 +6,7 @@ if __name__== '__main__':
           url='NA',
           download_url='NA',
           version='0.3',
-          packages=['deeplift', 'deeplift.backend',
+          packages=['deeplift',
                     'deeplift.blobs', 'deeplift.visualization',
                     'deeplift.conversion'],
           setup_requires=[],

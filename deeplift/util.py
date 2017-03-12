@@ -273,37 +273,6 @@ def format_json_dump(json_data, indent=2):
     return json.dumps(jsonData, indent=indent, separators=(',', ': ')) 
 
 
-def get_cross_corr_function(filters):
-    from deeplift import backend as B
-
-    if (len(filters.shape)==3):
-        filters = filters[:,None,:,:]
-    assert filters.shape[1]==1 #input channels=1
-    assert filters.shape[2]==4 #acgt
-
-    #set up the convolution. Note that convolutions reverse things
-    filters = np.array(filters[:,:,::-1,::-1]).astype("float32") 
-    input_var = B.tensor_with_dims(num_dims=4, name="input")
-    conv_out = B.conv2d(inp=input_var,
-                        filters=filters,
-                        border_mode="valid",
-                        subsample=(1,1))
-    compiled_func = B.function(inputs=[input_var], outputs=conv_out)
-
-    def cross_corr(regions_to_scan, batch_size, progress_update=None):
-        assert len(regions_to_scan.shape)==4
-        assert regions_to_scan.shape[1]==1 #input channels=1
-        assert regions_to_scan.shape[2]==4 #acgt
-        #run function in batches
-        conv_results = np.array(deeplift.util.run_function_in_batches(
-                                func=compiled_func,
-                                input_data_list=[regions_to_scan],
-                                batch_size=batch_size,
-                                progress_update=progress_update))
-        return conv_results
-    return cross_corr
-
-
 def get_smoothen_function(window_size, same_size_return=True):
     """
         Returns a function for smoothening inputs with a window
