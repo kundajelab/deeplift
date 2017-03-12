@@ -1,4 +1,5 @@
 deeplift/__init__.py
+deeplift/dinuc_shuffle.py
 deeplift/models.py
 deeplift/util.py
 deeplift.egg-info/PKG-INFO
@@ -6,3 +7,15 @@ deeplift.egg-info/SOURCES.txt
 deeplift.egg-info/dependency_links.txt
 deeplift.egg-info/requires.txt
 deeplift.egg-info/top_level.txt
+deeplift/backend/__init__.py
+deeplift/backend/common.py
+deeplift/backend/theano_backend.py
+deeplift/blobs/__init__.py
+deeplift/blobs/activations.py
+deeplift/blobs/convolution.py
+deeplift/blobs/core.py
+deeplift/conversion/__init__.py
+deeplift/conversion/keras_conversion.py
+deeplift/visualization/__init__.py
+deeplift/visualization/matplotlib_helpers.py
+deeplift/visualization/viz_sequence.py
