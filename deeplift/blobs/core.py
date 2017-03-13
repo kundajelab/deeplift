@@ -729,7 +729,7 @@ class Concat(OneDimOutputMixin, Merge):
         return sum(lengths_for_merge_axis_dim)
 
     def _build_activation_vars(self, input_act_vars):
-        return tf.concat(concat_dim=self.axis,
+        return tf.concat(axis=self.axis,
                          values=input_act_vars)
 
     def _get_mxts_increments_for_inputs(self):

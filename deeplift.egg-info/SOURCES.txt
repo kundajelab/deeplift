@@ -1,6 +1,4 @@
 deeplift/__init__.py
-deeplift/backend.py
-deeplift/blobs.py
 deeplift/models.py
 deeplift/util.py
 deeplift.egg-info/PKG-INFO
@@ -8,4 +6,14 @@ deeplift.egg-info/SOURCES.txt
 deeplift.egg-info/dependency_links.txt
 deeplift.egg-info/requires.txt
 deeplift.egg-info/top_level.txt
-test/test_maxout.py
+deeplift/blobs/__init__.py
+deeplift/blobs/activations.py
+deeplift/blobs/convolution.py
+deeplift/blobs/core.py
+deeplift/blobs/helper_functions.py
+deeplift/blobs/maxout.py
+deeplift/conversion/__init__.py
+deeplift/conversion/keras_conversion.py
+deeplift/visualization/__init__.py
+deeplift/visualization/matplotlib_helpers.py
+deeplift/visualization/viz_sequence.py

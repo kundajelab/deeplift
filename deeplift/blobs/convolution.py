@@ -203,7 +203,7 @@ class MaxPool1D(Pool1D):
 
     def _get_mxts_increments_for_inputs(self):
         if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
-            return tf.squeeze(tf.nn.gen_nn_ops._max_pool_grad(
+            return tf.squeeze(tf.nn._nn_grad.gen_nn_ops._max_pool_grad(
                 orig_input=tf.expand_dims(self._get_input_activation_vars(),1),
                 orig_output=tf.expand_dims(self.get_activation_vars(),1),
                 grad=tf.expand_dims(self.get_mxts(),1),
@@ -228,7 +228,7 @@ class AvgPool1D(Pool1D):
                  padding=self.padding_mode),1)
 
     def _get_mxts_increments_for_inputs(self):
-        return tf.squeeze(tf.nn.gen_nn_ops._avg_pool_grad(
+        return tf.squeeze(tf.nn._nn_grad.gen_nn_ops._avg_pool_grad(
             orig_input_shape=
                 tf.shape(tf.expand_dims(self._get_input_activation_vars(),1)),
             grad=tf.expand_dims(self.get_mxts(),1),
@@ -292,7 +292,7 @@ class MaxPool2D(Pool2D):
 
     def _get_mxts_increments_for_inputs(self):
         if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
-            return tf.nn.gen_nn_ops._max_pool_grad(
+            return tf.nn._nn_grad.gen_nn_ops._max_pool_grad(
                 orig_input=self._get_input_activation_vars(),
                 orig_output=self.get_activation_vars(),
                 grad=self.get_mxts(),
@@ -316,7 +316,7 @@ class AvgPool2D(Pool2D):
                              padding=self.padding_mode)
 
     def _get_mxts_increments_for_inputs(self):
-        return tf.nn.gen_nn_ops._avg_pool_grad(
+        return tf.nn._nn_grad.gen_nn_ops._avg_pool_grad(
             orig_input_shape=tf.shape(self._get_input_activation_vars()),
             grad=self.get_mxts(),
             ksize=(1,)+self.pool_size+(1,),
