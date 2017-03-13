@@ -123,7 +123,7 @@ def softmax(inp):
 
 
 def sigmoid_grad(inp):
-    #T.nnet.sigmoid.grad has been deprecated
+    #T.nnet.sigmoid.grad has been deprecated in 0.9
     return T.exp(inp)/T.pow((T.exp(inp)+1),2)
     #out = sigmoid(inp)
     #grad = T.nnet.sigmoid.grad((inp,), (out,))
@@ -198,9 +198,9 @@ def pool2d(inp, pool_size, strides, border_mode, ignore_border, pool_mode):
     #there is an API-breaking change from 0.8 to 0.9
     if (theano_version >= 0.9):
         to_return = T.signal.pool.pool_2d(input=inp,
-                        ds=pool_size,
+                        ws=pool_size,
                         ignore_border=ignore_border,
-                        st=strides,
+                        stride=strides,
                         pad=padding,
                         mode=theano_pool_mode)
     else:
@@ -228,20 +228,18 @@ def pool2d_grad(out_grad, pool_in,
     padding, theano_pool_mode = get_pooling_padding_and_theano_pool_mode(
                                     pool_size, border_mode, pool_mode)
     if (theano_version >= 0.9): #there is an API breaking change
-        print(theano_version)
-        pool_op = T.signal.pool.Pool(ws=pool_size,
-                                     st=strides,
-                                     ignore_border=ignore_border,
-                                     pad=padding,
+        return (T.signal.pool.Pool(ignore_border=ignore_border,
                                      mode=theano_pool_mode)
+                .grad(inp=[pool_in, pool_size, strides, padding],
+                      grads=(out_grad,)))[0]
     else:
         pool_op = T.signal.pool.Pool(ds=pool_size,
                                      st=strides,
                                      ignore_border=ignore_border,
                                      padding=padding,
                                      mode=theano_pool_mode)
-    return pool_op.grad((pool_in,),
-                        (out_grad,))[0]
+        return pool_op.grad((pool_in,),
+                            (out_grad,))[0]
     
 
 def flatten_keeping_first(x):
