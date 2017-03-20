@@ -24,7 +24,7 @@ pip install --editable deeplift/ #install deeplift from the cloned repository. T
 
 While DeepLIFT does not require your models to be trained with any particular library, we have provided autoconversion functions to convert models trained using Keras into the DeepLIFT format. If you used a different library to train your models, you can still use DeepLIFT if you recreate the model using DeepLIFT layers.
 
-The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 0.12.0rc and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run `nosetests tests/*` to make sure all the unit tests pass on your machine.
+The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 1.0.1 and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run `nosetests tests/*` to make sure all the unit tests pass on your machine. At the time of writing, some of the batchnorm tests fail due to minor numerical inaccuracy (results are within E-3 but not E-5) - this is on the to-do.
 
 The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion was tested using keras 0.3. Support for keras 1.0 is in the works (on [this branch](https://github.com/kundajelab/deeplift/tree/keras_1_compatibility) started by @jisungk).
 
@@ -154,16 +154,16 @@ Here are the steps necessary to implement the backward pass, which is where the 
     - Deselect the output blob by calling `set_inactive()` on the blob. Don't forget this!
     - (Yes, I will bundle all of these into a single function at some point)
 
-## Examples
+##Examples
 Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift, and stay tuned for updates as we will be adding more examples shortly.
 
-## Tests
+##Tests
 A number of unit tests are provided in the tests folder in the main repository. They can be run with `nosetests tests/*`
 
-## Contact
+##Contact
 Please email avanti [at] stanford [dot] edu with questions, ideas, feature requests, etc. We would love to hear from you!
 
-## Coming soon
+##Coming soon
 The following is a list of some features in the works:
 - Keras functional API
 - RNNs
