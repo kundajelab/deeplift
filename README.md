@@ -2,7 +2,7 @@ DeepLIFT: Deep Learning Important FeaTures
 ===
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1605.01713) by Shrikumar, Greenside, Shcherbina & Kundaje.
 
-##Table of contents
+## Table of contents
 
   * [Installation](#installation)
   * [Quickstart](#quickstart)
@@ -15,7 +15,7 @@ Algorithms for computing importance scores in deep neural networks. Implements t
   * [Contact](#contact)
   * [Coming Soon](#coming-soon)
 
-##Installation
+## Installation
 
 ```unix
 git clone https://github.com/kundajelab/deeplift.git #will clone the deeplift repository
@@ -30,7 +30,7 @@ The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversio
 
 The recommended way to obtain theano and numpy is through [anaconda](https://www.continuum.io/downloads).
 
-##Quickstart
+## Quickstart
 
 These examples show how to autoconvert a keras model and obtain importance scores.
 
@@ -95,23 +95,23 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
 
 Support for the Keras functional API is in the works.
 
-##Under the hood
+## Under the hood
 This section explains finer aspects of the deeplift implementation
 
-###Blobs
+### Blobs
 The blob (`deeplift.blobs.core.Blob`) is the basic unit; it is the equivalent of a "layer", but was named a "blob" so as not to imply a sequential structure. `deeplift.blobs.core.Dense` and `deeplift.blobs.convolution.Conv2D` are both examples of blobs.
 
 Blobs implement the following key methods:
-####get_activation_vars()
+#### get_activation_vars()
 Returns symbolic variables representing the activations of the blob. For an understanding of symbolic variables, refer to the documentation of symbolic computation packages like theano or tensorflow.
 
-####get_mxts()
+#### get_mxts()
 Returns symbolic variables representing the multipliers on this layer (for the selected output). Refer to the DeepLIFT paper for an explanation of what multipliers are.
 
-####get_target_contrib_vars()
+#### get_target_contrib_vars()
 Returns symbolic variables representing the importance scores. This is a convenience function that returns `self.get_mxts()*self.get_diff_from_default_vars()`
 
-###The Forward Pass
+### The Forward Pass
 Here are the steps necessary to implement a forward pass. If executed correctly, the results should be identical (within numerical precision) to a forward pass of your original model, so this is definitely worth doing as a sanity check. Note that if autoconversion (as described in the quickstart) is an option, you can skip steps (1) and (2).
 
 1. Create a blob object for every layer in the network
@@ -127,7 +127,7 @@ Here are the steps necessary to implement a forward pass. If executed correctly,
   - `input_data_list` is a list of numpy arrays containing data for the different input layers of the network. In the case of a network with one input, this will be a list containing one numpy array
   - Optional arguments to `run_function_in_batches` are `batch_size` and `progress_update`
 
-###The Backward Pass
+### The Backward Pass
 Here are the steps necessary to implement the backward pass, which is where the importance scores are calculated. Ideally, you should create a model through autoconversion (described in the quickstart) and then use `model.get_target_contribs_func` or `model.get_target_multipliers_func`. Howver, if that is not an option, read on (please also consider sending us a message to let us know, as if there is enough demand for a feature we will consider adding it). Note the instructions below assume you have done steps (1) and (2) under the forward pass section.
 
 1. For the blob(s) that you wish to compute the importance scores for, call `reset_mxts_updated()`. This resets the symbolic variables for computing the multipliers. If this is the first time you are compiling the backward pass, this step is not strictly necessary.
@@ -154,16 +154,16 @@ Here are the steps necessary to implement the backward pass, which is where the 
     - Deselect the output blob by calling `set_inactive()` on the blob. Don't forget this!
     - (Yes, I will bundle all of these into a single function at some point)
 
-##Examples
+## Examples
 Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift, and stay tuned for updates as we will be adding more examples shortly.
 
-##Tests
+## Tests
 A number of unit tests are provided in the tests folder in the main repository. They can be run with `nosetests tests/*`
 
-##Contact
+## Contact
 Please email avanti [at] stanford [dot] edu with questions, ideas, feature requests, etc. We would love to hear from you!
 
-##Coming soon
+## Coming soon
 The following is a list of some features in the works:
 - Autoconversion for the Keras functional API
 - RNNs
