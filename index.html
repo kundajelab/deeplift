@@ -116,9 +116,9 @@
       <div class="content">
         <h1 id="introduction">Introduction</h1>
 
-<p>DeepLIFT (Deep Learning Important FeaTures) is an efficient method for computing importance scores in a neural network. DeepLIFT was originally presented in <a href="https://arxiv.org/abs/1605.01713">&ldquo;Learning Important Features Through Propagating Activation Differences&rdquo;</a> by Shrikumar, Greenside, Shcherbina &amp; Kundaje. </p>
+<p>DeepLIFT (Deep Learning Important FeaTures) is an efficient method for computing importance scores in a neural network. DeepLIFT was originally presented in <a href="https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf">&ldquo;Learning Important Features Through Propagating Activation Differences&rdquo;</a> by Shrikumar, Greenside, &amp; Kundaje. </p>
 
-<p>DeepLIFT is implemented in Python, and can be used to compute importance scores for models built with <a href="https://keras.io">Keras</a>. DeepLIFT uses TensorFlow to perform the backend computations. </p>
+<p>DeepLIFT is implemented in Python, and can be used to compute importance scores for models trained with any deep learning framework as long as the equivalent layers are implemented within DeepLIFT. If models are built with <a href="https://keras.io">Keras</a>, autoconversion functions are provided to make the building of the deeplift-equivalent model seamless. DeepLIFT uses Theano to perform the backend computations. An alpha version that is in tensorflow is available.</p>
 
 <h1 id="getting-started">Getting Started</h1>
 
@@ -128,7 +128,7 @@ git clone https://github.com/kundajelab/deeplift.git
 <span class="c"># install from clone; "editable" flag = automatic updates from changes to the code</span>
 pip install --editable deeplift/ 
 </code></pre>
-<p>DeepLIFT depends on Theano (&gt;= 0.8) and numpy (&gt;= 1.9). It can autoconvert models trained with Keras 0.3 &ndash; support for models built with newer versions of Keras is experimental.</p>
+<p>DeepLIFT depends on Theano (&gt;= 0.8) and numpy (&gt;= 1.9). It can autoconvert models trained with Keras 0.2, 0.3 and 1.x &ndash; support for models built with newer versions hasn't been tested.</p>
 
 <h2 id="quickstart">Quickstart</h2>
 <pre class="highlight python"><code><span class="kn">import</span> <span class="nn">deeplift</span>
@@ -137,7 +137,7 @@ pip install --editable deeplift/
 <span class="c"># 1) Convert a Keras sequential model</span>
 <span class="n">deeplift_model</span> <span class="o">=</span> <span class="n">kc</span><span class="o">.</span><span class="n">convert_sequential_model</span><span class="p">(</span>
                     <span class="n">keras_model</span><span class="p">,</span>
-                    <span class="n">nonlinear_mxts_mode</span><span class="o">=</span><span class="n">deeplift</span><span class="o">.</span><span class="n">blobs</span><span class="o">.</span><span class="n">NonlinearMxtsMode</span><span class="o">.</span><span class="n">DeepLIFT</span><span class="p">)</span>
+                    <span class="n">nonlinear_mxts_mode</span><span class="o">=</span><span class="n">deeplift</span><span class="o">.</span><span class="n">blobs</span><span class="o">.</span><span class="n">NonlinearMxtsMode</span><span class="o">.</span><span class="n">DeepLIFT_GenomicsDefault</span><span class="p">)</span>
 
 <span class="c"># specify the index of the layer to compute the importance scores of</span>
 <span class="c"># typically the input layer (index of 0)</span>
@@ -156,20 +156,20 @@ pip install --editable deeplift/
                                          <span class="n">progress_update</span><span class="o">=</span><span class="mi">1000</span><span class="p">))</span>
 </code></pre>
 <p>1) <strong>Convert a Keras sequential model</strong>:<br>
-<code class="prettyprint">NonlinearMxtsMode</code> defines the method for computing importance scores; other supported methods include:</p>
+<code class="prettyprint">NonlinearMxtsMode</code> defines the method for computing importance scores; supported values include:</p>
 
 <ul>
-<li>Gradient<br></li>
-<li>DeconvNet<br></li>
-<li>GuidedBackprop<br></li>
-<li>GuidedBackpropDeepLIFT (a hybrid of GuidedBackprop and DeepLIFT where negative multipliers are ignored during backpropagation)</li>
+<li>DeepLIFT_GenomicsDefault (RevealCancel rule on dense layers and Rescale rule on conv layers; see paper for rationale)<br></li>
+<li>RevealCancel (DeepLIFT-RevealCancel at all layers; used for MNIST example)<br></li>
+<li>Rescale (DeepLIFT-Rescale at all layers)<br></li>
+<li>Gradient (the 'multipliers' are the same as the gradients)<br></li>
+<li>GuidedBackprop (the 'multipliers' are what you get from Guided Backprop)<br></li>
+<li>Use <code class="prettyprint">deeplift.util.get_integrated_gradients_function</code> to compute integrated gradients<br></li>
 </ul>
 
 <p>2) <strong>Compile the function that compoutes important scores</strong>:<br>
-In the case of <code class="prettyprint">NonlinearMxtsMode.DeepLIFT</code>, the importance scores are also called &ldquo;contribution scores&rdquo;</p>
-
 <ul>
-<li>For sigmoid or softmax outputs, <code class="prettyprint">target_layer_idx</code> should be -2 (the default, see <a href="https://arxiv.org/pdf/1605.01713v2.pdf">&ldquo;a note on final activation layers&rdquo;</a>)</li>
+<li>For sigmoid or softmax outputs, <code class="prettyprint">target_layer_idx</code> should be -2 (the default, see section "3.6 Choice of target layer" for justification)</li>
 <li>For regression tasks with a linear output, <code class="prettyprint">target_layer_idx</code> should be -1 (last layer)</li>
 </ul>
 
@@ -182,22 +182,20 @@ In the case of <code class="prettyprint">NonlinearMxtsMode.DeepLIFT</code>, the 
 
 <h2 id="examples">Examples</h2>
 
-<p>Please explore the <code class="prettyprint">deeplift/examples</code> folder in the <a href="https://github.com/kundajelab/deeplift">GitHub repository</a> for ipython notebooks illustrating the use of deeplift, and stay tuned for updates as we will be adding more examples shortly.</p>
+<p>Please explore the <code class="prettyprint">deeplift/examples</code> folder in the <a href="https://github.com/kundajelab/deeplift">GitHub repository</a> for ipython notebooks illustrating the use of DeepLIFT and other importance scoring methods. Figures from the main paper are reproduced here.</p>
 
 <h1 id="coming-soon">Coming soon</h1>
 
 <p>The following is a list of some features in the works:</p>
 
 <ul>
-<li>Autoconversion for the Keras functional API</li>
-<li>RNNs</li>
-<li>Improvements to DeepLIFT to address certain edge-case behaviour</li>
-<li>Learning references from the data</li>
+<li>Improved strategies for handling references</li>
+<li>Extensions to RNNs</li>
 </ul>
 
 <h1 id="about">About</h1>
 
-<p>Please email <em>avanti [at] stanford [dot] edu</em> with questions, ideas, feature requests, etc. We would love to hear from you!</p>
+<p>Please email <em>avanti [dot] shrikumar [at] gmail [dot] com</em> with questions, ideas, feature requests, etc. We would love to hear from you!</p>
 
 <p>This website was built by <a href="https://jisungkim.com">Ji-Sung Kim</a> for the Kundaje Lab.</p>
 
