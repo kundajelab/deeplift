@@ -352,29 +352,6 @@ def mean_normalise_first_conv_layer_weights(model,
                                          normalise_across_rows)
 
 
-def mean_normalise_conv_layer_with_name(model, layer_name):
-    """
-        model is supposed to be a keras Graph model
-    """
-    mean_normalise_columns_in_conv_layer(model.nodes[layer_name]);
-
-
-def mean_normalise_columns_in_conv_layer(layer_to_adjust,
-                                         normalise_across_rows):
-    """
-        For conv layers operating on one hot encoding,
-        adjust the weights/bias such that the output is
-        mathematically equivalent but now each position
-        is mean-normalised.
-    """
-    weights, biases = layer_to_adjust.get_weights();
-    normalised_weights, normalised_bias =\
-     deeplift.util.mean_normalise_weights_for_sequence_convolution(
-                    weights, biases, normalise_across_rows)
-    layer_to_adjust.set_weights([normalised_weights,
-                                 normalised_bias])
-
-
 def mean_normalise_softmax_weights(softmax_dense_layer):
     weights, biases = softmax_dense_layer.get_weights()
     new_weights, new_biases =\
@@ -382,18 +359,48 @@ def mean_normalise_softmax_weights(softmax_dense_layer):
     softmax_dense_layer.set_weights([new_weights, new_biases])
 
 
-def load_keras_model(weights, yaml,
+def load_keras_model(weights, yaml=None, json=None,
                      normalise_conv_for_one_hot_encoded_input=False,
-                     normalise_across_rows=True,
+                     axis_of_normalisation=None,
                      name_of_conv_layer_to_normalise=None): 
-    #At the time of writing, I don't actually use this because
-    #I do the converion in convert_sequential_model to the deeplift_layer
-    from keras.models import model_from_yaml                                    
-    model = model_from_yaml(open(yaml).read()) 
+    if (normalise_conv_for_one_hot_encoded_input):
+        assert axis_of_normalisation is not None,\
+         "specify axis of normalisation for normalising one-hot encoded input"
+    assert yaml is not None or json is not None,\
+     "either yaml or json must be specified"
+    assert yaml is None or json is None,\
+     "only one of yaml or json must be specified"
+    if (yaml is not None):
+        from keras.models import model_from_yaml 
+        model = model_from_yaml(open(yaml).read()) 
+    else:
+        from keras.models import model_from_json 
+        model = model_from_json(open(json).read()) 
     model.load_weights(weights) 
     if (normalise_conv_for_one_hot_encoded_input):
         mean_normalise_first_conv_layer_weights(
          model,
-         normalise_across_rows=normalise_across_rows,
+         axis_of_normalisation=axis_of_normalisation,
          name_of_conv_layer_to_normalise=name_of_conv_layer_to_normalise)
     return model 
+
+
+def mean_normalise_first_conv_layer_weights(model,
+                                            axis_of_normalisation,
+                                            name_of_conv_layer_to_normalise):
+    if (type(model).__name__ == "Sequential"):
+        layer_to_adjust = model.layers[0];
+    elif (type(model).__name__ == "Graph"):
+        assert name_of_conv_layer_to_normalise is not None,\
+               "Please provide name of conv layer for graph model"
+        assert name_of_conv_layer_to_normalise in model.nodes,\
+               name_of_conv_layer_to_normalise+" not found; node names are: "\
+               " "+str(model.nodes.keys())
+        layer_to_adjust = model.nodes[name_of_conv_layer_to_normalise]
+    weights, biases = layer_to_adjust.get_weights();
+    normalised_weights, normalised_bias =\
+     deeplift.util.mean_normalise_weights_for_sequence_convolution(
+                    weights, biases, axis_of_normalisation,
+                    dim_ordering=layer_to_adjust.get_config()['dim_ordering'])
+    layer_to_adjust.set_weights([normalised_weights,
+                                 normalised_bias])
