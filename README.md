@@ -1,5 +1,8 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
+
+**An major update to DeepLIFT reflecting the methods described in our [latest paper](https://github.com/AvantiShri/appendices/raw/master/deeplift_arxiv_submission.pdf)) is planned for the coming week**. The current implementation contains the methods from our original preprint, which didn't describe the RevealCancel rule.
+
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1605.01713) by Shrikumar, Greenside, Shcherbina & Kundaje.
 
 **Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome**
