@@ -1,6 +1,20 @@
 import tensorflow as tf
 from deeplift.util import NEAR_ZERO_THRESHOLD
 
+def gt_mask(inp, val):
+    return tf.cast(tf.greater(inp, val), tf.float32)
+
+def lt_mask(inp, val):
+    return tf.cast(tf.less(inp, val), tf.float32)
+
+def lte_mask(inp, val):
+    return tf.cast(tf.less_equal(inp, val), tf.float32)
+
+def gte_mask(inp, val):
+    return tf.cast(tf.greater_equal(inp, val), tf.float32)
+
+def eq_mask(inp, val):
+    return tf.cast(tf.equal(inp, val), tf.float32)
 
 def conv1d_transpose_via_conv2d(
     value, W, tensor_with_output_shape, stride, padding_mode):
@@ -23,12 +37,12 @@ def distribute_over_product(def_act_var1, diff_def_act_var1,
 
 def pseudocount_near_zero(tensor):
     
-    return tensor + (NEAR_ZERO_THRESHOLD*((B.abs(tensor)
-                                          < 0.5*NEAR_ZERO_THRESHOLD)*
-                                          (tensor >= 0)) -
-                     NEAR_ZERO_THRESHOLD*((B.abs(tensor)
-                                          < 0.5*NEAR_ZERO_THRESHOLD)*
-                                          (tensor < 0)))
+    return tensor + (NEAR_ZERO_THRESHOLD*(lt_mask(tf.abs(tensor),
+                                                  0.5*NEAR_ZERO_THRESHOLD)*
+                                          gte_mask(tensor,0)) -
+                     NEAR_ZERO_THRESHOLD*(lt_mask(tf.abs(tensor),
+                                                  0.5*NEAR_ZERO_THRESHOLD)*
+                                          lt_mask(tensor,0)))
 
 
 def add_val_to_col(var, col, val):

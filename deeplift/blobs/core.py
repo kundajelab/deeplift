@@ -8,8 +8,9 @@ from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
 import deeplift.util  
-from deeplift.blobs.helper_functions import (
+from .helper_functions import (
  pseudocount_near_zero, add_val_to_col)
+from . import helper_functions as hf
 import tensorflow as tf
 
 
@@ -17,18 +18,19 @@ ScoringMode = deeplift.util.enum(OneAndZeros="OneAndZeros",
                                  SoftmaxPreActivation="SoftmaxPreActivation")
 NonlinearMxtsMode = deeplift.util.enum(
                      Gradient="Gradient",
-                     DeepLIFT="DeepLIFT",
+                     Rescale="Rescale",
                      DeconvNet="DeconvNet",
                      GuidedBackprop="GuidedBackprop",
-                     GuidedBackpropDeepLIFT="GuidedBackpropDeepLIFT",
-                     PassThrough="PassThrough")
+                     GuidedBackpropRescale="GuidedBackpropRescale",
+                     RevealCancel="RevealCancel",
+                     PassThrough="PassThrough",
+                     DeepLIFT_GenomicsDefault="DeepLIFT_GenomicsDefault")
 DenseMxtsMode = deeplift.util.enum(
-                    Linear="Linear",
-                    PosOnly="PosOnly",
-                    RevealCancel="RevealCancel",
-                    #Redist is the newer name for Counterbalance
-                    Redist="Redist", Counterbalance="Counterbalance",
-                    RevealCancelRedist="RevealCancelRedist")
+                 Linear="Linear",
+                 SepPosAndNeg="SepPosAndNeg")
+ConvMxtsMode = deeplift.util.enum(
+                Linear="Linear",
+                SepPosAndNeg="SepPosAndNeg")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
@@ -61,8 +63,10 @@ class Blob(object):
         raise NotImplementedError()
 
     def _initialize_mxts(self):
-        self._mxts = tf.zeros_like(tensor=self.get_activation_vars(),
-            name="mxts_"+str(self.get_name()))
+        self._pos_mxts = tf.zeros_like(tensor=self.get_activation_vars(),
+            name="pos_mxts_"+str(self.get_name()))
+        self._neg_mxts = tf.zeros_like(tensor=self.get_activation_vars(),
+            name="neg_mxts_"+str(self.get_name()))
 
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
@@ -97,6 +101,15 @@ class Blob(object):
             self._layer_needs_to_be_built_message()
         return self._activation_vars
 
+    def get_pos_and_neg_contribs(self):
+        """
+            returns symbolic variables representing the pos and neg
+            contribs, which sub up to the diff from reference
+        """
+        if (hasattr(self,'_pos_contribs')==False):
+            self._layer_needs_to_be_built_message()
+        return self._pos_contribs, self._neg_contribs
+
     def _build_reference_vars(self):
         raise NotImplementedError()
 
@@ -107,11 +120,16 @@ class Blob(object):
         """
         return self.get_activation_vars() - self.get_reference_vars()
 
+    def _build_pos_and_neg_contribs(self):
+        raise NotImplementedError()
+
     def _build_target_contrib_vars(self):
         """
             the contrib to the target is mxts*(Ax - Ax0)
         """ 
-        return self.get_mxts()*self._get_diff_from_reference_vars()
+        pos_contribs, neg_contribs = self.get_pos_and_neg_contribs()
+        return (self.get_pos_mxts()*pos_contribs
+                + self.get_neg_mxts()*neg_contribs)
 
     def _get_diff_from_reference_vars(self):
         """
@@ -128,17 +146,24 @@ class Blob(object):
             raise RuntimeError("_reference_vars is unset")
         return self._reference_vars
 
-    def _increment_mxts(self, increment_var):
+    def _increment_mxts(self, pos_mxts_increments, neg_mxts_increments):
         """
             increment the multipliers
         """
-        self._mxts += increment_var
+        self._pos_mxts += pos_mxts_increments
+        self._neg_mxts += neg_mxts_increments
 
-    def get_mxts(self):
+    def get_pos_mxts(self):
         """
             return the computed mxts
         """
-        return self._mxts
+        return self._pos_mxts
+
+    def get_neg_mxts(self):
+        """
+            return the computed mxts
+        """
+        return self._neg_mxts
 
     def get_target_contrib_vars(self):
         return self._target_contrib_vars
@@ -224,6 +249,18 @@ class Input(Blob):
         return tf.placeholder(dtype=tf.float32,
                 shape=self._shape, name="ref_"+str(self.get_name()))
 
+    def get_mxts(self):
+        #only one of get_pos_mxts and get_neg_mxts will be nonzero,
+        #for the input layer
+        return 0.5*(self.get_pos_mxts() + self.get_neg_mxts())
+
+    def _build_pos_and_neg_contribs(self):
+        pos_contribs = (self._diff_from_reference_vars*
+                        hf.gt_mask(self._diff_from_reference_vars,0.0))
+        neg_contribs = (self._diff_from_reference_vars*
+                        hf.lt_mask(self._diff_from_reference_vars,0.0))
+        return pos_contribs, neg_contribs
+
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
         kwargs_dict['num_dims'] = self._num_dims
@@ -233,6 +270,8 @@ class Input(Blob):
     def _build_fwd_pass_vars(self):
         self._reference_vars = self._build_reference_vars()
         self._diff_from_reference_vars = self._build_diff_from_reference_vars()
+        self._pos_contribs, self._neg_contribs =\
+            self._build_pos_and_neg_contribs()
         self._initialize_mxts()
 
     def _reset_built_fwd_pass_vars_for_inputs(self):
@@ -269,6 +308,10 @@ class Node(Blob):
         """
         return self._call_function_on_blobs_within_inputs(
                       'get_activation_vars') 
+
+    def _get_input_pos_and_neg_contribs(self):
+        return self._call_function_on_blobs_within_inputs(
+                      'get_pos_and_neg_contribs')
 
     def _get_input_reference_vars(self):
         return self._call_function_on_blobs_within_inputs(
@@ -309,6 +352,8 @@ class Node(Blob):
          self._build_reference_vars()
         self._diff_from_reference_vars =\
          self._build_diff_from_reference_vars()
+        self._pos_contribs, self._neg_contribs =\
+            self._build_pos_and_neg_contribs()
         self._initialize_mxts()
 
     def _compute_shape(self, input_shape):
@@ -318,6 +363,13 @@ class Node(Blob):
         raise NotImplementedError()
 
     def _build_activation_vars(self, input_act_vars):
+        """
+            create the activation_vars symbolic variables given the
+             input activation vars, organised the same way self.inputs is
+        """
+        raise NotImplementedError()
+
+    def _build_pos_and_neg_contribs(self):
         """
             create the activation_vars symbolic variables given the
              input activation vars, organised the same way self.inputs is
@@ -336,9 +388,10 @@ class Node(Blob):
             call _increment_mxts() on the inputs to update them appropriately
         """
         if (self._mxts_for_inputs_updated == False):
-            mxts_increments_for_inputs = self._get_mxts_increments_for_inputs()
+            (pos_mxts_increments,
+             neg_mxts_increments) = self._get_mxts_increments_for_inputs()
             self._add_given_increments_to_input_mxts(
-                mxts_increments_for_inputs)
+                pos_mxts_increments, neg_mxts_increments)
             self._mxts_for_inputs_updated = True
 
     def _get_mxts_increments_for_inputs(self):
@@ -347,7 +400,8 @@ class Node(Blob):
         """
         raise NotImplementedError()
 
-    def _add_given_increments_to_input_mxts(self, mxts_increments_for_inputs):
+    def _add_given_increments_to_input_mxts(self,
+        pos_mxts_increments, neg_mxts_increments):
         """
             given the increments for each input, add
         """
@@ -380,11 +434,12 @@ class SingleInputMixin(object):
         """ 
         return eval("self.inputs."+function_name+'()');
 
-    def _add_given_increments_to_input_mxts(self, mxts_increments_for_inputs):
+    def _add_given_increments_to_input_mxts(self,
+        pos_mxts_increments, neg_mxts_increments):
         """
             given the increments for each input, add
         """
-        self.inputs._increment_mxts(mxts_increments_for_inputs)
+        self.inputs._increment_mxts(pos_mxts_increments, neg_mxts_increments)
 
 
 class ListInputMixin(object):
@@ -415,10 +470,14 @@ class ListInputMixin(object):
         return [eval('self.inputs['+str(i)+'].'+function_name+'()') for
                 i in range(len(self.inputs))]
 
-    def _add_given_increments_to_input_mxts(self, mxts_increments_for_inputs):
-        for an_input, mxts_increment in zip(self.inputs,
-                                            mxts_increments_for_inputs):
-            an_input._increment_mxts(mxts_increment)
+    def _add_given_increments_to_input_mxts(self,
+        pos_mxts_increments_for_inputs, neg_mxts_increments_for_inputs):
+        for (an_input,
+             pos_mxts_increments,
+             neg_mxts_increments) in zip(self.inputs,
+                                         pos_mxts_increments_for_inputs,
+                                         neg_mxts_increments_for_inputs):
+            an_input._increment_mxts(pos_mxts_increments, neg_mxts_increments)
 
 
 class OneDimOutputMixin(object):
@@ -458,7 +517,10 @@ class OneDimOutputMixin(object):
     def set_scoring_mode(self, scoring_mode):
         self._init_task_index()
         if (scoring_mode == ScoringMode.OneAndZeros):
-            self._mxts = (
+            self._pos_mxts = (
+                tf.zeros_like(self.get_activation_vars()) +
+                tf.reshape(self.task_vector, [1, self.get_shape()[-1]]))
+            self._neg_mxts = (
                 tf.zeros_like(self.get_activation_vars()) +
                 tf.reshape(self.task_vector, [1, self.get_shape()[-1]]))
         elif (scoring_mode == ScoringMode.SoftmaxPreActivation):
@@ -488,8 +550,13 @@ class NoOp(SingleInputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return input_act_vars
 
+    def _build_pos_and_neg_contribs(self):
+        input_pos_contribs, input_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        return input_pos_contribs, input_neg_contribs
+
     def _get_mxts_increments_for_inputs(self):
-        return self.get_mxts()
+        return self.get_pos_mxts(), self.get_neg_mxts()
 
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
@@ -513,108 +580,54 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return tf.matmul(input_act_vars, self.W) + self.b
 
+    def _build_pos_and_neg_contribs(self):
+        if (self.dense_mxts_mode == DenseMxtsMode.Linear): 
+            inp_diff_ref = self._get_input_diff_from_reference_vars() 
+            pos_contribs = (tf.matmul(
+                             inp_diff_ref*hf.gt_mask(inp_diff_ref, 0.0),
+                             self.W*hf.gt_mask(self.W,0.0))
+                            +tf.matmul(
+                              inp_diff_ref*hf.lt_mask(inp_diff_ref, 0.0),
+                              self.W*hf.lt_mask(self.W,0.0)))
+            neg_contribs = (tf.matmul(
+                             inp_diff_ref*hf.gt_mask(inp_diff_ref, 0.0),
+                             self.W*hf.lt_mask(self.W,0.0))
+                            +tf.matmul(
+                              inp_diff_ref*hf.lt_mask(inp_diff_ref, 0.0),
+                              self.W*hf.gt_mask(self.W,0.0)))
+        else:
+            raise RuntimeError("Unsupported dense_mxts_mode: "+
+                               self.dense_mxts_mode)
+        return pos_contribs, neg_contribs
+
     def _get_mxts_increments_for_inputs(self):
-        #re. counterbalance: this modification is only appropriate
-        #when the output is a relu. So when the output is not a relu,
-        #hackily set the mode back to Linear.
-        if (self.dense_mxts_mode in
-             [DenseMxtsMode.RevealCancel,
-              DenseMxtsMode.Redist,
-              DenseMxtsMode.Counterbalance,
-              DenseMxtsMode.RevealCancelRedist]):
-            if (len(self.get_output_layers())!=1 or
-                (type(self.get_output_layers()[0]).__name__!="ReLU")):
-                print("Dense layer does not have sole output of ReLU so"
-                      " cautiously reverting DenseMxtsMode from"
-                      " to Linear") 
-                self.dense_mxts_mode=DenseMxtsMode.Linear 
-
-        if (self.dense_mxts_mode == DenseMxtsMode.PosOnly):
-            return tf.matmul(
-                    self.get_mxts()*(
-                    tf.cast(tf.greater(self.get_mxts(),0.0),tf.float32)),
-                    self.W.T)
-
-        elif (self.dense_mxts_mode in 
-              [DenseMxtsMode.RevealCancel,
-               DenseMxtsMode.Redist,
-               DenseMxtsMode.Counterbalance,
-               DenseMxtsMode.RevealCancelRedist]):
-            #self.W has dims input x output; W.T is output x input
-            #self._get_input_diff_from_reference_vars() has dims batch x input
-            #fwd_contribs has dims batch x output x input
-            fwd_contribs = self._get_input_diff_from_reference_vars()[:,None,:]\
-                           *self.W.T[None,:,:] 
-
-            #total_pos_contribs and total_neg_contribs have dim batch x output
-            total_pos_contribs = tf.reduce_sum(
-                fwd_contribs*(tf.cast(tf.greater(fwd_contribs,0),
-                              tf.float32)), axis=2)
-            total_neg_contribs = tf.abs(tf.reduce_sum(
-                fwd_contribs*(tf.cast(tf.less(fwd_contribs,0),
-                              tf.float32)), axis=2))
-            if (self.dense_mxts_mode==DenseMxtsMode.Redist or
-                self.dense_mxts_mode==DenseMxtsMode.Counterbalance):
-                #if output diff-from-def is positive but there are some neg
-                #contribs, temper positive by some portion of the neg
-                #to_distribute has dims batch x output
-                #neg_to_distribute is what dips below 0, accounting for ref
-                to_distribute = tf.minimum(
-                    tf.maximum(total_neg_contribs -
-                              tf.maximum(self.get_reference_vars(),0.0),0.0),
-                    total_pos_contribs)/2.0
-
-                #total_pos_contribs_new has dims batch x output
-                total_pos_contribs_new = total_pos_contribs - to_distribute
-                total_neg_contribs_new = total_neg_contribs - to_distribute
-            elif (self.dense_mxts_mode in
-                   [DenseMxtsMode.RevealCancel,
-                    DenseMxtsMode.RevealCancelRedist]):
-
-                ##sanity check to see if we can implement the existing deeplift
-                #total_contribs = total_pos_contribs - total_neg_contribs
-                #effective_contribs = B.maximum(self.get_reference_vars() + total_contribs,0) -\
-                #                     B.maximum(self.get_reference_vars(),0)
-                #rescale = effective_contribs/total_contribs
-                # 
-                #return B.sum(self.get_mxts()[:,:,None]*self.W.T[None,:,:]*rescale[:,:,None], axis=1)
-
-                total_pos_contribs_new =\
-                 tf.maximum(self.get_reference_vars()+total_pos_contribs,0)\
-                 -tf.maximum(self.get_reference_vars(),0)
-                total_neg_contribs_new =\
-                 tf.maximum(self.get_reference_vars()+total_pos_contribs,0)\
-                 -tf.maximum(self.get_reference_vars()
-                            +total_pos_contribs-total_neg_contribs,0)
-                if (self.dense_mxts_mode==DenseMxtsMode.RevealCancelRedist):
-                    to_distribute = tf.minimum(
-                        tf.maximum(total_neg_contribs_new -
-                            tf.maximum(self.get_reference_vars(),0.0),0.0),
-                        total_pos_contribs_new)/2.0
-                    total_pos_contribs_new = (total_pos_contribs_new
-                                              - to_distribute)
-                    total_neg_contribs_new = (total_neg_contribs_new
-                                              - to_distribute)
-            else:
-                raise RuntimeError("Unsupported dense_mxts_mode: "
-                                   +str(self.dense_mxts_mode))
-            #positive_rescale has dims batch x output
-            positive_rescale = total_pos_contribs_new/\
-                                hp.pseudocount_near_zero(total_pos_contribs)
-            negative_rescale = total_neg_contribs_new/\
-                                hp.pseudocount_near_zero(total_neg_contribs)
-            #new_Wt has dims batch x output x input
-            new_Wt = self.W.T[None,:,:]*\
-                tf.cast(tf.greater(fwd_contribs,0), tf.float32)*\
-                positive_rescale[:,:,None] 
-            new_Wt += self.W.T[None,:,:]*\
-                tf.cast(tf.greater(fwd_contribs,0), tf.float32)*\
-                negative_rescale[:,:,None] 
-            return tf.reduce_sum(
-                    self.get_mxts()[:,:,None]*new_Wt[:,:,:], axis=1)
-
-        elif (self.dense_mxts_mode == DenseMxtsMode.Linear):
-            return tf.matmul(self.get_mxts(),self.W.T)
+        if (self.dense_mxts_mode == DenseMxtsMode.Linear): 
+            #different inputs will inherit multipliers differently according
+            #to the sign of inp_diff_ref (as this sign was used to determine
+            #the pos_contribs and neg_contribs; there was no breakdown
+            #by the pos/neg contribs of the input)
+            inp_diff_ref = self._get_input_diff_from_reference_vars() 
+            pos_inp_mask = hf.gt_mask(inp_diff_ref,0.0)
+            neg_inp_mask = hf.lt_mask(inp_diff_ref,0.0)
+            zero_inp_mask = hf.eq_mask(inp_diff_ref,0.0)
+            inp_mxts_increments = pos_inp_mask*(
+                tf.matmul(self.get_pos_mxts(),
+                          self.W.T*(hf.gt_mask(self.W.T, 0.0)))
+                + tf.matmul(self.get_neg_mxts(),
+                            self.W.T*(hf.lt_mask(self.W.T, 0.0)))) 
+            inp_mxts_increments += neg_inp_mask*(
+                tf.matmul(self.get_pos_mxts(),
+                          self.W.T*(hf.lt_mask(self.W.T, 0.0)))
+                + tf.matmul(self.get_neg_mxts(),
+                            self.W.T*(hf.gt_mask(self.W.T, 0.0)))) 
+            inp_mxts_increments += zero_inp_mask*(
+                tf.matmul(0.5*(self.get_pos_mxts()
+                               +self.get_neg_mxts()), self.W.T))
+            #pos_mxts and neg_mxts in the input get the same multiplier
+            #because the breakdown between pos and neg wasn't used to
+            #compute pos_contribs and neg_contribs in the forward pass
+            #(it was based entirely on inp_diff_ref)
+            return inp_mxts_increments, inp_mxts_increments
         else:
             raise RuntimeError("Unsupported mxts mode: "
                                +str(self.dense_mxts_mode))
@@ -644,6 +657,11 @@ class BatchNormalization(SingleInputMixin, Node):
         self.mean = mean
         self.var = var
         self.epsilon = epsilon
+        print("At the time of writing (April 8th 2017), the batch norm "
+              "implementation of version 5 (this version) of deeplift has "
+              "not been thoroughly unit-tested; adding in these unit tests "
+              "is a top priority, but if you see this message, do ping me "
+              "so that I can prioritise it accordingly")
     
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(BatchNormalization, self).\
@@ -675,11 +693,44 @@ class BatchNormalization(SingleInputMixin, Node):
                                      variance=self.reshaped_var,
                                      variance_epsilon=self.epsilon)
 
+    def _batchnorm_scaling_terms_only(self, inp):
+        return tf.nn.batch_normalization(inp,
+            scale=self.reshaped_gamma,
+            offset=0.0, mean=0.0, variance=self.reshaped_var,
+            variance_epsilon=self.epsilon)
+
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = (
+         (self._batchnorm_scaling_terms_only(inp_pos_contribs)
+          *(hf.gt_mask(self.reshaped_gamma,0.0))) +
+         (self._batchnorm_scaling_terms_only(inp_neg_contribs)
+          *(hf.lt_mask(self.reshaped_gamma,0.0))) 
+        ) 
+        neg_contribs = (
+         (self._batchnorm_scaling_terms_only(inp_neg_contribs)
+          *(hf.gt_mask(self.reshaped_gamma,0.0))) +
+         (self._batchnorm_scaling_terms_only(inp_pos_contribs)
+          *(hf.lt_mask(self.reshaped_gamma,0.0))) 
+        ) 
+        return pos_contribs, neg_contribs
+
     def _get_mxts_increments_for_inputs(self):
         #self.reshaped_gamma and reshaped_std are created during
         #the call to _build_activation_vars in _built_fwd_pass_vars
-        return (self.get_mxts()*self.reshaped_gamma)/(
-                tf.sqrt(self.reshaped_var))
+        std = tf.sqrt(self.reshaped_var)
+        pos_mxts_increments = (
+          self.get_pos_mxts()*
+            (self.reshaped_gamma*(hf.gt_mask(self.reshaped_gamma,0.0))/std)
+          +self.get_neg_mxts()*
+            (self.reshaped_gamma*(hf.lt_mask(self.reshaped_gamma,0.0))/std))
+        neg_mxts_increments = (
+          self.get_pos_mxts()*
+            (self.reshaped_gamma*(hf.lt_mask(self.reshaped_gamma,0.0))/std)
+          +self.get_neg_mxts()*
+            (self.reshaped_gamma*(hf.gt_mask(self.reshaped_gamma,0.0))/std))
+        return pos_mxts_increments, neg_mxts_increments
 
 
 class Merge(ListInputMixin, Node):
@@ -689,7 +740,7 @@ class Merge(ListInputMixin, Node):
         self.axis = axis
 
     def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Concat, self).\
+        kwargs_dict = super(Merge, self).\
                        get_yaml_compatible_object_kwargs()
         kwargs_dict['axis'] = self.axis
         return kwargs_dict
@@ -732,8 +783,16 @@ class Concat(OneDimOutputMixin, Merge):
         return tf.concat(axis=self.axis,
                          values=input_act_vars)
 
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = self._build_activation_vars(inp_pos_contribs) 
+        neg_contribs = self._build_activation_vars(inp_neg_contribs)
+        return pos_contribs, neg_contribs
+
     def _get_mxts_increments_for_inputs(self):
-        mxts_increments_for_inputs = []
+        pos_mxts_increments_for_inputs = []
+        neg_mxts_increments_for_inputs = []
         input_shapes = [an_input.get_shape() for an_input in self.inputs]
         slices = [slice(None,None,None) if i != self.axis
                     else None for i in range(len(input_shapes[0]))]
@@ -744,10 +803,13 @@ class Concat(OneDimOutputMixin, Merge):
              slice(idx_along_concat_axis,
                    idx_along_concat_axis+input_shape[self.axis])
             idx_along_concat_axis += input_shape[self.axis]
-            mxts_increments_for_inputs.append(
-                self.get_mxts()[slices_for_input])
+            pos_mxts_increments_for_inputs.append(
+                self.get_pos_mxts()[slices_for_input])
+            neg_mxts_increments_for_inputs.append(
+                self.get_neg_mxts()[slices_for_input])
 
-        return mxts_increments_for_inputs
+        return pos_mxts_increments_for_inputs, neg_mxts_increments_for_inputs
+
 
 #TODO: port over from theano
 #- MaxMerge
