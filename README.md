@@ -1,6 +1,6 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
-Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
+Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
 **Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome**
 
@@ -61,7 +61,7 @@ find_scores_layer_idx = 0
 
 #Compile the function that computes the contribution scores
 #For sigmoid or softmax outputs, target_layer_idx should be -2 (the default)
-#(See "3.6 Choice of target layer" in https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf for justification)
+#(See "3.6 Choice of target layer" in https://arxiv.org/abs/1704.02685 for justification)
 #For regression tasks with a linear output, target_layer_idx should be -1
 #(which simply refers to the last layer)
 #If you want the DeepLIFT multipliers instead of the contribution scores, you can use get_target_multipliers_func
@@ -94,7 +94,7 @@ deeplift_model = kc.convert_graph_model(
                     keras_model,
                     nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT_GenomicsDefault)
 #For sigmoid or softmax outputs, this should be the name of the linear layer preceding the final nonlinearity
-#(See "3.6 Choice of target layer" in https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf for justification)
+#(See "3.6 Choice of target layer" in https://arxiv.org/abs/1704.02685 for justification)
 #For regression tasks with a linear output, this should simply be the name of the final layer
 #You can find the name of the layers by inspecting the keys of deeplift_model.get_name_to_blob()
 deeplift_contribs_func = deeplift_model.get_target_contribs_func(
