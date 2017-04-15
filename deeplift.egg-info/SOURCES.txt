@@ -5,6 +5,7 @@ deeplift/util.py
 deeplift.egg-info/PKG-INFO
 deeplift.egg-info/SOURCES.txt
 deeplift.egg-info/dependency_links.txt
+deeplift.egg-info/pbr.json
 deeplift.egg-info/requires.txt
 deeplift.egg-info/top_level.txt
 deeplift/backend/__init__.py
@@ -14,6 +15,8 @@ deeplift/blobs/__init__.py
 deeplift/blobs/activations.py
 deeplift/blobs/convolution.py
 deeplift/blobs/core.py
+deeplift/blobs/maxout.py
+deeplift/blobs/rnn.py
 deeplift/conversion/__init__.py
 deeplift/conversion/keras_conversion.py
 deeplift/visualization/__init__.py

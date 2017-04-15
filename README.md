@@ -1,20 +1,21 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
-Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1605.01713) by Shrikumar, Greenside, Shcherbina & Kundaje.
+Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
 **Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome**
+
+Please join the [google group](https://groups.google.com/forum/#!forum/deeplift) to stay abreast of updates and feature announcements.
 
 ## Table of contents
 
   * [Installation](#installation)
   * [Quickstart](#quickstart)
+  * [Examples](#examples)
+  * [Contact](#contact)
   * [Under The Hood](#under-the-hood)
     * [Blobs](#blobs)
     * [The Forward Pass](#the-forward-pass)
     * [The Backward Pass](#the-backward-pass)
-  * [Examples](#examples)
-  * [Tests](#tests)
-  * [Contact](#contact)
   * [Coming Soon](#coming-soon)
 
 ## Installation
@@ -26,41 +27,48 @@ pip install --editable deeplift/ #install deeplift from the cloned repository. T
 
 While DeepLIFT does not require your models to be trained with any particular library, we have provided autoconversion functions to convert models trained using Keras into the DeepLIFT format. If you used a different library to train your models, you can still use DeepLIFT if you recreate the model using DeepLIFT layers.
 
-The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 0.12.0rc and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run `nosetests tests/*` to make sure all the unit tests pass on your machine.
+The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 1.0.1 and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run through the example notebooks to check that it works on your machine. 
 
-The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion with sequential models was tested using keras 0.2, 0.3 and 1.1.2. Graph models were tested with keras 0.3. Autoconversion for the functional API is on the way.
+The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion with sequential models was tested using keras 0.2, 0.3 and 1.2. Graph model conversion was tested with keras 0.3. Functional model conversion was tested with keras 1.2
 
 The recommended way to obtain theano and numpy is through [anaconda](https://www.continuum.io/downloads).
 
 ## Quickstart
 
-These examples show how to autoconvert a keras model and obtain importance scores.
+These examples show how to autoconvert a keras model and obtain importance scores. Non-keras models can be manually converted to the DeepLIFT format as well (contact avanti [dot] shrikumar@gmail.com if you are interested in this so I can prioritise doccumenting this accordingly)
 
 ```python
 #Convert a keras sequential model
 import deeplift
 from deeplift.conversion import keras_conversion as kc
-#NonlinearMxtsMode defines the method for computing importance scores. Other supported values are:
-#Gradient, DeconvNet, GuidedBackprop and GuidedBackpropDeepLIFT (a hybrid of GuidedBackprop and DeepLIFT where
-#negative multipliers are ignored during backpropagation)
+#NonlinearMxtsMode defines the method for computing importance scores.
+#NonlinearMxtsMode.DeepLIFT_GenomicsDefault uses the RevealCancel rule on Dense layers
+#and the Rescale rule on conv layers (see paper for rationale)
+#Other supported values are:
+#NonlinearMxtsMode.RevealCancel - DeepLIFT-RevealCancel at all layers (used for the MNIST example)
+#NonlinearMxtsMode.Rescale - DeepLIFT-rescale at all layers
+#NonlinearMxtsMode.Gradient - the 'multipliers' will be the same as the gradients
+#NonlinearMxtsMode.GuidedBackprop - the 'multipliers' will be what you get from guided backprop
+#Use deeplift.util.get_integrated_gradients_function to compute integrated gradients
+#Feel free to email avanti [dot] shrikumar@gmail.com if anything is unclear
 deeplift_model = kc.convert_sequential_model(
                     keras_model,
-                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
+                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT_GenomicsDefault)
 
 #Specify the index of the layer to compute the importance scores of.
 #In the example below, we find scores for the input layer, which is idx 0 in deeplift_model.get_layers()
 find_scores_layer_idx = 0
 
-#Compile the function that computes the importance scores
+#Compile the function that computes the contribution scores
 #For sigmoid or softmax outputs, target_layer_idx should be -2 (the default)
-#(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
+#(See "3.6 Choice of target layer" in https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf for justification)
 #For regression tasks with a linear output, target_layer_idx should be -1
 #(which simply refers to the last layer)
-#FYI: In the case of NonlinearMxtsMode.DeepLIFT, the importance scores are also called "contribution scores"
-#If you want the multipliers instead of the contribution scores, you can use get_target_multipliers_func
+#If you want the DeepLIFT multipliers instead of the contribution scores, you can use get_target_multipliers_func
 deeplift_contribs_func = deeplift_model.get_target_contribs_func(
                             find_scores_layer_idx=find_scores_layer_idx,
                             target_layer_idx=-1)
+#You can also provide an array of indices to find_scores_layer_idx to get scores for multiple layers at once
 
 #compute scores on inputs
 #input_data_list is a list containing the data for different input layers
@@ -74,7 +82,7 @@ scores = np.array(deeplift_contribs_func(task_idx=0,
                                          progress_update=1000))
 ```
 
-This will work for sequential models involving dense and/or conv2d layers and linear/relu/sigmoid/softmax or prelu activations. Please create a github issue or email the address at the top of the readme if you are interested in support for other layer types.
+This will work for sequential models involving dense and/or conv2d layers and linear/relu/sigmoid/softmax or prelu activations. Please create a github issue or email avanti [dot] shrikumar@gmail.com readme if you are interested in support for other layer types.
 
 The syntax for autoconverting graph models is similar:
 
@@ -84,18 +92,39 @@ import deeplift
 from deeplift.conversion import keras_conversion as kc
 deeplift_model = kc.convert_graph_model(
                     keras_model,
-                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT)
+                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT_GenomicsDefault)
 #For sigmoid or softmax outputs, this should be the name of the linear layer preceding the final nonlinearity
-#(See "a note on final activation layers" in https://arxiv.org/pdf/1605.01713v2.pdf for justification)
+#(See "3.6 Choice of target layer" in https://web.stanford.edu/~avanti/deeplift_April_7_2017.pdf for justification)
 #For regression tasks with a linear output, this should simply be the name of the final layer
 #You can find the name of the layers by inspecting the keys of deeplift_model.get_name_to_blob()
 deeplift_contribs_func = deeplift_model.get_target_contribs_func(
     find_scores_layer_name="name_of_input_layer",
     pre_activation_target_layer_name="name_goes_here")
-
+#You can also provide an array of names ot find_scores_layer_name to get
+#scores for multiple layers at once
 ```
 
-Support for the Keras functional API is in the works.
+For autoconverting a functional model:
+```python
+deeplift_model = kc.convert_functional_model(
+                    keras_model,
+                    nonlinear_mxts_mode=deeplift.blobs.NonlinearMxtsMode.DeepLIFT_GenomicsDefault)
+#The syntax below for obtaining scores is similar to that of a converted graph model
+#See deeplift_model.get_name_to_blob().keys() to see all the layer names
+#As before, you can provide an array of names to find_scores_layer_name
+#to get the scores for multiple layers at once
+deeplift_contribs_func = deeplift_model.get_target_contribs_func(
+    find_scores_layer_name="name_of_input_layer",
+    pre_activation_target_layer_name="name_goes_here")
+```
+
+## Examples
+Please explore the examples folder in the main repository for ipython notebooks illustrating the use of DeepLIFT and other importance-scoring methods. Figures from the paper are reproduced here.
+
+## Contact
+Please email avanti [dot] shrikumar [at] gmail.com with questions, ideas, feature requests, etc. We would love to hear from you!
+
+Please consider joining the [google group](https://groups.google.com/forum/#!forum/deeplift) to stay abreast of updates and feature announcements.
 
 ## Under the hood
 This section explains finer aspects of the deeplift implementation
@@ -107,11 +136,11 @@ Blobs implement the following key methods:
 #### get_activation_vars()
 Returns symbolic variables representing the activations of the blob. For an understanding of symbolic variables, refer to the documentation of symbolic computation packages like theano or tensorflow.
 
-#### get_mxts()
-Returns symbolic variables representing the multipliers on this layer (for the selected output). Refer to the DeepLIFT paper for an explanation of what multipliers are.
+#### get_pos_mxts() and get_neg_mxts()
+Returns symbolic variables representing the positive/negative multipliers on this layer (for the selected output). See paper for details.
 
 #### get_target_contrib_vars()
-Returns symbolic variables representing the importance scores. This is a convenience function that returns `self.get_mxts()*self.get_diff_from_default_vars()`
+Returns symbolic variables representing the importance scores. This is a convenience function that returns `self.get_pos_mxts()*self._pos_contribs() + self.get_neg_mxts()*self._neg_contribs()`. See paper for details.
 
 ### The Forward Pass
 Here are the steps necessary to implement a forward pass. If executed correctly, the results should be identical (within numerical precision) to a forward pass of your original model, so this is definitely worth doing as a sanity check. Note that if autoconversion (as described in the quickstart) is an option, you can skip steps (1) and (2).
@@ -136,8 +165,8 @@ Here are the steps necessary to implement the backward pass, which is where the 
 2. For the output blob(s) containing the neuron(s) that the importance scores will be calculated with respect to, call `set_scoring_mode(deeplift.blobs.ScoringMode.OneAndZeros)`.
     - Briefly, this is the scoring mode that is used when we want to find scores with respect to a single target neuron. Other kinds of scoring modes may be added later (eg: differences between neurons).
     - A point of clarification: when we eventually compile the function, it will be a function which computes scores for only a single output neuron in a single layer every time it is called. The specific neuron and layer can be toggled later, at runtime. Right now, at this step, you should call `set_scoring_mode` on all the target layers that you might conceivably want to find the scores with respect to. This will save you from having to recompile the function to allow a different target layer later.
-    - For Sigmoid/Softmax output layers, the output blob that you use should be the linear blob (usually a Dense layer) that comes before the final nonlinear activation. See "a note on final activation layers" in [the paper](https://arxiv.org/pdf/1605.01713v2.pdf) for justification. If there is no final nonlinearity (eg: in the case of many regression tasks), then the output blob should just be the last linear blob. 
-    - For Softmax outputs, you should additionally mean-normalize the weights across all softmax classes when creating the Dense blob. A utility function to perform this mean-normalization is `deeplift.util.get_mean_normalised_softmax_weights(W, b)`. Note that this transformation does not affect the forward propagation. See "a note on softmax activation" in [the paper](https://arxiv.org/pdf/1605.01713v2.pdf) for a justification of why we do this.
+    - For Sigmoid/Softmax output layers, the output blob that you use should be the linear blob (usually a Dense layer) that comes before the final nonlinear activation. See "3.6 Choice of target layer" in the paper for justification. If there is no final nonlinearity (eg: in the case of many regression tasks), then the output blob should just be the last linear blob. 
+    - For Softmax outputs, you should may want to subtract the average contribution to all softmax classes as described in "Adjustments for softmax layers" in the paper (section 3.6). If your number of softmax classes is very large and you don't want to calculate contributions to each class separately for each example, contact me (avanti [dot] shrikumar@gmail.com) and I can implement a more efficient way to do the calculation (there is a way but I haven't coded it up yet).
 3. For the blob(s) that you wish to compute the importance scores for, call `update_mxts()`. This will create the symbolic variables that compute the multipliers with respect to the layer specified in step 2.
 4. Compile the importance score computation function with
 
@@ -148,7 +177,7 @@ Here are the steps necessary to implement the backward pass, which is where the 
     ```
     - The first argument represents the inputs to the function and should be a list of one symbolic tensor for the activations of each input layer (as for the forward pass), followed by a list of one symbolic tensor for the references of each input layer
     - The second argument represents the output of the function. In the example above, it is a single tensor containing the importance scores of a single blob, but it can also be a list of tensors if you wish to compute the scores for multiple blobs at once.
-    - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of `NonlinearMxtsMode.DeepLIFT`, these are called "contribution scores"), you can use `get_mxts()` to get the multipliers.
+    - Instead of `get_target_contrib_vars()` which returns the importance scores (in the case of `NonlinearMxtsMode.DeepLIFT`, these are called "contribution scores"), you can use `get_pos_mxts()` or `get_neg_mxts()` to get the multipliers.
 5. Now you are ready to call the function to find the importance scores.
     - Select a specific output blob to compute importance scores with respect to by calling `set_active()` on the blob.
     - Select a specific target neuron within the blob by calling `update_task_index(task_idx)` on the blob. Here `task_idx` is the index of a neuron within the blob.
@@ -156,20 +185,10 @@ Here are the steps necessary to implement the backward pass, which is where the 
     - Deselect the output blob by calling `set_inactive()` on the blob. Don't forget this!
     - (Yes, I will bundle all of these into a single function at some point)
 
-## Examples
-Please explore the examples folder in the main repository for ipython notebooks illustrating the use of deeplift, and stay tuned for updates as we will be adding more examples shortly.
-
-## Tests
-A number of unit tests are provided in the tests folder in the main repository. They can be run with `nosetests tests/*`
-
-## Contact
-Please email avanti [at] stanford [dot] edu with questions, ideas, feature requests, etc. We would love to hear from you!
-
 ## Coming soon
 The following is a list of some features in the works:
-- Autoconversion for the Keras functional API
-- RNNs
-- Improvements to DeepLIFT to address certain edge-case behaviour
-- Learning references from the data
+- Rigorous unit tests for batch norm for version 5 (this version)
+- Improved strategies for handling references
+- extensions to RNNs
 
 If you would like early access to any of those features, please contact us.

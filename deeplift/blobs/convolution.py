@@ -48,12 +48,18 @@ class Conv1D(SingleInputMixin, Node):
         if (input_shape is None):
             shape_to_return += [None]
         else:
-            if (self.border_mode != B.BorderMode.valid):
+            if (self.border_mode == B.BorderMode.valid):
+                #overhangs are excluded
+                shape_to_return.append(
+                 1+int((input_shape[2]-self.W.shape[2])/self.stride)) 
+            elif (self.border_mode == B.BorderMode.same):
+                #in accordance with conv_output_length in
+                #keras.utils.conv_utils
+                shape_to_return.append(
+                    int((input_shape[2]+self.stride-1)/self.stride))
+            else:
                 raise RuntimeError("Please implement shape inference for"
                                    " border mode: "+str(self.border_mode))
-            #assuming that overhangs are excluded
-            shape_to_return.append(
-             1+int((input_shape[2]-self.W.shape[2])/self.stride)) 
         if (self.channels_come_last):
             shape_to_return = [shape_to_return[0], shape_to_return[2],
                                shape_to_return[1]]
@@ -63,38 +69,142 @@ class Conv1D(SingleInputMixin, Node):
         if (self.channels_come_last):
             input_act_vars = B.dimshuffle(input_act_vars, (0,2,1))
         conv_without_bias = self._compute_conv_without_bias(
-                                  input_act_vars)[:,:,0,:]
+                                  input_act_vars, W=self.W)
         to_return = conv_without_bias + self.b[None,:,None]
         if (self.channels_come_last):
             to_return = B.dimshuffle(to_return, (0,2,1))
         return to_return
 
-    def _compute_conv_without_bias(self, x):
+    def _build_pos_and_neg_contribs(self):
+        if (self.conv_mxts_mode == ConvMxtsMode.Linear):
+            inp_diff_ref = self._get_input_diff_from_reference_vars() 
+            if (self.channels_come_last):
+                inp_diff_ref = B.dimshuffle(inp_diff_ref,(0,2,1))   
+            pos_contribs = (self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref>0.0),
+                             W=self.W*(self.W > 0.0))
+                           +self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref<0.0),
+                             W=self.W*(self.W < 0.0)) 
+                            )
+            neg_contribs = (self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref<0.0),
+                             W=self.W*(self.W > 0.0))
+                           +self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref>0.0),
+                             W=self.W*(self.W < 0.0)) 
+                            )
+        elif (self.conv_mxts_mode == ConvMxtsMode.SepPosAndNeg):
+            inp_pos_contribs, inp_neg_contribs =\
+                self._get_input_pos_and_neg_contribs()
+            if (self.channels_come_last):
+                inp_pos_contribs = B.dimshuffle(inp_pos_contribs,(0,2,1))   
+                inp_neg_contribs = B.dimshuffle(inp_neg_contribs,(0,2,1))   
+            pos_contribs = (self._compute_conv_without_bias(
+                            x=inp_pos_contribs, W=self.W*(self.W>=0.0))
+                           +self._compute_conv_without_bias(
+                            x=inp_neg_contribs, W=self.W*(self.W<0.0)))
+            neg_contribs = (self._compute_conv_without_bias(
+                            x=inp_neg_contribs, W=self.W*(self.W>=0.0))
+                           +self._compute_conv_without_bias(
+                            x=inp_pos_contribs, W=self.W*(self.W<0.0)))
+        else:
+            raise RuntimeError("Unsupported conv_mxts_mode: "+
+                               self.conv_mxts_mode)
+        if (self.channels_come_last):
+            pos_contribs = B.dimshuffle(pos_contribs,(0,2,1)) 
+            neg_contribs = B.dimshuffle(neg_contribs,(0,2,1)) 
+        return pos_contribs, neg_contribs
+
+    def _compute_conv_without_bias(self, x, W):
         conv_without_bias =  B.conv2d(inp=x[:,:,None,:],
-                                  filters=self.W[:,:,None,:],
+                                  filters=W[:,:,None,:],
                                   border_mode=self.border_mode,
-                                  subsample=(1,self.stride))
+                                  subsample=(1,self.stride))[:,:,0,:]
         return conv_without_bias
 
     def _get_mxts_increments_for_inputs(self): 
-        mxts = self.get_mxts() 
-        input_act_vars = self._get_input_activation_vars()
+        pos_mxts = self.get_pos_mxts()
+        neg_mxts = self.get_neg_mxts()
+        inp_diff_ref = self._get_input_diff_from_reference_vars() 
+        output_shape = self._get_input_shape()
         if (self.channels_come_last):
-            mxts = B.dimshuffle(mxts, (0,2,1))
-            input_act_vars = B.dimshuffle(input_act_vars, (0,2,1))
-        if (self.conv_mxts_mode==ConvMxtsMode.Linear):
-            to_return = B.conv2d_grad(
-                    out_grad=mxts[:,:,None,:],
-                    conv_in=input_act_vars[:,:,None,:],
-                    filters=self.W[:,:,None,:],
-                    border_mode=self.border_mode,
-                    subsample=(1,self.stride))[:,:,0,:]
+            pos_mxts = B.dimshuffle(pos_mxts,(0,2,1))   
+            neg_mxts = B.dimshuffle(neg_mxts,(0,2,1))   
+            inp_diff_ref = B.dimshuffle(inp_diff_ref, (0,2,1))
+            output_shape = [output_shape[0], output_shape[2], output_shape[1]]
+        if (self.conv_mxts_mode == ConvMxtsMode.Linear): 
+            pos_inp_mask = inp_diff_ref > 0.0
+            neg_inp_mask = inp_diff_ref < 0.0
+            zero_inp_mask = B.eq(inp_diff_ref, 0.0)
+            output_shape = [output_shape[0], output_shape[1],
+                            1, output_shape[2]]
+            inp_mxts_increments = pos_inp_mask*((B.conv2d_grad(
+                                    topgrad=pos_mxts[:,:,None,:],
+                                    output_shape=output_shape, 
+                                    filters=(self.W*(self.W > 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=(1,self.stride))
+                                  +B.conv2d_grad(
+                                    topgrad=neg_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W < 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=(1,self.stride)))[:,:,0,:])
+            inp_mxts_increments += neg_inp_mask*((B.conv2d_grad(
+                                    topgrad=pos_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W < 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=(1,self.stride)) 
+                                  +B.conv2d_grad(
+                                    topgrad=neg_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W > 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=(1,self.stride)))[:,:,0,:])
+            inp_mxts_increments += zero_inp_mask*(B.conv2d_grad(
+                                topgrad=(0.5*(pos_mxts+neg_mxts))[:,:,None,:],
+                                output_shape=output_shape,
+                                filters=self.W[:,:,None,:],
+                                border_mode=self.border_mode,
+                                strides=(1,self.stride))[:,:,0,:])
+
+            pos_mxts_increments = inp_mxts_increments
+            neg_mxts_increments = inp_mxts_increments
+
+        elif (self.conv_mxts_mode == ConvMxtsMode.SepPosAndNeg):
+            pos_mxts_increments = (B.conv2d_grad(
+                                    topgrad=pos_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W >= 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=self.strides) 
+                                  +B.conv2d_grad(
+                                    topgrad=neg_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W < 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=self.strides))[:,:,0,:]
+            neg_mxts_increments = (B.conv2d_grad(
+                                    topgrad=neg_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W >= 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=self.strides) 
+                                  +B.conv2d_grad(
+                                    topgrad=pos_mxts[:,:,None,:],
+                                    output_shape=output_shape,
+                                    filters=(self.W*(self.W < 0))[:,:,None,:],
+                                    border_mode=self.border_mode,
+                                    strides=self.strides))[:,:,0,:]
         else:
-            raise RuntimeError("Unsupported conv_mxts_mode: "
+            raise RuntimeError("Unsupported conv mxts mode: "
                                +str(self.conv_mxts_mode))
         if (self.channels_come_last):
-            to_return = B.dimshuffle(to_return, (0,2,1))
-        return to_return
+            pos_mxts_increments = B.dimshuffle(pos_mxts_increments,(0,2,1))   
+            neg_mxts_increments = B.dimshuffle(neg_mxts_increments,(0,2,1))   
+        return pos_mxts_increments, neg_mxts_increments
 
 
 class Conv2D(SingleInputMixin, Node):
@@ -166,9 +276,16 @@ class Conv2D(SingleInputMixin, Node):
                                    " border mode: "+str(self.border_mode))
             for (dim_inp_len, dim_kern_width, dim_stride) in\
                 zip(input_shape[2:], self.W.shape[2:], self.strides):
-                #assuming that overhangs are excluded
-                shape_to_return.append(
-                 1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+                if (self.border_mode == B.BorderMode.valid):
+                    #overhangs are excluded
+                    shape_to_return.append(
+                     1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+                elif (self.border_mode == B.BorderMode.same): 
+                    shape_to_return.append(
+                     int((dim_inp_len+dim_stride-1)/dim_stride)) 
+                else:
+                    raise RuntimeError("Please implement shape inference for"
+                                       " border mode: "+str(self.border_mode))
         if (self.channels_come_last):
             shape_to_return = [shape_to_return[0], shape_to_return[2],
                                shape_to_return[3], shape_to_return[1]]
@@ -177,195 +294,147 @@ class Conv2D(SingleInputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         if (self.channels_come_last):
             input_act_vars = B.dimshuffle(input_act_vars,(0,3,1,2))   
-        conv_without_bias = self._compute_conv_without_bias(input_act_vars)
+        conv_without_bias = self._compute_conv_without_bias(
+                                 x=input_act_vars, W=self.W)
         to_return = conv_without_bias + self.b[None,:,None,None]
         if (self.channels_come_last):
             to_return = B.dimshuffle(to_return,(0,2,3,1))   
         return to_return
 
-    def _compute_conv_without_bias(self, x):
+    def _build_pos_and_neg_contribs(self):
+        if (self.conv_mxts_mode == ConvMxtsMode.Linear):
+            inp_diff_ref = self._get_input_diff_from_reference_vars() 
+            if (self.channels_come_last):
+                inp_diff_ref = B.dimshuffle(inp_diff_ref,(0,3,1,2))   
+            pos_contribs = (self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref>0.0),
+                             W=self.W*(self.W > 0.0))
+                           +self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref<0.0),
+                             W=self.W*(self.W < 0.0)) 
+                            )
+            neg_contribs = (self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref<0.0),
+                             W=self.W*(self.W > 0.0))
+                           +self._compute_conv_without_bias(
+                             x=inp_diff_ref*(inp_diff_ref>0.0),
+                             W=self.W*(self.W < 0.0)) 
+                            )
+        elif (self.conv_mxts_mode == ConvMxtsMode.SepPosAndNeg):
+            inp_pos_contribs, inp_neg_contribs =\
+                self._get_input_pos_and_neg_contribs()
+            if (self.channels_come_last):
+                inp_pos_contribs = B.dimshuffle(inp_pos_contribs,(0,3,1,2))   
+                inp_neg_contribs = B.dimshuffle(inp_neg_contribs,(0,3,1,2))   
+            pos_contribs = (self._compute_conv_without_bias(
+                            x=inp_pos_contribs, W=self.W*(self.W>=0.0))
+                           +self._compute_conv_without_bias(
+                            x=inp_neg_contribs, W=self.W*(self.W<0.0)))
+            neg_contribs = (self._compute_conv_without_bias(
+                            x=inp_neg_contribs, W=self.W*(self.W>=0.0))
+                           +self._compute_conv_without_bias(
+                            x=inp_pos_contribs, W=self.W*(self.W<0.0)))
+        else:
+            raise RuntimeError("Unsupported conv_mxts_mode: "+
+                               self.conv_mxts_mode)
+        if (self.channels_come_last):
+            pos_contribs = B.dimshuffle(pos_contribs,(0,2,3,1))   
+            neg_contribs = B.dimshuffle(neg_contribs,(0,2,3,1))   
+        return pos_contribs, neg_contribs
+
+    def _compute_conv_without_bias(self, x, W):
         conv_without_bias =  B.conv2d(inp=x,
-                                  filters=self.W,
+                                  filters=W,
                                   border_mode=self.border_mode,
                                   subsample=self.strides)
         return conv_without_bias
 
     def get_contribs_of_inputs_with_filter_refs(self):
-        assert self.conv_mxts_mode == ConvMxtsMode.Linear,\
-            "Only implemented for the linear mode thus far"
-        effective_mxts = self.get_mxts()
-        input_act_vars = self._get_input_activation_vars()
-        if (self.channels_come_last):
-            effective_mxts = B.dimshuffle(effective_mxts,(0,3,1,2))   
-            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
-
-        #apply silencer if applicable
-        if (hasattr(self, 'filter_diff_from_ref_silencer')):
-            silencer_mask = (B.abs(self._get_diff_from_reference_vars())
-                             > self.filter_diff_from_ref_silencer)
-            effective_mxts = self.get_mxts()*silencer_mask
-
-        #efficiently compute the contributions of the layer below
-        mult_times_input_on_layer_below = B.conv2d_grad(
-                out_grad=effective_mxts,
-                conv_in=input_act_vars,
-                filters=self.W,
-                border_mode=self.border_mode,
-                subsample=self.strides)*self._get_input_activation_vars()
-        mult_times_filter_ref_on_layer_below = B.conv2d_grad(
-                out_grad=effective_mxts,
-                conv_in=input_act_vars,
-                #reverse the rows and cols of filter_input_references
-                #so that weights line up with the actual position they
-                #act on (remember, convolutions flip things)
-                filters=self.W*self.filter_input_references[:,:,::-1,::-1],
-                border_mode=self.border_mode,
-                subsample=self.strides)
-        to_return = (mult_times_input_on_layer_below
-                     - mult_times_filter_ref_on_layer_below)
-        if (self.channels_come_last):
-            to_return = B.dimshuffle(to_return,(0,2,3,1))   
-        return to_return
+        raise NotImplementedError("Not implemented for the"
+                                  "split pos and neg yet")
          
     def _get_mxts_increments_for_inputs(self): 
-        if (len(self.get_output_layers())!=1 or
-            (type(self.get_output_layers()[0]).__name__!="ReLU")):
-            if (self.conv_mxts_mode != ConvMxtsMode.Linear):
-                print("Conv layer does not have sole output of ReLU so"
-                      +" cautiously reverting ConvMxtsMode from "
-                      +str(self.conv_mxts_mode)+" to Linear") 
-                self.conv_mxts_mode = ConvMxtsMode.Linear
-        effective_mxts = self.get_mxts()
-        deltain_act_vars = self._get_input_diff_from_reference_vars()
+        pos_mxts = self.get_pos_mxts()
+        neg_mxts = self.get_neg_mxts()
+        inp_diff_ref = self._get_input_diff_from_reference_vars() 
+        output_shape = self._get_input_shape()
         if (self.channels_come_last):
-            effective_mxts = B.dimshuffle(effective_mxts,(0,3,1,2))   
-            deltain_act_vars = B.dimshuffle(deltain_act_vars, (0,3,1,2))
-        if (self.conv_mxts_mode == ConvMxtsMode.Linear):
-            to_return = B.conv2d_grad(
-                    out_grad=effective_mxts,
-                    conv_in=deltain_act_vars,
-                    filters=self.W,
-                    border_mode=self.border_mode,
-                    subsample=self.strides)
-        elif (self.conv_mxts_mode ==
-              ConvMxtsMode.RevealCancelRedist_ThroughZeros):
-            pos_inputs = deltain_act_vars*(deltain_act_vars > 0.0) 
-            neg_inputs = deltain_act_vars*(deltain_act_vars < 0.0)
-            #find the total positive inputs per neuron
-            raw_pos_contribs = (B.conv2d(inp=pos_inputs,
-                                    filters=self.W*(self.W>0.0),
+            pos_mxts = B.dimshuffle(pos_mxts,(0,3,1,2)) 
+            neg_mxts = B.dimshuffle(neg_mxts,(0,3,1,2)) 
+            inp_diff_ref = B.dimshuffle(inp_diff_ref, (0,3,1,2))
+            output_shape = [output_shape[0], output_shape[3],
+                            output_shape[1], output_shape[2]]
+        if (self.conv_mxts_mode == ConvMxtsMode.Linear): 
+            pos_inp_mask = inp_diff_ref > 0.0
+            neg_inp_mask = inp_diff_ref < 0.0
+            zero_inp_mask = B.eq(inp_diff_ref, 0.0)
+            
+            inp_mxts_increments = pos_inp_mask*(B.conv2d_grad(
+                                    topgrad=pos_mxts,
+                                    output_shape=output_shape, 
+                                    filters=self.W*(self.W > 0),
                                     border_mode=self.border_mode,
-                                    subsample=self.strides)
-                               +B.conv2d(inp=neg_inputs,
-                                    filters=self.W*(self.W<0.0),
+                                    strides=self.strides) 
+                                  +B.conv2d_grad(
+                                    topgrad=neg_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W < 0),
                                     border_mode=self.border_mode,
-                                    subsample=self.strides))
-            raw_neg_contribs = B.abs(B.conv2d(inp=neg_inputs,
-                                    filters=self.W*(self.W>0.0),
+                                    strides=self.strides))
+            inp_mxts_increments += neg_inp_mask*(B.conv2d_grad(
+                                    topgrad=pos_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W < 0),
                                     border_mode=self.border_mode,
-                                    subsample=self.strides)
-                               +B.conv2d(inp=pos_inputs,
-                                    filters=self.W*(self.W<0.0),
+                                    strides=self.strides) 
+                                  +B.conv2d_grad(
+                                    topgrad=neg_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W > 0),
                                     border_mode=self.border_mode,
-                                    subsample=self.strides))
-            ref = self.get_reference_vars() 
-            adjusted_pos_contribs = 0.5*(
-               (B.maximum(0.0, ref+raw_pos_contribs) - B.maximum(0.0, ref))
-             + (B.maximum(0.0, ref-raw_neg_contribs+raw_pos_contribs)
-                - B.maximum(0.0, ref-raw_neg_contribs))) 
-            adjusted_neg_contribs = B.abs(0.5*(
-               (B.maximum(0.0, ref-raw_neg_contribs) - B.maximum(0.0, ref))
-             + (B.maximum(0.0, ref-raw_neg_contribs+raw_pos_contribs)
-                - B.maximum(0.0, ref+raw_pos_contribs)))) 
-            pos_scale_factor = (adjusted_pos_contribs/
-                                 pseudocount_near_zero(raw_pos_contribs))
-            neg_scale_factor = (adjusted_neg_contribs/
-                                 pseudocount_near_zero(raw_neg_contribs))
-            zero_scale_factor = 0.5*(pos_scale_factor + neg_scale_factor)
+                                    strides=self.strides))
+            inp_mxts_increments += zero_inp_mask*B.conv2d_grad(
+                                    topgrad=0.5*(pos_mxts+neg_mxts),
+                                    output_shape=output_shape,
+                                    filters=self.W,
+                                    border_mode=self.border_mode,
+                                    strides=self.strides) 
 
-            to_return = B.conv2d_grad( #grads from pos weights on pos inputs
-                    out_grad=effective_mxts*pos_scale_factor,
-                    conv_in=deltain_act_vars,
-                    filters=self.W*(self.W > 0.0),
-                    border_mode=self.border_mode,
-                    subsample=self.strides)*(deltain_act_vars > 0.0)
-            to_return += B.conv2d_grad( #grads from neg weights on neg inputs
-                    out_grad=effective_mxts*pos_scale_factor,
-                    conv_in=deltain_act_vars,
-                    filters=self.W*(self.W < 0.0),
-                    border_mode=self.border_mode,
-                    subsample=self.strides)*(deltain_act_vars < 0.0)
-            to_return += B.conv2d_grad( #grads from pos weights on neg inputs
-                    out_grad=effective_mxts*neg_scale_factor,
-                    conv_in=deltain_act_vars,
-                    filters=self.W*(self.W > 0.0),
-                    border_mode=self.border_mode,
-                    subsample=self.strides)*(deltain_act_vars < 0.0)
-            to_return += B.conv2d_grad( #grads from neg weights on pos inputs
-                    out_grad=effective_mxts*neg_scale_factor,
-                    conv_in=deltain_act_vars,
-                    filters=self.W*(self.W < 0.0),
-                    border_mode=self.border_mode,
-                    subsample=self.strides)*(deltain_act_vars > 0.0)
-            to_return += B.conv2d_grad( #grads from neg weights on pos inputs
-                    out_grad=effective_mxts*zero_scale_factor,
-                    conv_in=deltain_act_vars,
-                    filters=self.W,
-                    border_mode=self.border_mode,
-                    subsample=self.strides)*(B.eq(deltain_act_vars,0.0))
+            pos_mxts_increments = inp_mxts_increments
+            neg_mxts_increments = inp_mxts_increments
+
+        elif (self.conv_mxts_mode == ConvMxtsMode.SepPosAndNeg):
+            pos_mxts_increments = (B.conv2d_grad(
+                                    topgrad=pos_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W >= 0),
+                                    border_mode=self.border_mode,
+                                    strides=self.strides) 
+                                  +B.conv2d_grad(
+                                    topgrad=neg_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W < 0),
+                                    border_mode=self.border_mode,
+                                    strides=self.strides))
+            neg_mxts_increments = (B.conv2d_grad(
+                                    topgrad=neg_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W >= 0),
+                                    border_mode=self.border_mode,
+                                    strides=self.strides) 
+                                  +B.conv2d_grad(
+                                    topgrad=pos_mxts,
+                                    output_shape=output_shape,
+                                    filters=self.W*(self.W < 0),
+                                    border_mode=self.border_mode,
+                                    strides=self.strides))
         else:
             raise RuntimeError("Unsupported conv mxts mode: "
                                +str(self.conv_mxts_mode))
-
         if (self.channels_come_last):
-            to_return = B.dimshuffle(to_return,(0,2,3,1))   
-        return to_return
-
-
-class ZeroPad2D(SingleInputMixin, Node):
-
-    def __init__(self, padding, channels_come_last, **kwargs):
-        super(ZeroPad2D, self).__init__(**kwargs) 
-        self.padding = padding
-        self.channels_come_last = channels_come_last
-        if (self.channels_come_last):
-            print("Warning: channels_come_last setting "
-                  "is untested for ZeroPad2D")
-            
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(ZeroPad2D, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['padding'] = self.padding
-        kwargs_dict['channels_come_last'] = self.channels_come_last
-        return kwargs_dict
-
-    def _compute_shape(self, input_shape):
-        if (self.channels_come_last):
-            input_shape = [input_shape[0], input_shape[3],
-                           input_shape[2], input_shape[1]]
-        shape_to_return = [None, input_shape[0]] #channel axis the same
-        for dim_inp_len, dim_pad in zip(input_shape[2:], self.padding):
-            shape_to_return.append(dim_inp_len + 2*dim_pad) 
-        if (self.channels_come_last):
-            shape_to_return = [input_shape[0], input_shape[2],
-                               input_shape[3], input_shape[1]]
-        return shape_to_return
-
-    def _build_activation_vars(self, input_act_vars):
-        if (self.channels_come_last):
-            input_act_vars = B.dimshuffle(input_act_vars, (0,3,1,2))
-        to_return = B.zeropad2d(input_act_vars, padding=self.padding) 
-        if (self.channels_come_last):
-            to_return = B.dimshuffle(to_return, (0,2,3,1))
-        return to_return
-
-    def _get_mxts_increments_for_inputs(self):
-        if (self.channels_come_last):
-            mxts = B.dimshuffle(self.get_mxts(), (0,3,1,2))
-        to_return = B.discard_pad2d(mxts, padding=self.padding)
-        if (self.channels_come_last):
-            to_return = B.dimshuffle(to_return, (0,2,3,1)) 
-        return to_return
+            pos_mxts_increments = B.dimshuffle(pos_mxts_increments,(0,2,3,1))   
+            neg_mxts_increments = B.dimshuffle(neg_mxts_increments,(0,2,3,1))   
+        return pos_mxts_increments, neg_mxts_increments
 
 
 class Pool1D(SingleInputMixin, Node):
@@ -399,7 +468,7 @@ class Pool1D(SingleInputMixin, Node):
             raise RuntimeError("Please implement shape inference for"
                                " border mode: "+str(self.border_mode))
         shape_to_return.append(
-            1+int((input_shape[1]-self.pool_length)/self.stride)) 
+            1+int((input_shape[2]-self.pool_length)/self.stride)) 
         if (self.channels_come_last):
             shape_to_return = [shape_to_return[0], shape_to_return[2],
                                shape_to_return[1]]
@@ -450,14 +519,25 @@ class MaxPool1D(Pool1D):
         super(MaxPool1D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
         self.maxpool_deeplift_mode = maxpool_deeplift_mode
 
+    def _build_pos_and_neg_contribs(self):
+        if (self.verbose):
+            print("Heads-up: current implementation assumes maxpool layer "
+                  "is followed by a linear transformation (conv/dense layer)")
+        #placeholder; not used for linear layer, hence assumption above
+        return B.zeros_like(self.get_activation_vars()),\
+               B.zeros_like(self.get_activation_vars())
+
     def _get_mxts_increments_for_inputs(self):
         if (self.maxpool_deeplift_mode==
             MaxPoolDeepLiftMode.gradient):
-            return (self.
-                    _get_input_grad_given_outgrad(out_grad=self.get_mxts()))
+            pos_mxts_increments = (self.
+                _get_input_grad_given_outgrad(out_grad=self.get_pos_mxts()))
+            neg_mxts_increments = (self.
+                _get_input_grad_given_outgrad(out_grad=self.get_neg_mxts()))
         else:
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
                                str(self.maxpool_deeplift_mode))
+        return pos_mxts_increments, neg_mxts_increments
 
 
 class AvgPool1D(Pool1D):
@@ -465,9 +545,21 @@ class AvgPool1D(Pool1D):
     def __init__(self, **kwargs):
         super(AvgPool1D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
 
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = self._build_activation_vars(inp_pos_contribs)
+        neg_contribs = self._build_activation_vars(inp_neg_contribs) 
+        return pos_contribs, neg_contribs
+
     def _get_mxts_increments_for_inputs(self):
-        return super(AvgPool1D, self)._get_input_grad_given_outgrad(
-                                       out_grad=self.get_mxts())
+        pos_mxts_increments = (super(AvgPool1D, self)
+                               ._get_input_grad_given_outgrad(
+                                       out_grad=self.get_pos_mxts()))
+        neg_mxts_increments = (super(AvgPool1D, self)
+                               ._get_input_grad_given_outgrad(
+                                       out_grad=self.get_neg_mxts()))
+        return pos_mxts_increments, neg_mxts_increments
 
 
 class Pool2D(SingleInputMixin, Node):
@@ -564,21 +656,25 @@ class MaxPool2D(Pool2D):
         super(MaxPool2D, self).__init__(pool_mode=B.PoolMode.max, **kwargs) 
         self.maxpool_deeplift_mode = maxpool_deeplift_mode
 
+    def _build_pos_and_neg_contribs(self):
+        if (self.verbose):
+            print("Heads-up: current implementation assumes maxpool layer "
+                  "is followed by a linear transformation (conv/dense layer)")
+        #placeholder; not used for linear layer, hence assumption above
+        return B.zeros_like(self.get_activation_vars()),\
+               B.zeros_like(self.get_activation_vars())
+
     def _get_mxts_increments_for_inputs(self):
         if (self.maxpool_deeplift_mode==
             MaxPoolDeepLiftMode.gradient):
-            return (self.
-                    _get_input_grad_given_outgrad(out_grad=self.get_mxts()))
-        elif (self.maxpool_deeplift_mode==
-              MaxPoolDeepLiftMode.scaled_gradient):
-            grad_times_diff_def = self._get_input_grad_given_outgrad(
-                   out_grad=self.get_mxts()*self._get_diff_from_reference_vars()) 
-            pcd_input_diff_default = (pseudocount_near_zero(
-                                     self._get_input_diff_from_reference_vars()))
-            return grad_times_diff_def/pcd_input_diff_default
+            pos_mxts_increments = (self.
+                _get_input_grad_given_outgrad(out_grad=self.get_pos_mxts()))
+            neg_mxts_increments = (self.
+                _get_input_grad_given_outgrad(out_grad=self.get_neg_mxts()))
         else:
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
                                str(self.maxpool_deeplift_mode))
+        return pos_mxts_increments, neg_mxts_increments
  
 
 class AvgPool2D(Pool2D):
@@ -586,9 +682,21 @@ class AvgPool2D(Pool2D):
     def __init__(self, **kwargs):
         super(AvgPool2D, self).__init__(pool_mode=B.PoolMode.avg, **kwargs) 
 
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = self._build_activation_vars(inp_pos_contribs)
+        neg_contribs = self._build_activation_vars(inp_neg_contribs) 
+        return pos_contribs, neg_contribs
+
     def _get_mxts_increments_for_inputs(self):
-        return super(AvgPool2D, self)._get_input_grad_given_outgrad(
-                                       out_grad=self.get_mxts())
+        pos_mxts_increments = (super(AvgPool2D, self)
+                               ._get_input_grad_given_outgrad(
+                                       out_grad=self.get_pos_mxts()))
+        neg_mxts_increments = (super(AvgPool2D, self)
+                               ._get_input_grad_given_outgrad(
+                                       out_grad=self.get_neg_mxts()))
+        return pos_mxts_increments, neg_mxts_increments
 
 
 class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
@@ -596,11 +704,20 @@ class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         return B.flatten_keeping_first(input_act_vars)
 
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = self._build_activation_vars(inp_pos_contribs)
+        neg_contribs = self._build_activation_vars(inp_neg_contribs) 
+        return pos_contribs, neg_contribs
+
     def _compute_shape(self, input_shape):
         return (None, np.prod(input_shape[1:]))
 
     def _get_mxts_increments_for_inputs(self):
         input_act_vars = self._get_input_activation_vars() 
-        return B.unflatten_keeping_first(
-                x=self.get_mxts(), like=input_act_vars
-            )
+        pos_mxts_increments = B.unflatten_keeping_first(
+                x=self.get_pos_mxts(), like=input_act_vars)
+        neg_mxts_increments = B.unflatten_keeping_first(
+                x=self.get_neg_mxts(), like=input_act_vars)
+        return pos_mxts_increments, neg_mxts_increments

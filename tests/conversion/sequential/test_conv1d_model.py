@@ -75,7 +75,9 @@ class TestConv1DModel(unittest.TestCase):
  
 
     def test_convert_conv1d_model_forward_prop(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_model = kc.convert_sequential_model(
+                          model=self.keras_model,
+                          nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
                      deeplift_model.get_layers()[-1].get_activation_vars())
@@ -86,7 +88,9 @@ class TestConv1DModel(unittest.TestCase):
          
 
     def test_convert_conv1d_model_compute_scores(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_model = kc.convert_sequential_model(
+                          model=self.keras_model,
+                          nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
                                       find_scores_layer_idx=0,

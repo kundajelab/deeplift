@@ -3,6 +3,7 @@ from theano import tensor as T
 import deeplift.util
 from deeplift.util import NEAR_ZERO_THRESHOLD
 from .common import *
+import numpy as np
 
 theano_version = float(theano.__version__[:3]) 
 
@@ -156,19 +157,16 @@ def conv2d(inp, filters, border_mode, subsample):
                          filter_shape=filters.shape)
 
 
-def conv2d_grad(out_grad, conv_in, filters, border_mode, subsample):
-    out_grad=T.cast(out_grad, dtype=theano.config.floatX)
-    conv_op = T.nnet.conv.ConvOp(output_mode=border_mode,
-                                 dx=subsample[0],
-                                 dy=subsample[1]) 
-    inverse_conv2d = conv_op.grad(
-                       (conv_in,
-                       T.cast(T.as_tensor_variable(filters),
-                         dtype=theano.config.floatX)),
-                       (out_grad,))
-    #grad returns d_input and d_filters; we just care about
-    #the first
-    return inverse_conv2d[0]
+def conv2d_grad(topgrad, output_shape, filters, border_mode, strides):
+    op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(
+            imshp=output_shape,
+            kshp=filters.shape,
+            subsample=strides,
+            border_mode=border_mode,
+            filter_flip=True)
+    topgrad=T.cast(topgrad, dtype=theano.config.floatX)
+    belowgrad = op(kern=filters, topgrad=topgrad, shape=output_shape[2:]) 
+    return belowgrad
 
 
 def get_pooling_padding_and_theano_pool_mode(
@@ -296,5 +294,5 @@ def concat(tensor_list, axis):
 def batch_normalization(inputs, gamma, beta, mean, std, epsilon):
     return T.nnet.batch_normalization(inputs=inputs, gamma=gamma,
                                       beta=beta, mean=mean,
-                                      std=(std + epsilon),
+                                      std=std+epsilon,
                                       mode='high_mem')

@@ -46,18 +46,17 @@ class TestConcat(unittest.TestCase):
     def test_concat_backprop(self):
         func = B.function([
                 self.input_layer1.get_activation_vars(),
-                self.input_layer2.get_activation_vars()],
-                #self.concat_layer.get_mxts(),
+                self.input_layer2.get_activation_vars(),
+                self.input_layer1.get_reference_vars(),
+                self.input_layer2.get_reference_vars()],
                 [self.input_layer1.get_mxts(),
-                 self.input_layer2.get_mxts()],
+                 self.input_layer2.get_mxts()]
                 )
-        print(func(self.inp1, self.inp2))
+        print(func(self.inp1, self.inp2,
+                   np.zeros_like(self.inp1), np.zeros_like(self.inp2)))
         self.dense_layer.update_task_index(task_index=0)
-        np.testing.assert_allclose(func(self.inp1, self.inp2),
+        np.testing.assert_allclose(func(self.inp1, self.inp2,
+                                        np.zeros_like(self.inp1),
+                                        np.zeros_like(self.inp2)),
                                    [np.array([[[[1]]],[[[1]]]]),
                                     np.array([[[[2]]],[[[2]]]])])
-
-    def test_concat_backprop2(self):
-        func = B.function([self.flatten_layer.get_activation_vars()],
-                self.flatten_layer.get_mxts(),
-                )

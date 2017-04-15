@@ -34,12 +34,12 @@ class TestConvolutionalModel(unittest.TestCase):
                             activation="relu", input_shape=(51,51,10),
                             dim_ordering='tf')
             self.keras_model.add(conv_layer)
-            self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
-                                 pool_size=(4,4), strides=(2,2),
-                                 dim_ordering='tf')) 
-            self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
-                                 pool_size=(4,4), strides=(2,2),
-                                 dim_ordering='tf')) 
+#            self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
+#                                 pool_size=(4,4), strides=(2,2),
+#                                 dim_ordering='tf')) 
+#            self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
+#                                 pool_size=(4,4), strides=(2,2),
+#                                 dim_ordering='tf')) 
             self.keras_model.add(keras.layers.core.Flatten())
             self.keras_model.add(keras.layers.core.Dense(output_dim=1))
             self.keras_model.add(keras.layers.core.Activation("sigmoid"))
@@ -74,7 +74,7 @@ class TestConvolutionalModel(unittest.TestCase):
                 self.grad_func = lambda x: grad_func(x, False)
          
 
-    def test_convert_conv1d_model_forward_prop(self): 
+    def test_convert_conv2d_model_forward_prop(self): 
         if (self.keras_version <= 0.2): 
             pass
         else:
@@ -88,7 +88,7 @@ class TestConvolutionalModel(unittest.TestCase):
                 decimal=6)
          
 
-    def test_convert_conv1d_model_compute_scores(self): 
+    def test_convert_conv2d_model_compute_scores(self): 
         if (self.keras_version <= 0.2): 
             pass
         else:

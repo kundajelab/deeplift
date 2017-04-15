@@ -3,7 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 import sys
 import os
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import deeplift
 from deeplift import models, blobs
 from deeplift.blobs import NonlinearMxtsMode,\
@@ -195,19 +195,6 @@ def avgpool1d_conversion(layer, name, verbose, **kwargs):
     return [blobs.AvgPool1D(**pool1d_kwargs)]
 
 
-def zeropad2d_conversion(layer, name, verbose, **kwargs):
-    channels_come_last = False
-    if (KerasKeys.dim_ordering in layer.get_config()):
-        dim_ordering = layer.get_config()[KerasKeys.dim_ordering] 
-        if (dim_ordering in 'tf'):
-            channels_come_last = True 
-    return [blobs.ZeroPad2D(
-             name=name,
-             verbose=verbose,
-             padding=layer.get_config()[KerasKeys.padding],
-             channels_come_last=channels_come_last)]
-
-
 def dropout_conversion(name, **kwargs):
     return [blobs.NoOp(name=name)]
 
@@ -280,13 +267,23 @@ def sequential_container_conversion(layer, name, verbose,
                                     dense_mxts_mode,
                                     conv_mxts_mode,
                                     maxpool_deeplift_mode,
-                                    converted_layers=None):
+                                    converted_layers=None,
+                                    layer_overrides={}):
     if (converted_layers is None):
         converted_layers = []
     #rename some arguments to be more intuitive
     container=layer
     name_prefix=name
     for layer_idx, layer in enumerate(container.layers):
+        modes_to_pass = {'dense_mxts_mode': dense_mxts_mode,
+                         'conv_mxts_mode': conv_mxts_mode,
+                         'nonlinear_mxts_mode': nonlinear_mxts_mode,
+                         'maxpool_deeplift_mode': maxpool_deeplift_mode}
+        if layer_idx in layer_overrides:
+            for mode in ['dense_mxts_mode', 'conv_mxts_mode',
+                         'nonlinear_mxts_mode']:
+                if mode in layer_overrides[layer_idx]:
+                    modes_to_pass[mode] = layer_overrides[layer_idx][mode] 
         conversion_function = layer_name_to_conversion_function(
                                type(layer).__name__)
         converted_layers.extend(conversion_function(
@@ -294,10 +291,7 @@ def sequential_container_conversion(layer, name, verbose,
                              name=(name_prefix+"-" if name_prefix != ""
                                    else "")+str(layer_idx),
                              verbose=verbose,
-                             nonlinear_mxts_mode=nonlinear_mxts_mode,
-                             dense_mxts_mode=dense_mxts_mode,
-                             conv_mxts_mode=conv_mxts_mode,
-                             maxpool_deeplift_mode=maxpool_deeplift_mode)) 
+                             **modes_to_pass)) 
     return converted_layers
 
 
@@ -321,7 +315,6 @@ def layer_name_to_conversion_function(layer_name):
         'maxpooling2d': maxpool2d_conversion,
         'averagepooling2d': avgpool2d_conversion,
         'batchnormalization': batchnorm_conversion,
-        'zeropadding2d': zeropad2d_conversion,
         'flatten': flatten_conversion,
         'dense': dense_conversion,
          #in current keras implementation, scaling is done during training
@@ -329,7 +322,8 @@ def layer_name_to_conversion_function(layer_name):
         'dropout': dropout_conversion, 
         'activation': activation_conversion, 
         'prelu': prelu_conversion,
-        'sequential': sequential_container_conversion
+        'sequential': sequential_container_conversion,
+        'merge': merge_conversion
     }
 
     # lowercase to create resistance to capitalization changes
@@ -337,12 +331,17 @@ def layer_name_to_conversion_function(layer_name):
     return name_dict[layer_name.lower()]
 
 
-def convert_sequential_model(model, num_dims=None,
-                        nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
+def convert_sequential_model(model,
+                        num_dims=None,
+                        nonlinear_mxts_mode=\
+                         NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
                         verbose=True,
                         dense_mxts_mode=DenseMxtsMode.Linear,
                         conv_mxts_mode=ConvMxtsMode.Linear,
-                        maxpool_deeplift_mode=default_maxpool_deeplift_mode):
+                        maxpool_deeplift_mode=default_maxpool_deeplift_mode,
+                        layer_overrides={}):
+    if (verbose):
+        print("nonlinear_mxts_mode is set to: "+str(nonlinear_mxts_mode))
     converted_layers = []
     if (model.layers[0].input_shape is not None):
         input_shape = model.layers[0].input_shape
@@ -366,19 +365,34 @@ def convert_sequential_model(model, num_dims=None,
                 dense_mxts_mode=dense_mxts_mode,
                 conv_mxts_mode=conv_mxts_mode,
                 maxpool_deeplift_mode=maxpool_deeplift_mode,
-                converted_layers=converted_layers)
+                converted_layers=converted_layers,
+                layer_overrides=layer_overrides)
     deeplift.util.connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
 
 
+def input_layer_conversion(keras_input_layer, layer_name):
+    input_shape = keras_input_layer.get_config()['batch_input_shape']
+    if (input_shape[0] is not None):
+        input_shape = [None]+[x for x in input_shape]
+    assert input_shape[0] is None #for the batch axis
+    deeplift_input_layer =\
+     blobs.Input(shape=input_shape, num_dims=None,
+                       name=layer_name)
+    return deeplift_input_layer
+
+
 def convert_graph_model(model,
-                        nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT,
+                        nonlinear_mxts_mode=\
+                         NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
                         verbose=True,
                         dense_mxts_mode=DenseMxtsMode.Linear,
                         conv_mxts_mode=ConvMxtsMode.Linear,
                         maxpool_deeplift_mode=default_maxpool_deeplift_mode,
                         auto_build_outputs=True):
+    if (verbose):
+        print("nonlinear_mxts_mode is set to: "+str(nonlinear_mxts_mode))
     name_to_blob = OrderedDict()
     keras_layer_to_deeplift_blobs = OrderedDict() 
     keras_non_input_layers = []
@@ -386,13 +400,9 @@ def convert_graph_model(model,
     #convert the inputs
     for keras_input_layer_name in model.inputs:
         keras_input_layer = model.inputs[keras_input_layer_name]
-        input_shape = keras_input_layer.get_config()['input_shape']
-        if (input_shape[0] is not None):
-            input_shape = [None]+[x for x in input_shape]
-        assert input_shape[0] is None #for the batch axis
-        deeplift_input_layer =\
-         blobs.Input(shape=input_shape, num_dims=None,
-                           name=keras_input_layer_name)
+        deeplift_input_layer = input_layer_conversion(
+            keras_input_layer = keras_input_layer,
+            layer_name = keras_input_layer_name)
         name_to_blob[keras_input_layer_name] = deeplift_input_layer
         keras_layer_to_deeplift_blobs[id(keras_input_layer)] =\
                                                          [deeplift_input_layer]
@@ -461,46 +471,112 @@ def get_previous_layer(keras_layer):
         return keras_layer.layers
     else:
         raise RuntimeError("Not sure how to get prev layer for"
-                           +" "+str(keras_layer))
+                           +" "+str(type(keras_layer))+"; attributes: "
+                           +str(dir(keras_layer)))
 
 
-def mean_normalise_first_conv_layer_weights(model,
-                                            normalise_across_rows,
-                                            name_of_conv_layer_to_normalise):
-    if (type(model).__name__ == "Sequential"):
-        layer_to_adjust = model.layers[0];
-    elif (type(model).__name__ == "Graph"):
-        assert name_of_conv_layer_to_normalise is not None,\
-               "Please provide name of conv layer for graph model"
-        assert name_of_conv_layer_to_normalise in model.nodes,\
-               name_of_conv_layer_to_normalise+" not found; node names are: "\
-               " "+str(model.nodes.keys())
-        layer_to_adjust = model.nodes[name_of_conv_layer_to_normalise]
-    mean_normalise_columns_in_conv_layer(layer_to_adjust,
-                                         normalise_across_rows)
+def convert_functional_model(
+        model,
+        nonlinear_mxts_mode=\
+         NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
+        verbose=True,
+        dense_mxts_mode=DenseMxtsMode.Linear,
+        conv_mxts_mode=ConvMxtsMode.Linear,
+        maxpool_deeplift_mode=default_maxpool_deeplift_mode,
+        auto_build_outputs=True):
+    if (verbose):
+        print("nonlinear_mxts_mode is set to: "+str(nonlinear_mxts_mode))
+    keras_layer_name_to_keras_nodes = OrderedDict()
+    for keras_node_depth in sorted(model.nodes_by_depth.keys()):
+        keras_nodes_at_depth = model.nodes_by_depth[keras_node_depth]
+        for keras_node in keras_nodes_at_depth:
+            keras_layer_name = keras_node.outbound_layer.name 
+            if (keras_layer_name not in keras_layer_name_to_keras_nodes):
+                keras_layer_name_to_keras_nodes[keras_layer_name] = []
+            keras_layer_name_to_keras_nodes[keras_layer_name]\
+                                           .append(keras_node)
 
+    name_to_blob = OrderedDict()
+    #for each node, we only know the input tensor ids. Thus, to figure out
+    #which nodes link to which ids, we need to create a mapping from output
+    #tensor ids to node ids (this is a many-to-one mapping as a single node
+    #can have multiple output tensors)
+    keras_tensor_id_to_node_id = {}
+    keras_node_id_to_deeplift_blobs = {}
+    for keras_layer_name in keras_layer_name_to_keras_nodes:
+        keras_nodes = keras_layer_name_to_keras_nodes[keras_layer_name]
+        num_nodes_for_layer = len(keras_nodes)
+        for i,keras_node in enumerate(keras_nodes):
+            #record the mapping from output tensor ids to node
+            for keras_tensor in keras_node.output_tensors:
+                keras_tensor_id_to_node_id[id(keras_tensor)] = id(keras_node)
+            #figure out what to call the deeplift layer based on whether
+            #there are multiple shared instances of the associated layer
+            if (num_nodes_for_layer == 1):
+                deeplift_layer_name = keras_layer_name
+            else:
+                deeplift_layer_name = keras_layer_name+"_"+str(i)
+            
+            keras_layer = keras_node.outbound_layer
+            #convert the node
+            if (type(keras_layer).__name__=="InputLayer"):
+                #there should be only one edition of each input layer
+                #so the deeplift layer name and keras layer name should
+                #converge
+                assert deeplift_layer_name==keras_layer.name
+                converted_deeplift_blobs = [input_layer_conversion(
+                    keras_input_layer = keras_layer,
+                    layer_name = deeplift_layer_name)]
+            else:
+                conversion_function = layer_name_to_conversion_function(
+                                       type(keras_layer).__name__)
+                converted_deeplift_blobs = conversion_function(
+                                 layer=keras_layer,
+                                 name=deeplift_layer_name,
+                                 verbose=verbose,
+                                 nonlinear_mxts_mode=nonlinear_mxts_mode,
+                                 dense_mxts_mode=dense_mxts_mode,
+                                 conv_mxts_mode=conv_mxts_mode,
+                                 maxpool_deeplift_mode=maxpool_deeplift_mode)
+                deeplift.util.connect_list_of_layers(converted_deeplift_blobs)
+            #record the converted blobs in name_to_blob
+            for blob in converted_deeplift_blobs:
+                name_to_blob[blob.get_name()] = blob 
+            #record the converted blobs in the node id -> blobs dict
+            keras_node_id_to_deeplift_blobs[id(keras_node)] =\
+             converted_deeplift_blobs
 
-def mean_normalise_conv_layer_with_name(model, layer_name):
-    """
-        model is supposed to be a keras Graph model
-    """
-    mean_normalise_columns_in_conv_layer(model.nodes[layer_name]);
-
-
-def mean_normalise_columns_in_conv_layer(layer_to_adjust,
-                                         normalise_across_rows):
-    """
-        For conv layers operating on one hot encoding,
-        adjust the weights/bias such that the output is
-        mathematically equivalent but now each position
-        is mean-normalised.
-    """
-    weights, biases = layer_to_adjust.get_weights();
-    normalised_weights, normalised_bias =\
-     deeplift.util.mean_normalise_weights_for_sequence_convolution(
-                    weights, biases, normalise_across_rows)
-    layer_to_adjust.set_weights([normalised_weights,
-                                 normalised_bias])
+    #link up all the blobs 
+    for node_depth in sorted(model.nodes_by_depth.keys()):
+        for node in model.nodes_by_depth[node_depth]:
+            if (type(node.outbound_layer).__name__!="InputLayer"):
+                input_node_ids = []
+                #map the input tensors of each node to the node ids
+                for input_tensor in node.input_tensors:
+                    if id(input_tensor) not in input_node_ids:
+                        input_node_ids.append(
+                         keras_tensor_id_to_node_id[id(input_tensor)])
+                #map the node ids to deeplift blobs
+                #if a single node id translates into multiple deeplift blobs
+                #(eg, if the node came with an activation), take the last
+                #deeplift blob in the list.
+                input_deeplift_blobs = [
+                    keras_node_id_to_deeplift_blobs[x][-1] for x
+                    in input_node_ids]
+                #if there is only one input blob, unlist
+                if (len(input_deeplift_blobs)==1):
+                    input_deeplift_blobs = input_deeplift_blobs[0]
+                #link the inputs 
+                keras_node_id_to_deeplift_blobs[id(node)][0]\
+                                              .set_inputs(input_deeplift_blobs)
+             
+    if (auto_build_outputs):
+        for output_node in model.nodes_by_depth[0]:
+            layer_to_build = keras_node_id_to_deeplift_blobs[
+                              id(output_node)][-1]
+            layer_to_build.build_fwd_pass_vars()
+    return models.GraphModel(name_to_blob=name_to_blob,
+                             input_layer_names=model.input_names)
 
 
 def mean_normalise_softmax_weights(softmax_dense_layer):
@@ -512,8 +588,11 @@ def mean_normalise_softmax_weights(softmax_dense_layer):
 
 def load_keras_model(weights, yaml=None, json=None,
                      normalise_conv_for_one_hot_encoded_input=False,
-                     normalise_across_rows=True,
+                     axis_of_normalisation=None,
                      name_of_conv_layer_to_normalise=None): 
+    if (normalise_conv_for_one_hot_encoded_input):
+        assert axis_of_normalisation is not None,\
+         "specify axis of normalisation for normalising one-hot encoded input"
     assert yaml is not None or json is not None,\
      "either yaml or json must be specified"
     assert yaml is None or json is None,\
@@ -528,6 +607,27 @@ def load_keras_model(weights, yaml=None, json=None,
     if (normalise_conv_for_one_hot_encoded_input):
         mean_normalise_first_conv_layer_weights(
          model,
-         normalise_across_rows=normalise_across_rows,
+         axis_of_normalisation=axis_of_normalisation,
          name_of_conv_layer_to_normalise=name_of_conv_layer_to_normalise)
     return model 
+
+
+def mean_normalise_first_conv_layer_weights(model,
+                                            axis_of_normalisation,
+                                            name_of_conv_layer_to_normalise):
+    if (type(model).__name__ == "Sequential"):
+        layer_to_adjust = model.layers[0];
+    elif (type(model).__name__ == "Graph"):
+        assert name_of_conv_layer_to_normalise is not None,\
+               "Please provide name of conv layer for graph model"
+        assert name_of_conv_layer_to_normalise in model.nodes,\
+               name_of_conv_layer_to_normalise+" not found; node names are: "\
+               " "+str(model.nodes.keys())
+        layer_to_adjust = model.nodes[name_of_conv_layer_to_normalise]
+    weights, biases = layer_to_adjust.get_weights();
+    normalised_weights, normalised_bias =\
+     deeplift.util.mean_normalise_weights_for_sequence_convolution(
+                    weights, biases, axis_of_normalisation,
+                    dim_ordering=layer_to_adjust.get_config()['dim_ordering'])
+    layer_to_adjust.set_weights([normalised_weights,
+                                 normalised_bias])

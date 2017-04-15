@@ -12,6 +12,12 @@ import deeplift
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
+
+def compile_func(inputs, outputs):
+    import deeplift.backend as B
+    return B.function(inputs, outputs)
+
+
 def enum(**enums):
     class Enum(object):
         pass
@@ -107,27 +113,30 @@ def run_function_in_batches(func,
 
 def mean_normalise_weights_for_sequence_convolution(weights,
                                                     bias,
-                                                    normalise_across_rows,
-                                                    weightsHeight=4):
-    assert normalise_across_rows is not None, "argument should not be None"
-    #weights: outputchannels, inputChannels, windowDims
-    assert len(weights.shape)==4
-    assert weights.shape[1]==1, weights.shape
-    axis_for_normalisation = 2 if normalise_across_rows else 3
-    if (normalise_across_rows):
-        assert weights.shape[axis_for_normalisation]==\
-         weightsHeight, weights.shape
+                                                    axis_of_normalisation,
+                                                    dim_ordering):
+    print("Normalising weights for one-hot encoded sequence convolution")
+    print("axis of normalisation is: "+str(axis_of_normalisation))
+    print("Weight shape on that axis is: "
+          +str(weights.shape[axis_of_normalisation]))
+    mean_weights_at_positions=np.mean(weights,axis=axis_of_normalisation)
+    if (dim_ordering=='th'):
+        print("Theano dimension ordering; output channel axis is first one "
+              "which has a length of "+str(weights.shape[0]))
+        #sum across remaining dimensions except output channel which is first
+        new_bias = bias + np.sum(np.sum(mean_weights_at_positions,
+                                    axis=1),axis=1)
+    elif (dim_ordering=='tf'):
+        print("Tensorflow dimension ordering; output channel axis is last one "
+              "which has a length of "+str(weights.shape[-1]))
+        #sum across remaining dimensions except output channel which is last
+        new_bias = bias + np.sum(np.sum(mean_weights_at_positions,
+                                    axis=0),axis=0)
     else:
-        assert weights.shape[axis_for_normalisation]==\
-         weightsHeight, weights.shape
-        
-    mean_weights_at_positions=np.mean(weights,axis=axis_for_normalisation)
-    new_bias = bias + np.sum(np.sum(mean_weights_at_positions,
-                                    axis=2),axis=1)
-    if (normalise_across_rows):
-        mean_weights_at_positions=mean_weights_at_positions[:,:,None,:]
-    else:
-        mean_weights_at_positions=mean_weights_at_positions[:,:,:,None]
+        raise RuntimeError("Unsupported dim ordering "+str(dim_ordering))
+    mean_weights_at_positions = np.expand_dims(
+                                 mean_weights_at_positions,
+                                 axis_of_normalisation)
     renormalised_weights=weights-mean_weights_at_positions
     return renormalised_weights, new_bias
 
@@ -247,7 +256,7 @@ def connect_list_of_layers(deeplift_layers):
         #layer as input
         last_layer_processed = deeplift_layers[0] 
         for layer in deeplift_layers[1:]:
-            apply_softmax_normalization_if_needed(layer, last_layer_processed)
+            #apply_softmax_normalization_if_needed(layer, last_layer_processed)
             layer.set_inputs(last_layer_processed)
             last_layer_processed = layer
 

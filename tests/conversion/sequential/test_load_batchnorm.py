@@ -8,7 +8,7 @@ import os
 import numpy as np
 from deeplift.conversion import keras_conversion as kc
 import deeplift.blobs as blobs
-from deeplift.blobs import DenseMxtsMode
+from deeplift.blobs import DenseMxtsMode, NonlinearMxtsMode
 import theano
 import keras
 from keras import models
@@ -25,7 +25,7 @@ class TestBatchNorm(unittest.TestCase):
          
         self.inp = np.arange(16).reshape(2,2,2,2)
         self.keras_model = keras.models.Sequential()
-        self.epsilon = 10**(-6)
+        self.epsilon = 10**(-3)
         self.gamma = np.array([2.0, 3.0]) 
         self.beta = np.array([4.0, 5.0])
         self.mean = np.array([3.0, 3.0])
@@ -124,20 +124,22 @@ class TestBatchNorm(unittest.TestCase):
         self.dense_layer.update_task_index(0)
         self.input_layer.update_mxts()
          
-
     def test_batch_norm_convert_model_fprop(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_model = kc.convert_sequential_model(
+                            model=self.keras_model,
+                            nonlinear_mxts_mode=NonlinearMxtsMode.Gradient)
         deeplift_fprop_func = theano.function(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
                     deeplift_model.get_layers()[-1].get_activation_vars(),
                     allow_input_downcast=True)
         np.testing.assert_almost_equal(deeplift_fprop_func(self.inp),
                                    self.keras_output_fprop_func(self.inp),
-                                   decimal=6)
+                                   decimal=5)
          
-
     def test_batch_norm_convert_model_backprop(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_model = kc.convert_sequential_model(
+                            model=self.keras_model,
+                            nonlinear_mxts_mode=NonlinearMxtsMode.Gradient)
         deeplift_multipliers_func = deeplift_model.\
                                      get_target_multipliers_func(
                                       find_scores_layer_idx=0,
@@ -147,7 +149,7 @@ class TestBatchNorm(unittest.TestCase):
                                       input_data_list=[self.inp],
                                       batch_size=10,
                                       progress_update=None),
-            self.grad_func(self.inp), decimal=6)
+            self.grad_func(self.inp), decimal=5)
          
     def test_batch_norm_positive_axis_fwd_prop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis)
@@ -168,7 +170,7 @@ class TestBatchNorm(unittest.TestCase):
                             allow_input_downcast=True)
         np.testing.assert_almost_equal(
                 deeplift_multipliers_func(self.inp, np.zeros_like(self.inp)),
-                self.grad_func(self.inp), decimal=6)
+                self.grad_func(self.inp), decimal=5)
          
     def test_batch_norm_negative_axis_fwd_prop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
@@ -190,4 +192,4 @@ class TestBatchNorm(unittest.TestCase):
         np.testing.assert_almost_equal(deeplift_multipliers_func(
                                        self.inp, np.zeros_like(self.inp)),
                                        self.grad_func(self.inp),
-                                       decimal=6)
+                                       decimal=5)

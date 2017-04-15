@@ -163,6 +163,7 @@ class TestPool(unittest.TestCase):
                                      [2, 1, 1, 0],
                                      [0, 0, 1, 1]])*3]]))
 
+    @skip
     def test_backprop_maxpool2d_scaled_contribs(self):
         pool_layer = blobs.MaxPool2D(pool_size=(2,2),
                   strides=(1,1),

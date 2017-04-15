@@ -1,7 +1,10 @@
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
-from .core import *
+from .core import (SingleInputMixin, OneDimOutputMixin, Node,
+    ScoringMode, NonlinearMxtsMode,pseudocount_near_zero)
+from deeplift import backend as B
+from deeplift.util import NEAR_ZERO_THRESHOLD
 
 
 class Activation(SingleInputMixin, OneDimOutputMixin, Node):
@@ -26,9 +29,18 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         return input_shape
 
     def _build_fwd_pass_vars(self):
-        super(Activation, self)._build_fwd_pass_vars() 
+        #can't just inherit from parent due to gradient building
+        self._build_fwd_pass_vars_core()
+        self._activation_vars = self._build_activation_vars(
+                                 self._get_input_activation_vars())
+        self._reference_vars = self._build_reference_vars()
+        self._diff_from_reference_vars = self._build_diff_from_reference_vars()
         self._gradient_at_default_activation =\
-         self._get_gradient_at_activation(self.get_reference_vars())
+            self._get_gradient_at_activation(self.get_reference_vars())
+        self._pos_contribs, self._neg_contribs =\
+            self._build_pos_and_neg_contribs()
+        self._pos_mxts = B.zeros_like(self.get_activation_vars())
+        self._neg_mxts = B.zeros_like(self.get_activation_vars())
 
     def _get_gradient_at_default_activation_var(self):
         return self._gradient_at_default_activation
@@ -36,14 +48,71 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
     def _build_activation_vars(self, input_act_vars):
         raise NotImplementedError()
 
-    def _deeplift_get_scale_factor(self):
+    def _build_pos_and_neg_contribs(self):
+        if (self.nonlinear_mxts_mode==
+             NonlinearMxtsMode.DeepLIFT_GenomicsDefault):
+            preceding_linear_layer = self.get_inputs()
+            if (type(preceding_linear_layer).__name__=="BatchNormalization"):
+                preceding_linear_layer = preceding_linear_layer.get_inputs()
+            if (self.verbose):
+                print("For layer "+str(self.get_name())+" the preceding linear"
+                      " layer is "+str(preceding_linear_layer.get_name())+" of"
+                      " type "+type(preceding_linear_layer).__name__+";")
+            if ("Conv" in type(preceding_linear_layer).__name__):
+                if (self.verbose):
+                    print("In accordance with nonlinear_mxts_mode="
+                          +self.nonlinear_mxts_mode+
+                          " we are setting the NonlinearMxtsMode to "+
+                          NonlinearMxtsMode.Rescale) 
+                self.nonlinear_mxts_mode=NonlinearMxtsMode.Rescale
+            elif (type(preceding_linear_layer).__name__=="Dense"):
+                if (self.verbose):
+                    print("In accordance with nonlinear_mxts_mode"
+                          +self.nonlinear_mxts_mode+
+                          " we are setting the NonlinearMxtsMode to "+
+                          NonlinearMxtsMode.RevealCancel) 
+                self.nonlinear_mxts_mode=NonlinearMxtsMode.RevealCancel
+            else:
+                raise RuntimeError("Unsure how to resolve "
+                                   +self.nonlinear_mxts_mode+" when the"
+                                   " preceding linear layer is of type"
+                                   " "+type(preceding_linear_layer).__name__)
+
+        if (self.nonlinear_mxts_mode == NonlinearMxtsMode.RevealCancel): 
+            input_pos_contribs, input_neg_contribs =\
+                self._get_input_pos_and_neg_contribs()
+            input_pos_contribs = pseudocount_near_zero(input_pos_contribs)
+            input_neg_contribs = pseudocount_near_zero(input_neg_contribs)
+            input_ref = self._get_input_reference_vars() 
+            pos_contribs = 0.5*(
+                (self._build_activation_vars(input_ref+input_pos_contribs)
+                 - self._build_activation_vars(input_ref))
+               +(self._build_activation_vars(
+                  input_ref+input_neg_contribs+input_pos_contribs)
+                 - self._build_activation_vars(input_ref+input_neg_contribs)))
+            neg_contribs = 0.5*(
+                (self._build_activation_vars(input_ref+input_neg_contribs)
+                 - self._build_activation_vars(input_ref))
+               +(self._build_activation_vars(
+                  input_ref+input_pos_contribs+input_neg_contribs)
+                 - self._build_activation_vars(input_ref+input_pos_contribs)))
+            return (pos_contribs, neg_contribs)
+        else:
+            scale_factor = self._get_naive_rescale_factor() 
+            input_pos_contribs, input_neg_contribs =\
+                self._get_input_pos_and_neg_contribs()
+            return (input_pos_contribs*scale_factor,
+                    input_neg_contribs*scale_factor)
+        
+
+    def _get_naive_rescale_factor(self):
         input_diff_from_reference = self._get_input_diff_from_reference_vars()
         near_zero_contrib_mask = (B.abs(input_diff_from_reference)\
                                        < NEAR_ZERO_THRESHOLD)
         far_from_zero_contrib_mask = 1-(1*near_zero_contrib_mask)
         #the pseudocount is to avoid division-by-zero for the ones that
         #we won't use anyway
-        pc_diff_from_reference = input_diff_from_reference +\
+        pc_input_diff_from_reference = input_diff_from_reference +\
                                             (1*near_zero_contrib_mask) 
         #when total contrib is near zero,
         #the scale factor is 1 (gradient; piecewise linear). Otherwise,
@@ -54,7 +123,7 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                         self._get_gradient_at_default_activation_var() +\
                        (far_from_zero_contrib_mask*\
                         (self._get_diff_from_reference_vars()/
-                          pc_diff_from_reference))
+                          pc_input_diff_from_reference))
         return scale_factor
         
     def _gradients_get_scale_factor(self):
@@ -62,59 +131,54 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
                 self._get_input_activation_vars())  
         
     def _get_mxts_increments_for_inputs(self):
-        if (self.nonlinear_mxts_mode in [NonlinearMxtsMode.PassThrough]):
-            input_class_to_check = self.get_inputs()
-            if (type(input_class_to_check).__name__ == "BatchNormalization"):
-                #look at two layers before
-                input_class_to_check = input_class_to_check.get_inputs()
-            if (type(input_class_to_check).__name__ == "Dense"):
-                if (input_class_to_check.dense_mxts_mode
-                     == DenseMxtsMode.Linear):
-                    print("NonlinearMxtsMode for "+self.get_name()
-                          +" is PassThrough but "
-                          "preceding Dense layer has DenseMxtsMode Linear; "
-                          "cautiously reverting to DeepLIFT")
-                    self.nonlinear_mxts_mode = NonlinearMxtsMode.DeepLIFT
-            elif ("Conv" in type(input_class_to_check).__name__):
-                if (input_class_to_check.conv_mxts_mode
-                    == ConvMxtsMode.Linear):
-                    print("Warning: NonlinearMxtsMode for "+self.get_name()
-                          +" is PassThrough but "
-                          "preceding Conv layer has ConvMxtsMode Linear; "
-                          "cautiously reverting to DeepLIFT")
-                    self.nonlinear_mxts_mode = NonlinearMxtsMode.DeepLIFT
-            else:
-                raise RuntimeError("Preceding layer "
-                +type(input_class_to_check).__name__
-                +" is neither Conv or Dense;"
-                +" please implement a check to make sure the MxtsMode is"
-                +" compatible with PassThrough") 
+                
         if (self.nonlinear_mxts_mode==NonlinearMxtsMode.DeconvNet):
             #apply the given nonlinearity in reverse
-            mxts = self._build_activation_vars(self.get_mxts())
+            pos_mxts = self._build_activation_vars(self.get_pos_mxts())
+            neg_mxts = self._build_activation_vars(self.get_neg_mxts())
         else:
             #all the other ones here are of the form:
             # scale_factor*self.get_mxts()
-            if (self.nonlinear_mxts_mode==NonlinearMxtsMode.DeepLIFT): 
-                scale_factor = self._deeplift_get_scale_factor()
+            # recall that for all modes except RevealCancel, the treatment
+            # of positive and negative terms is the same (and if RevealCancel
+            # occurs nowhere, then pos_mxts=neg_mxts
+            if (self.nonlinear_mxts_mode==NonlinearMxtsMode.Rescale): 
+                scale_factor = self._get_naive_rescale_factor()
+                pos_scale_factor = scale_factor
+                neg_scale_factor = scale_factor
             elif (self.nonlinear_mxts_mode==
-                  NonlinearMxtsMode.GuidedBackpropDeepLIFT):
-                deeplift_scale_factor = self._deeplift_get_scale_factor() 
-                scale_factor = deeplift_scale_factor*(self.get_mxts() > 0)
+                  NonlinearMxtsMode.GuidedBackpropRescale):
+                naive_scale_factor = self._get_naive_rescale_factor() 
+                pos_scale_factor = (naive_scale_factor*
+                                    (self.get_pos_mxts() > 0))
+                neg_scale_factor = (naive_scale_factor*
+                                    (self.get_neg_mxts() > 0))
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.Gradient):
                 scale_factor = self._gradients_get_scale_factor() 
+                pos_scale_factor = scale_factor
+                neg_scale_factor = scale_factor
             elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.GuidedBackprop):
                 scale_factor = self._gradients_get_scale_factor()\
-                                *(self.get_mxts() > 0)
-            elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.PassThrough): 
-                #just ones, always
-                scale_factor = B.ones_like(self.get_mxts())
+                                *(self.get_pos_mxts() > 0)
+                pos_scale_factor = scale_factor
+                neg_scale_factor = scale_factor
+            elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.RevealCancel):
+                pos_contribs, neg_contribs = self.get_pos_and_neg_contribs()
+                input_pos_contribs, input_neg_contribs =\
+                    self._get_input_pos_and_neg_contribs()
+                pos_scale_factor = (
+                 pos_contribs/pseudocount_near_zero(input_pos_contribs)) 
+                neg_scale_factor = (
+                 neg_contribs/pseudocount_near_zero(input_neg_contribs))
+            elif (self.nonlinear_mxts_mode==NonlinearMxtsMode.PassThrough):
+                pos_scale_factor = 1.0 
+                neg_scale_factor = 1.0
             else: 
                 raise RuntimeError("Unsupported nonlinear_mxts_mode: "
                                    +str(self.nonlinear_mxts_mode))
-            orig_mxts = scale_factor*self.get_mxts()
-            return orig_mxts
-        return mxts
+            pos_mxts = pos_scale_factor*self.get_pos_mxts()
+            neg_mxts = neg_scale_factor*self.get_neg_mxts()
+        return pos_mxts, neg_mxts
 
     def _get_gradient_at_activation(self, activation_vars):
         """
@@ -162,6 +226,10 @@ class Softmax(Activation):
         return B.softmax(input_act_vars)
 
     def _get_gradient_at_activation(self, activation_vars):
-        return 0#punting; this needs to have
-                #same dims as activation_vars
-                #B.softmax_grad(activation_vars)
+        if (self.verbose == True):
+            print("Heads-up: I assume softmax is the output layer, "
+                  "not an intermediate one; if it's an intermediate layer, "
+                  "please let me know and I will prioritise that use-case")
+        #more would need to be changed if softmax were used as an
+        #intermediate layer as the inputs all interact...
+        return 0#punting
