@@ -1,5 +1,6 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
+[![Build Status](https://travis-ci.org/kundajelab/dragonn.svg?branch=master)](https://travis-ci.org/kundajelab/dragonn)
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
 **Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome**
@@ -27,9 +28,9 @@ pip install --editable deeplift/ #install deeplift from the cloned repository. T
 
 While DeepLIFT does not require your models to be trained with any particular library, we have provided autoconversion functions to convert models trained using Keras into the DeepLIFT format. If you used a different library to train your models, you can still use DeepLIFT if you recreate the model using DeepLIFT layers.
 
-The original implementation of DeepLIFT uses a theano backend, but an alpha version of the tensorflow implementation (developed using tensorflow 1.0.1 and Keras 1.1.2) is available. If you want to use the tensorflow branch, you can do `git checkout tensorflow` when in the deeplift repository. Run through the example notebooks to check that it works on your machine. 
-
 The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion with sequential models was tested using keras 0.2, 0.3 and 1.2. Graph model conversion was tested with keras 0.3. Functional model conversion was tested with keras 1.2
+
+An alpha version of the tensorflow implementation (developed using tensorflow 1.0.1 and Keras 1.1.2) is available. Version 0.5 of deeplift in tensorflow (with support for the revealcancel rule) is on branch dev-tf; you can use it by doing `git checkout dev-tf` when in the deeplift repository. Version 0.4 in tensorflow, which supports the rescale rule but not the revealcancel rule, is on branch `tensorflow`. Run through the example notebooks to check that it works on your machine. 
 
 The recommended way to obtain theano and numpy is through [anaconda](https://www.continuum.io/downloads).
 
