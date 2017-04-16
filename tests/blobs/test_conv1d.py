@@ -96,30 +96,30 @@ class TestConv(unittest.TestCase):
         func_neg = compile_func([self.input_layer.get_activation_vars(),
                                  self.input_layer.get_reference_vars()],
                              neg_contribs)
-       #input:
-       #      [[[-8,-7,-6,-5],
-       #        [-4,-3,-2,-1]],
-       #       [[ 0, 1, 2, 3],
-       #        [ 4, 5, 6, 7]]]
+       #diff from ref:
+       #      [[[-9,-8,-7,-6],
+       #        [-5,-4,-3,-2]],
+       #       [[-1, 0, 1, 2],
+       #        [ 3, 4, 5, 6]]]
        # W:
        # [-2,-1
        #   0, 1]
-       # 16+7+0+-3 = 20 - bias (1.0) = 19
+       # 18+8 = 26, -4 = -4
        # 0+-1+0+5 = 4 - bias (1.0) = 3
         np.testing.assert_almost_equal(func_pos(self.inp,
-                                                np.zeros_like(self.inp)),
+                                                np.ones_like(self.inp)),
                                np.array(
-                               [[[ 23, 20, 17],
-                                 [  3,  2,  1]],
-                                [[  5,  6,  7],
-                                 [  1,  4,  7]]]))
+                               [[[ 26, 23, 20],
+                                 [  4,  3,  2]],
+                                [[  6,  5,  6],
+                                 [  0,  1,  4]]]))
         np.testing.assert_almost_equal(func_neg(self.inp,
-                                                np.zeros_like(self.inp)),
+                                                np.ones_like(self.inp)),
                                np.array(
-                               [[[ -3, -2, -1],
-                                 [-23,-20,-17]],
-                                [[ -1, -4, -7],
-                                 [ -5, -6, -7]]]))
+                               [[[ -4, -3, -2],
+                                 [-26,-23,-20]],
+                                [[  0, -1, -4],
+                                 [ -6, -5, -6]]]))
 
 
     def test_dense_backprop(self):
