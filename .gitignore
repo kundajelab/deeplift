@@ -7,3 +7,4 @@
 **/*.json
 .coverage
 .cache
+**/*,cover
