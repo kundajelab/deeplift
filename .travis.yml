@@ -1,8 +1,12 @@
 # Config file for automatic testing at travis-ci.org
 language: python
 
-python:
-  - 2.7
+matrix:
+    include:
+        - python: 2.7
+          env: KERAS_BACKEND=theano
+        - python: 3.5
+          env: KERAS_BACKEND=theano
 
 notifications:
   email: true
@@ -22,7 +26,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pytest h5py nose
   - source activate test-environment
   - pip install theano
   - pip install keras==1.2

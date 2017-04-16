@@ -34,12 +34,12 @@ class TestConvolutionalModel(unittest.TestCase):
                             activation="relu", input_shape=(51,51,10),
                             dim_ordering='tf')
             self.keras_model.add(conv_layer)
-#            self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
-#                                 pool_size=(4,4), strides=(2,2),
-#                                 dim_ordering='tf')) 
-#            self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
-#                                 pool_size=(4,4), strides=(2,2),
-#                                 dim_ordering='tf')) 
+            self.keras_model.add(keras.layers.convolutional.MaxPooling2D(
+                                 pool_size=(4,4), strides=(2,2),
+                                 dim_ordering='tf')) 
+            self.keras_model.add(keras.layers.convolutional.AveragePooling2D(
+                                 pool_size=(4,4), strides=(2,2),
+                                 dim_ordering='tf')) 
             self.keras_model.add(keras.layers.core.Flatten())
             self.keras_model.add(keras.layers.core.Dense(output_dim=1))
             self.keras_model.add(keras.layers.core.Activation("sigmoid"))
