@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 import unittest
 from unittest import skip
+from nose.tools import raises
 import sys
 import os
 import numpy as np
@@ -126,3 +127,12 @@ class TestDense(unittest.TestCase):
         relu_after_bn.build_fwd_pass_vars()
         self.assertEqual(relu_after_bn.nonlinear_mxts_mode,
                          NonlinearMxtsMode.Rescale)
+
+    @raises(RuntimeError)
+    def test_relu_after_other_layer(self): 
+        input_layer = blobs.Input(num_dims=None,
+                                  shape=(None,4))
+        relu_layer = blobs.ReLU(nonlinear_mxts_mode=
+                              NonlinearMxtsMode.DeepLIFT_GenomicsDefault)
+        relu_layer.set_inputs(input_layer)
+        relu_layer.build_fwd_pass_vars()
