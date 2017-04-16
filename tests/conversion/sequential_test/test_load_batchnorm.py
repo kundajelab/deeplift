@@ -25,7 +25,6 @@ class TestBatchNorm(unittest.TestCase):
          
         self.inp = np.arange(16).reshape(2,2,2,2)
         self.keras_model = keras.models.Sequential()
-        self.epsilon = 10**(-3)
         self.gamma = np.array([2.0, 3.0]) 
         self.beta = np.array([4.0, 5.0])
         self.mean = np.array([3.0, 3.0])
@@ -40,6 +39,7 @@ class TestBatchNorm(unittest.TestCase):
             raise RuntimeError("Unsupported backend: "+str(k_backend))
         batch_norm_layer = keras.layers.normalization.BatchNormalization(
                            axis=self.axis, input_shape=(2,2,2))
+        self.epsilon = batch_norm_layer.epsilon
         self.keras_model.add(batch_norm_layer)
         batch_norm_layer.set_weights(np.array([
                                       self.gamma, #gamma (scaling)
