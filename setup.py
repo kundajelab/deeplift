@@ -5,7 +5,7 @@ if __name__== '__main__':
           description='Interpretable deep learning',
           url='NA',
           download_url='NA',
-          version='0.4.2',
+          version='0.5.0-theano',
           packages=['deeplift', 'deeplift.backend',
                     'deeplift.blobs', 'deeplift.visualization',
                     'deeplift.conversion'],

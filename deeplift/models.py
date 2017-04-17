@@ -153,9 +153,9 @@ class Model(object):
             if (final_activation_type == "Sigmoid"):
                 scoring_mode=ScoringMode.OneAndZeros
             elif (final_activation_type == "Softmax"):
-                new_W, new_b =\
-                 deeplift.util.get_mean_normalised_softmax_weights(
-                  target_layer.W, target_layer.b)
+                #new_W, new_b =\
+                # deeplift.util.get_mean_normalised_softmax_weights(
+                #  target_layer.W, target_layer.b)
                     #The weights need to be mean normalised before they are
                     #passed in because build_fwd_pass_vars() has already
                     #been called before this function is called,
@@ -172,8 +172,8 @@ class Model(object):
                     #is common to two outputs, so should its symbolic vars
                     #TODO: I should put in a 'reset_fwd_pass' function and use
                     #it to invalidate the _built_fwd_pass_vars cache and recompile
-                if (np.allclose(target_layer.W, new_W)==False):
-                    print("Consider mean-normalising softmax layer")
+                #if (np.allclose(target_layer.W, new_W)==False):
+                #    print("Consider mean-normalising softmax layer")
                 #assert np.allclose(target_layer.b, new_b),\
                 #       "Please mean-normalise weights and biases of softmax layer"
                 scoring_mode=ScoringMode.OneAndZeros

@@ -55,15 +55,16 @@ class TestActivations(unittest.TestCase):
         out_layer.set_inactive()
         return fprop_results, bprop_results_each_task
 
-    def test_relu_deeplift(self): 
+    def test_relu_rescale(self): 
         out_layer = blobs.ReLU(
-         nonlinear_mxts_mode=blobs.NonlinearMxtsMode.DeepLIFT)
+         nonlinear_mxts_mode=blobs.NonlinearMxtsMode.Rescale)
         fprop_results, bprop_results_each_task =\
             self.set_up_prediction_func_and_deeplift_func(out_layer) 
         self.assertListEqual(fprop_results,
-                             [[9.0,0.0], [19.0, 0.0]])
-        #post-activation under default would be [0.0, 1.0]
-        #post-activation diff from default = [9.0, -1.0], [19.0, -1.0]
+                             [[9.0,0.0],
+                              [19.0, 0.0]])
+        #post-activation under default would be [0.0, 1.0, 0.0]
+        #post-activation diff from default = [9.0, -1.0, 4.0], [19.0, -1.0, -4.0]
         #pre-activation under default would be [-1.0, 1.0]
         #pre-activation diff-from-default is [10.0, -10.0], [20.0, -20.0]
         #scale-factors: [[9.0/10.0, -1.0/-10.0], [19.0/20.0, -1.0/-20.0]]
@@ -74,6 +75,7 @@ class TestActivations(unittest.TestCase):
         np.testing.assert_almost_equal(np.array(bprop_results_each_task[1]),
                                      np.array([(-1.0/-10.0)*np.array(self.w2),
                                               (-1.0/-20.0)*np.array(self.w2)]))
+        
 
     def test_relu_gradient(self): 
         out_layer = blobs.ReLU(
@@ -88,12 +90,11 @@ class TestActivations(unittest.TestCase):
                                      np.array([np.zeros_like(self.w2),
                                                np.zeros_like(self.w2)]))
 
+
     def test_running_of_different_activation_modes(self):
         #just tests that things run, not a test for values 
-        for mode in [blobs.NonlinearMxtsMode.vals]:
-            out_layer = blobs.ReLU(
-             nonlinear_mxts_mode=blobs.NonlinearMxtsMode.DeepLIFT)
+        for mode in blobs.NonlinearMxtsMode.vals:
+            out_layer = blobs.ReLU(nonlinear_mxts_mode=mode)
             fprop_results, bprop_results_each_task =\
                 self.set_up_prediction_func_and_deeplift_func(out_layer) 
-            self.assertListEqual(fprop_results,
-                                 [[9.0,0.0], [19.0, 0.0]])
+

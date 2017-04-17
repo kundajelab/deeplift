@@ -3,3 +3,8 @@
 **/*.ipynb_checkpoints
 **/log_*.txt
 **/*.DS_Store
+**/*.swp
+**/*.json
+.coverage
+.cache
+**/*,cover

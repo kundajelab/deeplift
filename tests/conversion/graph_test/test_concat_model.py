@@ -30,8 +30,6 @@ class TestConcatModel(unittest.TestCase):
         self.run_graph_tests = True
         if (self.keras_version < 1.0):
             self.keras_model = keras.models.Graph()
-        elif (hasattr(keras, 'legacy')):
-            self.keras_model = keras.legacy.models.Graph()
         else:
             self.run_graph_tests = False
             return #skip setup
@@ -84,21 +82,18 @@ class TestConcatModel(unittest.TestCase):
                         self.keras_model.inputs['inp2'].input],
                          grad, allow_input_downcast=True)
         else:
+            inp1 = self.keras_model.inputs['inp1'].input
+            inp2 = self.keras_model.inputs['inp2'].input
             keras_output_fprop_func = compile_func(
-                [self.keras_model.inputs['inp1'].input,
-                 self.keras_model.inputs['inp2'].input,
-                 keras.backend.learning_phase()],
+                [inp1, inp2, keras.backend.learning_phase()],
                 self.keras_model.layers[-1].output)
             self.keras_output_fprop_func =\
                 lambda x,y: keras_output_fprop_func(x,y,False)
             grad = theano.grad(theano.tensor.sum(
                        self.keras_model.nodes['output_preact'].output[:,0]),
-                       [self.keras_model.inputs['inp1'].input,
-                        self.keras_model.inputs['inp2'].input])
+                       [inp1, inp2])
             grad_func = theano.function(
-                         [self.keras_model.inputs['inp1'].input,
-                          self.keras_model.inputs['inp2'].input,
-                          keras.backend.learning_phase()],
+                         [inp1, inp2, keras.backend.learning_phase()],
                          grad, allow_input_downcast=True,
                          on_unused_input='ignore')
             self.grad_func = lambda x,y: grad_func(x,y,False)
@@ -109,7 +104,7 @@ class TestConcatModel(unittest.TestCase):
             return
         deeplift_model = kc.convert_graph_model(
                           model=self.keras_model,
-                          nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT)
+                          nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
         deeplift_fprop_func = compile_func(
  [deeplift_model.get_name_to_blob()['inp1'].get_activation_vars(),
   deeplift_model.get_name_to_blob()['inp2'].get_activation_vars()],
@@ -125,7 +120,7 @@ class TestConcatModel(unittest.TestCase):
             return
         deeplift_model = kc.convert_graph_model(
                             model=self.keras_model,
-                            nonlinear_mxts_mode=NonlinearMxtsMode.DeepLIFT)
+                            nonlinear_mxts_mode=NonlinearMxtsMode.Rescale)
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
                               find_scores_layer_name=["inp1", "inp2"],
