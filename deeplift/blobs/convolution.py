@@ -271,9 +271,6 @@ class Conv2D(SingleInputMixin, Node):
         if (input_shape is None):
             shape_to_return += [None, None]
         else:
-            if (self.border_mode != B.BorderMode.valid):
-                raise RuntimeError("Please implement shape inference for"
-                                   " border mode: "+str(self.border_mode))
             for (dim_inp_len, dim_kern_width, dim_stride) in\
                 zip(input_shape[2:], self.W.shape[2:], self.strides):
                 if (self.border_mode == B.BorderMode.valid):
