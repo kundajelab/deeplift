@@ -147,7 +147,7 @@ def conv2d(inp, filters, border_mode, subsample):
         #'half' kernel width padding results in outputs of the same
         #dimensions as input
         border_mode=BorderMode.half
-        assert filters.shape[2]%2 == 1 and filter_shape[3]%2 == 1,\
+        assert filters.shape[2]%2 == 1 and filters.shape[3]%2 == 1,\
             "haven't handled even filter shapes for border mode 'half'"
     return T.nnet.conv2d(input=inp,
                          filters=T.cast(theano.shared(value=filters),
@@ -158,6 +158,12 @@ def conv2d(inp, filters, border_mode, subsample):
 
 
 def conv2d_grad(topgrad, output_shape, filters, border_mode, strides):
+    if (border_mode==BorderMode.same):
+        #'half' kernel width padding results in outputs of the same
+        #dimensions as input
+        border_mode=BorderMode.half
+        assert filters.shape[2]%2 == 1 and filters.shape[3]%2 == 1,\
+            "haven't handled even filter shapes for border mode 'half'"
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(
             imshp=output_shape,
             kshp=filters.shape,
