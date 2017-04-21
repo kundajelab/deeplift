@@ -41,7 +41,7 @@ class TestBatchNorm(unittest.TestCase):
         self.ref = np.zeros_like(self.inp)+1.0
 
     def set_mxts(self, pos_mxts, neg_mxts):
-        self.batch_norm_layer.reset_mxts_updated()
+        self.input_layer.reset_mxts_updated()
         self.batch_norm_layer._increment_mxts(pos_mxts, neg_mxts) 
         self.input_layer.update_mxts()
          
