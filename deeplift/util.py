@@ -380,10 +380,16 @@ def get_top_n_scores_per_region(
 
 
 def get_integrated_gradients_function(gradient_computation_function, 
-                                      num_intervals):
+                                      num_intervals, right_rectangle=False):
     def compute_integrated_gradients(
         task_idx, input_data_list, input_references_list,
         batch_size, progress_update=None):
+        assert len(input_data_list)==1,\
+         "only one mode of input supported atm; "+str(len(input_data_list))
+        #cast to float32 because sometimes inputs are uint8 and then
+        #when you subtract you can never get negative values!!
+        input_data_list[0] = input_data_list[0].astype("float32")
+        input_references_list[0] = input_references_list[0].astype("float32")
         outputs = []
         #remember, input_data_list and input_references_list are
         #a list with one entry per mode
@@ -407,7 +413,7 @@ def get_integrated_gradients_function(gradient_computation_function,
             #prepare the array that has the inputs at different steps
             for i in range(num_intervals):
                 interpolated_inputs.append(
-                    a_reference + step*(i+0.5))
+                    a_reference + step*(i+(1.0 if right_rectangle else 0.5)))
                 interpolated_inputs_references.append(a_reference)        
         #find the gradients at different steps for all the inputs
         interpolated_gradients =\
