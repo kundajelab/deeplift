@@ -460,8 +460,8 @@ class ListInputMixin(object):
             an_input.reset_built_fwd_pass_vars()
 
     def _call_function_on_blobs_within_inputs(self, function_name):
-        return [eval('self.inputs['+str(i)+'].'+function_name+'()') for
-                i in range(len(self.inputs))]
+        return [eval('x.'+function_name+'()') for
+                i,x in enumerate(self.inputs)]
 
     def _add_given_increments_to_input_mxts(self,
         pos_mxts_increments_for_inputs, neg_mxts_increments_for_inputs):

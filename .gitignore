@@ -5,3 +5,6 @@
 **/*.DS_Store
 **/*.swp
 **/*.json
+.coverage
+.cache
+**/*,cover

@@ -163,44 +163,6 @@ class TestPool(unittest.TestCase):
                                      [2, 1, 1, 0],
                                      [0, 0, 1, 1]])*3]]))
 
-    @skip
-    def test_backprop_maxpool2d_scaled_contribs(self):
-        pool_layer = blobs.MaxPool2D(pool_size=(2,2),
-                  strides=(1,1),
-                  border_mode=B.BorderMode.valid,
-                  ignore_border=True,
-                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.scaled_gradient,
-                  channels_come_last=False)
-        self.create_small_net_with_pool_layer(pool_layer,
-                                              outputs_per_channel=9)
-
-        self.dense_layer.update_task_index(task_index=0)
-        func = B.function([self.input_layer.get_activation_vars(),
-                           self.input_layer.get_reference_vars()],
-                           self.input_layer.get_mxts())
-        print(func(self.backprop_test_inps,
-                   np.ones_like(self.backprop_test_inps)*self.reference_inps))
-        np.testing.assert_almost_equal(func(
-          self.backprop_test_inps,
-          np.ones_like(self.backprop_test_inps)*self.reference_inps),
-                                  np.array(
-                                  [[np.array([[0.5, 0, 0, 0],
-                                     [0, 0, 2./4 + 1./4, 0],
-                                     [2./7 + 1./7, 1, 1, 0],
-                                     [0, 0, 1, 1]])*2,
-                                    np.array([[0, 0, 1, 1],
-                                     [0, 1, 0, 0],
-                                     [0, 2, 1, 0],
-                                     [1, 0, 1, 1]])*3], 
-                                   [np.array([[0, 0, 1, 1],
-                                     [0, 1, 0, 0],
-                                     [0, 2, 1, 0],
-                                     [1, 0, 1, 1]])*2,
-                                    np.array([[0.5, 0, 0, 0],
-                                     [0, 0, 2./4 + 1./4, 0],
-                                     [2./7 + 1./7, 1, 1, 0],
-                                     [0, 0, 1, 1]])*3]]))
-
     def test_backprop_avgpool2d(self):
         pool_layer = blobs.AvgPool2D(pool_size=(2,2),
                   strides=(1,1),
