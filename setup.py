@@ -5,7 +5,7 @@ if __name__== '__main__':
           description='Interpretable deep learning',
           url='NA',
           download_url='NA',
-          version='0.5.0-tensorflow',
+          version='0.5.1-tensorflow',
           packages=['deeplift',
                     'deeplift.blobs', 'deeplift.visualization',
                     'deeplift.conversion'],

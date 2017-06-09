@@ -784,8 +784,9 @@ class Concat(OneDimOutputMixin, Merge):
                          values=input_act_vars)
 
     def _build_pos_and_neg_contribs(self):
-        inp_pos_contribs, inp_neg_contribs =\
-            self._get_input_pos_and_neg_contribs()
+        inp_pos_and_neg_contribs = self._get_input_pos_and_neg_contribs()
+        inp_pos_contribs = [x[0] for x in inp_pos_and_neg_contribs]
+        inp_neg_contribs = [x[1] for x in inp_pos_and_neg_contribs]
         pos_contribs = self._build_activation_vars(inp_pos_contribs) 
         neg_contribs = self._build_activation_vars(inp_neg_contribs)
         return pos_contribs, neg_contribs
