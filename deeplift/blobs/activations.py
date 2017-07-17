@@ -52,7 +52,8 @@ class Activation(SingleInputMixin, OneDimOutputMixin, Node):
         if (self.nonlinear_mxts_mode==
              NonlinearMxtsMode.DeepLIFT_GenomicsDefault):
             preceding_linear_layer = self.get_inputs()
-            if (type(preceding_linear_layer).__name__=="BatchNormalization"):
+            while (type(preceding_linear_layer).__name__ in [
+                   "BatchNormalization", "NoOp"]):
                 preceding_linear_layer = preceding_linear_layer.get_inputs()
             if (self.verbose):
                 print("For layer "+str(self.get_name())+" the preceding linear"
