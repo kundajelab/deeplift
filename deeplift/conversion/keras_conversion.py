@@ -46,6 +46,10 @@ def batchnorm_conversion(layer, name, verbose, **kwargs):
     )] 
 
 
+def permute_conversion(layer, name, verbose, **kwargs):
+    return [blobs.Permute(name=name)]
+
+
 def conv1d_conversion(layer, name, verbose,
                       nonlinear_mxts_mode, conv_mxts_mode, **kwargs):
     #nonlinear_mxts_mode only used for activation
@@ -239,6 +243,7 @@ def activation_to_conversion_function(activation):
 
 def layer_name_to_conversion_function(layer_name):
     name_dict = {
+        'permute': permute_conversion,
         'convolution1d': conv1d_conversion,
         'maxpooling1d': maxpool1d_conversion,
         'averagepooling1d': avgpool1d_conversion,

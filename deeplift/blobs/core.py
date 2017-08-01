@@ -733,6 +733,38 @@ class BatchNormalization(SingleInputMixin, Node):
         return pos_mxts_increments, neg_mxts_increments
 
 
+class Permute(SingleInputMixin, Node):
+
+        def __init__(self,  **kwargs):
+            super(Permute, self).__init__(**kwargs)
+
+        def _compute_shape(self, input_shape):
+            myorder=[0, 2, 1]
+            output_shape = [input_shape[i] for i in myorder]
+            return output_shape
+
+        def _build_activation_vars(self, input_act_vars):
+            to_return = tf.transpose(input_act_vars, perm = [0,2,1])
+            return to_return
+
+        def _check_inputs(self):
+            pass
+
+        def _build_pos_and_neg_contribs(self):
+            ( inp_pos_contribs,
+              inp_neg_contribs ) = self._get_input_pos_and_neg_contribs()
+            pos_contribs = self._build_activation_vars(inp_pos_contribs)
+            neg_contribs = self._build_activation_vars(inp_neg_contribs)
+            return pos_contribs, neg_contribs
+
+        def _get_mxts_increments_for_inputs(self):
+            pos_mxts = self.get_pos_mxts()
+            neg_mxts = self.get_neg_mxts()
+            pos_mxts = tf.transpose(pos_mxts, perm=[0, 2, 1])
+            neg_mxts = tf.transpose(neg_mxts, perm=[0, 2, 1])
+            return pos_mxts, neg_mxts
+
+
 class Merge(ListInputMixin, Node):
 
     def __init__(self, axis, **kwargs):
