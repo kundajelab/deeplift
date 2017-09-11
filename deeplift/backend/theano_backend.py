@@ -4,8 +4,9 @@ import deeplift.util
 from deeplift.util import NEAR_ZERO_THRESHOLD
 from .common import *
 import numpy as np
+from distutils.version import LooseVersion
 
-theano_version = float(theano.__version__[:3]) 
+theano_version = LooseVersion(theano.__version__) 
 
 def eq(a, b):
     return T.eq(a,b)
@@ -200,7 +201,7 @@ def pool2d(inp, pool_size, strides, border_mode, ignore_border, pool_mode):
                                     pool_size, border_mode, pool_mode)
 
     #there is an API-breaking change from 0.8 to 0.9
-    if (theano_version >= 0.9):
+    if (theano_version >= LooseVersion('0.9')):
         to_return = T.signal.pool.pool_2d(input=inp,
                         ws=pool_size,
                         ignore_border=ignore_border,
@@ -231,11 +232,27 @@ def pool2d_grad(out_grad, pool_in,
                            "'same' yet")
     padding, theano_pool_mode = get_pooling_padding_and_theano_pool_mode(
                                     pool_size, border_mode, pool_mode)
-    if (theano_version >= 0.9): #there is an API breaking change
-        return (T.signal.pool.Pool(ignore_border=ignore_border,
-                                     mode=theano_pool_mode)
-                .grad(inp=[pool_in, pool_size, strides, padding],
-                      grads=(out_grad,)))[0]
+    if (theano_version >= LooseVersion('0.9')): #API breaking change
+
+        inp = [pool_in, pool_size, strides, padding]
+        x, ws, stride, pad = pool_in, pool_size, strides, padding
+        gz = out_grad
+        disc = [theano.gradient.DisconnectedType()() for i in inp[1:]]
+        pool_obj = T.signal.pool.Pool(ignore_border=ignore_border,
+                                      mode=theano_pool_mode)
+        if (pool_mode=='max'):
+            maxout = pool_obj(x, ws, stride, pad)
+            return ([T.signal.pool.MaxPoolGrad(
+                     ndim=pool_obj.ndim,
+                     ignore_border=pool_obj.ignore_border)
+                     (x, maxout, gz, ws=ws,
+                      stride=stride, pad=pad)] + disc)[0]
+        else:
+            return ([T.signal.pool.AveragePoolGrad(
+                     ndim=pool_obj.ndim,
+                     ignore_border=pool_obj.ignore_border,
+                     mode=pool_obj.mode)(
+                      x, gz, ws=ws, stride=stride, pad=pad)] + disc)[0] 
     else:
         pool_op = T.signal.pool.Pool(ds=pool_size,
                                      st=strides,
