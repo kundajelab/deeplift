@@ -379,6 +379,28 @@ def get_top_n_scores_per_region(
         return np.array(top_n_scores), np.array(top_n_indices)
 
 
+def get_hypothetical_contribs_func(multipliers_function):
+
+    def hypothetical_contribs_func(task_idx,
+                                  input_data_list,
+                                  input_references_list,
+                                  hypothetical_input_data_list,
+                                  batch_size,
+                                  progress_update):
+        multipliers = multipliers_function(
+                            task_idx=task_idx,
+                            input_data_list=input_data_list,
+                            input_references_list=input_references_list, 
+                            batch_size=batch_size,
+                            progress_update=progress_update)
+        differences_from_reference =(
+            np.array(hypothetical_input_data_list)
+            -np.array(input_references_list))
+        hypothetical_contribs = differences_from_reference*multipliers
+        return hypothetical_contribs
+    return hypothetical_contribs_func
+
+
 def get_integrated_gradients_function(gradient_computation_function, 
                                       num_intervals, right_rectangle=False):
     def compute_integrated_gradients(
