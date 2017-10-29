@@ -381,13 +381,13 @@ def get_top_n_scores_per_region(
 
 def get_hypothetical_contribs_func_onehot(multipliers_function):
     """
-        Meant for models with one-hot encoded genomic sequence input.
+        Meant for models with one-hot encoded sequence input.
         Inputs:
             multipliers_function: a function (usually produced by
                 model.get_target_multipliers_func) that takes task_idx,
                 input_data_list, input_references_list, batch_size
                 and progress_update as inputs and returns the multipliers
-                on one-hot encoded genomic sequence input. The first
+                on one-hot encoded sequence input. The first
                 entry of input_data_list is assumed to be a 3-dimensional
                 array where the first dimension is the example index,
                 the second dimension is length and the
@@ -398,8 +398,8 @@ def get_hypothetical_contribs_func_onehot(multipliers_function):
                 be for each of the one-hot encoding possibilities.
                 The calculation is as follows: At each
                 position, we iterate over the one-hot encoding
-                possibilities (for genomic sequence, this is ACGT)
-                and compute the hypothetical 
+                possibilities (eg: for genomic sequence, this is ACGT i.e.
+                1000, 0100, 0010 and 0001) and compute the hypothetical 
                 difference-from-reference in each case.
                 We then multiply the hypothetical
                 differences-from-reference with the
