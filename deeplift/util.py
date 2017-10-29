@@ -379,25 +379,32 @@ def get_top_n_scores_per_region(
         return np.array(top_n_scores), np.array(top_n_indices)
 
 
-def get_hypothetical_contribs_func(multipliers_function):
-
+def get_hypothetical_contribs_func_genomics(multipliers_function):
     def hypothetical_contribs_func(task_idx,
                                   input_data_list,
                                   input_references_list,
-                                  hypothetical_input_data_list,
                                   batch_size,
                                   progress_update):
+        assert len(input_data_list)==1
+        assert len(input_references_list)==1
+        assert len(input_data_list[0].shape)==3, input_data_list[0].shape
+        assert len(input_data_list[0].shape)==3, input_data_list[0].shape
         multipliers = multipliers_function(
                             task_idx=task_idx,
                             input_data_list=input_data_list,
                             input_references_list=input_references_list, 
                             batch_size=batch_size,
                             progress_update=progress_update)
-        differences_from_reference =(
-            np.array(hypothetical_input_data_list)
-            -np.array(input_references_list))
-        hypothetical_contribs = differences_from_reference*multipliers
-        return hypothetical_contribs
+        to_return = np.zeros_like(input_data_list[0]).astype("float")
+        for i in range(input_data_list[0].shape[-1]):
+            hypothetical_input = np.zeros_like(input_data_list[0])\
+                                   .astype("float")
+            hypothetical_input[:,:,i] = 1.0
+            difference_from_reference =\
+                (hypothetical_input-np.array(input_references_list[0]))
+            hypothetical_contribs = difference_from_reference*multipliers
+            to_return[:,:,i] = np.sum(hypothetical_contribs,axis=-1)
+        return to_return
     return hypothetical_contribs_func
 
 
