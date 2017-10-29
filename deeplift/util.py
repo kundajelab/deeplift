@@ -379,14 +379,44 @@ def get_top_n_scores_per_region(
         return np.array(top_n_scores), np.array(top_n_indices)
 
 
-def get_hypothetical_contribs_func_genomics(multipliers_function):
+def get_hypothetical_contribs_func_onehot(multipliers_function):
+    """
+        Meant for models with one-hot encoded genomic sequence input.
+        Inputs:
+            multipliers_function: a function (usually produced by
+                model.get_target_multipliers_func) that takes task_idx,
+                input_data_list, input_references_list, batch_size
+                and progress_update as inputs and returns the multipliers
+                on one-hot encoded genomic sequence input. The first
+                entry of input_data_list is assumed to be a 3-dimensional
+                array where the first dimension is the example index,
+                the second dimension is length and the
+                last dimension is the one-hot encoded channel axis.
+        Returns:
+            a function that takes the same arguments as multipliers_func
+                and returns an estimate of what the contributions would
+                be for each of the one-hot encoding possibilities.
+                The calculation is as follows: At each
+                position, we iterate over the one-hot encoding
+                possibilities (for genomic sequence, this is ACGT)
+                and compute the hypothetical 
+                difference-from-reference in each case.
+                We then multiply the hypothetical
+                differences-from-reference with the
+                multipliers to get the hypothetical contributions. 
+                For each of the one-hot encoding possibilities,
+                the hypothetical contributions are summed across the
+                channel axis to estimate the total hypothetical
+                contribution at each position.
+                The reason this is only an estimate
+                is that the multipliers were computed
+                using the actual input and not the hypothetical inputs.
+    """
     def hypothetical_contribs_func(task_idx,
                                   input_data_list,
                                   input_references_list,
                                   batch_size,
                                   progress_update):
-        assert len(input_data_list)==1
-        assert len(input_references_list)==1
         assert len(input_data_list[0].shape)==3, input_data_list[0].shape
         assert len(input_data_list[0].shape)==3, input_data_list[0].shape
         multipliers = multipliers_function(
