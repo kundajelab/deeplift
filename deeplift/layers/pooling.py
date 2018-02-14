@@ -9,19 +9,14 @@ MaxPoolDeepLiftMode = deeplift.util.enum(gradient = 'gradient')
 
 class Pool1D(SingleInputMixin, Node):
 
-    def __init__(self, pool_length, stride, padding_mode, **kwargs):
+    def __init__(self, pool_length, strides, padding_mode, **kwargs):
         super(Pool1D, self).__init__(**kwargs) 
         self.pool_length = pool_length
-        self.stride = stride
+        if (hasattr(strides, '__iter__')):
+            assert len(strides)==1
+            strides=strides[0]
+        self.strides = strides
         self.padding_mode = padding_mode
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Pool2D, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['pool_length'] = self.pool_length
-        kwargs_dict['stride'] = self.stride
-        kwargs_dict['padding_mode'] = self.padding_mode
-        return kwargs_dict
 
     def _compute_shape(self, input_shape):
         shape_to_return = [None] 
@@ -30,7 +25,7 @@ class Pool1D(SingleInputMixin, Node):
                                " padding mode: "+str(self.padding_mode))
         #assuming that overhangs are excluded
         shape_to_return.append(1+
-            int((input_shape[1]-self.pool_length)/self.stride)) 
+            int((input_shape[1]-self.pool_length)/self.strides)) 
         shape_to_return.append(input_shape[-1]) #channels unchanged
         return shape_to_return
 
@@ -55,7 +50,7 @@ class MaxPool1D(Pool1D):
         return tf.squeeze(
                 tf.nn.max_pool(value=tf.expand_dims(input_act_vars,1),
                      ksize=(1,1,self.pool_length,1),
-                     strides=(1,1,self.stride,1),
+                     strides=(1,1,self.strides,1),
                      padding=self.padding_mode),1)
 
     def _build_pos_and_neg_contribs(self):
@@ -74,7 +69,7 @@ class MaxPool1D(Pool1D):
                 orig_output=tf.expand_dims(self.get_activation_vars(),1),
                 grad=tf.expand_dims(out_grad,1),
                 ksize=(1,1,self.pool_length,1),
-                strides=(1,1,self.stride,1),
+                strides=(1,1,self.strides,1),
                 padding=self.padding_mode),1)
 
     def _get_mxts_increments_for_inputs(self):
@@ -96,7 +91,7 @@ class AvgPool1D(Pool1D):
         return tf.squeeze(
                 tf.nn.avg_pool(value=tf.expand_dims(input_act_vars,1),
                  ksize=(1,1,self.pool_length,1),
-                 strides=(1,1,self.stride,1),
+                 strides=(1,1,self.strides,1),
                  padding=self.padding_mode),1)
 
     def _build_pos_and_neg_contribs(self):
@@ -112,7 +107,7 @@ class AvgPool1D(Pool1D):
                 tf.shape(tf.expand_dims(self._get_input_activation_vars(),1)),
             grad=tf.expand_dims(out_grad,1),
             ksize=(1,1,self.pool_length,1),
-            strides=(1,1,self.stride,1),
+            strides=(1,1,self.strides,1),
             padding=self.padding_mode),1)
 
     def _get_mxts_increments_for_inputs(self):

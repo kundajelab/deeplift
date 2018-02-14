@@ -17,19 +17,24 @@ KerasKeys = deeplift.util.enum(
     activation='activation',
     subsample='subsample',
     subsample_length='subsample_length',
-    border_mode='border_mode',
+    padding='padding',
     output_dim='output_dim',
     pool_length='pool_length',
     stride='stride',
     pool_size='pool_size',
     strides='strides',
-    padding='padding',
     mode='mode',
     concat_axis='concat_axis',
     bias='bias',
     kernel='kernel',
     alpha='alpha',
     batch_input_shape='batch_input_shape'
+    axis='axis',
+    gamma='gamma',
+    beta='beta',
+    moving_mean='moving_mean',
+    moving_variance='moving_variance',
+    epsilon='epsilon'
 )
 
 
@@ -120,10 +125,40 @@ def conv2d_conversion(config,
             kernel=config[KerasKeys.kernel],
             bias=config[KerasKeys.bias],
             strides=config[KerasKeys.strides],
-            padding_mode=layer.get_config()[KerasKeys.border_mode].upper(),
+            padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
     to_return.extend(converted_activation)
 
+    return to_return
+
+
+def conv1d_conversion(config,
+                      name,
+                      verbose,
+                      nonlinear_mxts_mode,
+                      conv_mxts_mode, **kwargs):
+    validate_keys(config, [KerasKeys.bias, KerasKeys.kernel])
+    validate_keys(config, [KerasKeys.activation,
+                           KerasKeys.filters,
+                           KerasKeys.kernel_size,
+                           KerasKeys.padding,
+                           KerasKeys.strides])
+    #nonlinear_mxts_mode only used for activation
+    converted_activation = activation_conversion(
+                            activation_name=config[KerasKeys.activation],
+                            config={},
+                            layer_name=name,
+                            verbose=verbose,
+                            nonlinear_mxts_mode=nonlinear_mxts_mode)
+    to_return = [blobs.Conv1D(
+            name=("preact_" if len(converted_activation) > 0
+                        else "")+name,
+            kernel=config[KerasKeys.kernel],
+            bias=config[KerasKeys.bias],
+            strides=config[KerasKeys.strides],
+            padding=config[KerasKeys.padding].upper(),
+            conv_mxts_mode=conv_mxts_mode)] 
+    to_return.extend(converted_activation)
     return to_return
 
 
@@ -154,8 +189,82 @@ def dense_conversion(config,
     return to_return
 
 
+def batchnorm_conversion(config, name, verbose, **kwargs):
+    #note: the variable called "running_std" actually stores
+    #the variance...
+    return [blobs.normalization.BatchNormalization(
+        name=name,
+        verbose=verbose,
+        gamma=config[KerasKeys.gamma],
+        beta=config[KerasKeys.beta],
+        axis=config[KerasKeys.axis],
+        mean=config[KerasKeys.moving_mean],
+        var=config[KerasKeys.moving_variance],
+        epsilon=config[KerasKeys.epsilon] 
+    )] 
+
+
 def flatten_conversion(name, verbose, **kwargs):
     return [layers.core.Flatten(name=name, verbose=verbose)]
+
+
+def prep_pool2d_kwargs(config, name, verbose):
+    return {'name': name,
+            'verbose': verbose,
+            'pool_size': config[KerasKeys.pool_size],
+            'strides': config[KerasKeys.strides],
+            'padding': config[KerasKeys.padding].upper()}
+
+
+def maxpool2d_conversion(config, name, verbose,
+                         maxpool_deeplift_mode, **kwargs):
+    pool2d_kwargs = prep_pool2d_kwargs(
+                        config=config,
+                        name=name,
+                        verbose=verbose)
+    return [blobs.MaxPool2D(
+             maxpool_deeplift_mode=maxpool_deeplift_mode,
+             **pool2d_kwargs)]
+
+
+def avgpool2d_conversion(config, name, verbose, **kwargs):
+    pool2d_kwargs = prep_pool2d_kwargs(
+                        config=config,
+                        name=name,
+                        verbose=verbose)
+    return [blobs.AvgPool2D(**pool2d_kwargs)]
+
+
+def prep_pool1d_kwargs(config, name, verbose):
+    return {'name': name,
+            'verbose': verbose,
+            'pool_length': config[KerasKeys.pool_length],
+            'strides': config[KerasKeys.strides],
+            'padding': config[KerasKeys.padding].upper()
+            }
+
+
+def maxpool1d_conversion(config, name, verbose,
+                         maxpool_deeplift_mode, **kwargs):
+    pool1d_kwargs = prep_pool1d_kwargs(
+                        layer=layer,
+                        name=name,
+                        verbose=verbose)
+    return [blobs.MaxPool1D(
+             maxpool_deeplift_mode=maxpool_deeplift_mode,
+             **pool1d_kwargs)]
+
+
+def avgpool1d_conversion(config, name, verbose, **kwargs):
+    pool1d_kwargs = prep_pool1d_kwargs(
+                        config=config,
+                        name=name,
+                        verbose=verbose)
+    return [blobs.AvgPool1D(**pool1d_kwargs)]
+
+
+def dropout_conversion(name, **kwargs):
+    return [blobs.NoOp(name=name)]
 
 
 def sequential_container_conversion(config,
@@ -203,11 +312,21 @@ def activation_to_conversion_function(activation_name):
 def layer_name_to_conversion_function(layer_name):
     name_dict = {
         'conv1d': conv1d_conversion,
+        'maxpooling1d': maxpool1d_conversion,
+        'averagepooling1d': avgpool1d_conversion,
+
         'conv2d': conv2d_conversion,
+        'maxpooling2d': maxpool2d_conversion,
+        'averagepooling2d': avgpool2d_conversion,
+
+        'batchnormalization': batchnorm_conversion,
+        'dropout': dropout_conversion, 
         'flatten': flatten_conversion,
         'dense': dense_conversion,
+
         'activation': activation_conversion, 
         'prelu': prelu_conversion,
+
         'sequential': sequential_container_conversion,
     }
     # lowercase to create resistance to capitalization changes
@@ -250,8 +369,8 @@ def convert_sequential_model(
     return models.SequentialModel(converted_layers)
 
 
-def input_layer_conversion(keras_input_layer, layer_name):
-    input_shape = keras_input_layer.get_config()['batch_input_shape']
+def input_layer_conversion(config, layer_name):
+    input_shape = config['batch_input_shape']
     deeplift_input_layer =\
      layers.core.Input(batch_shape=input_shape,
                        name=layer_name)

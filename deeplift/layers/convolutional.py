@@ -21,7 +21,7 @@ class Conv1D(Conv):
         Note: is ACTUALLY a cross-correlation i.e. weights are not 'flipped'
     """
 
-    def __init__(self, kernel, bias, stride, padding_mode, **kwargs):
+    def __init__(self, kernel, bias, stride, padding, **kwargs):
         """
             The ordering of the dimensions is assumed to be: length, channels
             Note: this is ACTUALLY a cross-correlation,
@@ -34,7 +34,7 @@ class Conv1D(Conv):
         self.kernel = kernel
         self.bias = bias
         self.stride = stride
-        self.padding_mode = padding_mode
+        self.padding = padding
 
     def get_yaml_compatible_object_kwargs(self):
         kwargs_dict = super(Conv1D,self).\
@@ -48,9 +48,9 @@ class Conv1D(Conv):
         if (input_shape is None or input_shape[1] is None):
             shape_to_return += [None]
         else:
-            if (self.padding_mode != PaddingMode.valid):
+            if (self.padding != PaddingMode.valid):
                 raise RuntimeError("Please implement shape inference for"
-                                   " border mode: "+str(self.padding_mode))
+                                   " border mode: "+str(self.padding))
             shape_to_return.append(
              1+int((input_shape[1]-self.kernel.shape[0])/self.stride)) 
         shape_to_return.append(self.kernel.shape[-1]) #num output channels
@@ -87,7 +87,7 @@ class Conv1D(Conv):
                              value=x,
                              filters=kernel,
                              stride=self.stride,
-                             padding=self.padding_mode)
+                             padding=self.padding)
         return conv_without_bias
 
     def _get_mxts_increments_for_inputs(self): 
@@ -104,33 +104,33 @@ class Conv1D(Conv):
                     value=pos_mxts,
                     kernel=self.kernel*(hf.gt_mask(self.kernel,0.0)),
                     tensor_with_output_shape=self.inputs.get_activation_vars(),
-                    padding_mode=self.padding_mode,
+                    padding=self.padding,
                     stride=self.stride)
                 +conv1d_transpose_via_conv2d(
                     value=neg_mxts,
                     kernel=self.kernel*(hf.lt_mask(self.kernel,0.0)),
                     tensor_with_output_shape=self.inputs.get_activation_vars(),
-                    padding_mode=self.padding_mode,
+                    padding=self.padding,
                     stride=self.stride))
             inp_mxts_increments += neg_inp_mask*(
                 conv1d_transpose_via_conv2d(
                     value=pos_mxts,
                     kernel=self.kernel*(hf.lt_mask(self.kernel,0.0)),
                     tensor_with_output_shape=self.inputs.get_activation_vars(),
-                    padding_mode=self.padding_mode,
+                    padding=self.padding,
                     stride=self.stride)
                 +conv1d_transpose_via_conv2d(
                     value=neg_mxts,
                     kernel=self.kernel*(hf.gt_mask(self.kernel,0.0)),
                     tensor_with_output_shape=self.inputs.get_activation_vars(),
-                    padding_mode=self.padding_mode,
+                    padding=self.padding,
                     stride=self.stride))
             inp_mxts_increments += zero_inp_mask*(
                 conv1d_transpose_via_conv2d(
                     value=0.5*(neg_mxts+pos_mxts),
                     kernel=self.kernel,
                     tensor_with_output_shape=self.inputs.get_activation_vars(),
-                    padding_mode=self.padding_mode,
+                    padding=self.padding,
                     stride=self.stride))
             pos_mxts_increments = inp_mxts_increments
             neg_mxts_increments = inp_mxts_increments
@@ -168,7 +168,7 @@ class Conv2D(Conv):
         if (input_shape is None):
             shape_to_return += [None, None]
         else:
-            if (self.padding_mode != PaddingMode.valid):
+            if (self.padding != PaddingMode.valid):
                 raise NotImplementedError("Please implement shape inference for"
                                           " border mode: "+str(self.padding))
             for (dim_inp_len, dim_kern_width, dim_stride) in\
@@ -210,7 +210,7 @@ class Conv2D(Conv):
                              input=x,
                              filter=kernel,
                              strides=(1,)+self.strides+(1,),
-                             padding=self.padding_mode)
+                             padding=self.padding)
         return conv_without_bias
 
     def _get_mxts_increments_for_inputs(self): 
@@ -229,14 +229,14 @@ class Conv2D(Conv):
                             value=pos_mxts,
                             filter=self.kernel*hf.gt_mask(self.kernel, 0.0),
                             output_shape=output_shape,
-                            padding=self.padding_mode,
+                            padding=self.padding,
                             strides=strides_to_supply
                         )
                        +tf.nn.conv2d_transpose(
                             value=neg_mxts,
                             filter=self.kernel*hf.lt_mask(self.kernel, 0.0),
                             output_shape=output_shape,
-                            padding=self.padding_mode,
+                            padding=self.padding,
                             strides=strides_to_supply
                         ))
             inp_mxts_increments += neg_inp_mask*(
@@ -244,21 +244,21 @@ class Conv2D(Conv):
                             value=pos_mxts,
                             filter=self.kernel*hf.lt_mask(self.kernel, 0.0),
                             output_shape=output_shape,
-                            padding=self.padding_mode,
+                            padding=self.padding,
                             strides=strides_to_supply
                         )
                        +tf.nn.conv2d_transpose(
                             value=neg_mxts,
                             filter=self.kernel*hf.gt_mask(self.kernel, 0.0),
                             output_shape=output_shape,
-                            padding=self.padding_mode,
+                            padding=self.padding,
                             strides=strides_to_supply
                         ))
             inp_mxts_increments += zero_inp_mask*tf.nn.conv2d_transpose(
                             value=0.5*(pos_mxts+neg_mxts),
                             filter=self.kernel,
                             output_shape=output_shape,
-                            padding=self.padding_mode,
+                            padding=self.padding,
                             strides=strides_to_supply)
             pos_mxts_increments = inp_mxts_increments
             neg_mxts_increments = inp_mxts_increments
