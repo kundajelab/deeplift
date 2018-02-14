@@ -221,26 +221,13 @@ class Input(Blob):
         Input layer
     """
 
-    def __init__(self, num_dims, shape, **kwargs):
+    def __init__(self, batch_shape, **kwargs):
         super(Input, self).__init__(**kwargs)
-        assert num_dims is not None or shape is not None
-        if (shape is not None):
-            shape = list(shape)
-            if (shape[0] != None): #None in first pos represent batch axis
-                shape = [None]+shape
-            shape_num_dims = len(shape)
-            if (num_dims is not None):
-                assert shape_num_dims==num_dims,\
-                "dims of "+str(shape)+" != "+str(num_dims)
-            num_dims = shape_num_dims
-        else:
-            if (num_dims is not None):
-                shape = [None for x in xrange(num_dims)]
+        self._num_dims = len(batch_shape)
+        self._shape = batch_shape
         self._activation_vars = tf.placeholder(
                                  dtype=tf.float32, shape=shape,
                                  name="inp_"+str(self.get_name()))
-        self._num_dims = num_dims
-        self._shape = shape
 
     def get_activation_vars(self):
         return self._activation_vars
@@ -260,12 +247,6 @@ class Input(Blob):
         neg_contribs = (self._diff_from_reference_vars*
                         hf.lt_mask(self._diff_from_reference_vars,0.0))
         return pos_contribs, neg_contribs
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Input,self).get_yaml_compatible_object_kwargs()
-        kwargs_dict['num_dims'] = self._num_dims
-        kwargs_dict['shape'] = self._shape
-        return kwargs_dict
 
     def _build_fwd_pass_vars(self):
         self._reference_vars = self._build_reference_vars()
@@ -810,6 +791,35 @@ class Concat(OneDimOutputMixin, Merge):
                 self.get_neg_mxts()[slices_for_input])
 
         return pos_mxts_increments_for_inputs, neg_mxts_increments_for_inputs
+
+
+class Flatten(SingleInputMixin, OneDimOutputMixin, Node):
+    
+    def _build_activation_vars(self, input_act_vars):
+        return tf.reshape(input_act_vars,
+                [-1, tf.reduce_prod(input_act_vars.get_shape()[1:])])
+
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = self._build_activation_vars(inp_pos_contribs)
+        neg_contribs = self._build_activation_vars(inp_neg_contribs) 
+        return pos_contribs, neg_contribs
+
+    def _compute_shape(self, input_shape):
+        return (None, np.prod(input_shape[1:]))
+
+    def _unflatten_keeping_first(self, mxts):
+        input_act_vars = self._get_input_activation_vars() 
+        return tf.reshape(tensor=mxts,
+                          shape=tf.shape(input_act_vars))
+        
+    def _get_mxts_increments_for_inputs(self):
+        pos_mxts_increments = self._unflatten_keeping_first(
+                                   self.get_pos_mxts())
+        neg_mxts_increments = self._unflatten_keeping_first(
+                                   self.get_neg_mxts())
+        return pos_mxts_increments, neg_mxts_increments
 
 
 #TODO: port over from theano
