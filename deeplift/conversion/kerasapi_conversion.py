@@ -25,16 +25,12 @@ KerasKeys = deeplift.util.enum(
     strides='strides',
     mode='mode',
     concat_axis='concat_axis',
-    bias='bias',
-    kernel='kernel',
+    weights='weights',
     alpha='alpha',
     batch_input_shape='batch_input_shape'
     axis='axis',
-    gamma='gamma',
-    beta='beta',
-    moving_mean='moving_mean',
-    moving_variance='moving_variance',
-    epsilon='epsilon'
+    epsilon='epsilon',
+    batch_input_shape='batch_input_shape'
 )
 
 
@@ -98,8 +94,8 @@ def conv2d_conversion(config,
                       verbose,
                       nonlinear_mxts_mode,
                       conv_mxts_mode, **kwargs):
-    validate_keys(config, [KerasKeys.bias, KerasKeys.kernel])
-    validate_keys(config, [KerasKeys.activation,
+    validate_keys(config, [KerasKeys.weights,
+                           KerasKeys.activation,
                            KerasKeys.data_format,
                            KerasKeys.filters,
                            KerasKeys.kernel_size,
@@ -122,8 +118,8 @@ def conv2d_conversion(config,
     to_return = [layers.convolutional.Conv2D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
-            kernel=config[KerasKeys.kernel],
-            bias=config[KerasKeys.bias],
+            kernel=config[KerasKeys.weights][0],
+            bias=config[KerasKeys.weights][0],
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
@@ -137,8 +133,8 @@ def conv1d_conversion(config,
                       verbose,
                       nonlinear_mxts_mode,
                       conv_mxts_mode, **kwargs):
-    validate_keys(config, [KerasKeys.bias, KerasKeys.kernel])
-    validate_keys(config, [KerasKeys.activation,
+    validate_keys(config, [KerasKeys.weights,
+                           KerasKeys.activation,
                            KerasKeys.filters,
                            KerasKeys.kernel_size,
                            KerasKeys.padding,
@@ -153,8 +149,8 @@ def conv1d_conversion(config,
     to_return = [blobs.Conv1D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
-            kernel=config[KerasKeys.kernel],
-            bias=config[KerasKeys.bias],
+            kernel=config[KerasKeys.weights][0],
+            bias=config[KerasKeys.weights][1],
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
@@ -168,8 +164,8 @@ def dense_conversion(config,
                      dense_mxts_mode,
                      nonlinear_mxts_mode, **kwargs):
 
-    validate_keys(config, [KerasKeys.bias, KerasKeys.kernel])
-    validate_keys(config, [KerasKeys.activation,
+    validate_keys(config, [KerasKeys.weights,
+                           KerasKeys.activation,
                            KerasKeys.units])
 
     converted_activation = activation_conversion(
@@ -181,8 +177,8 @@ def dense_conversion(config,
     to_return = [layers.core.Dense(
                   name=("preact_" if len(converted_activation) > 0
                         else "")+name, 
-                  kernel=config[KerasKeys.kernel],
-                  bias=config[KerasKeys.bias],
+                  kernel=config[KerasKeys.weights][0],
+                  bias=config[KerasKeys.weights][1],
                   verbose=verbose,
                   dense_mxts_mode=dense_mxts_mode)]
     to_return.extend(converted_activation)
@@ -190,16 +186,19 @@ def dense_conversion(config,
 
 
 def batchnorm_conversion(config, name, verbose, **kwargs):
+    validate_keys(config, [KerasKeys.weights,
+                           KerasKeys.activation,
+                           KerasKeys.units])
     #note: the variable called "running_std" actually stores
     #the variance...
     return [blobs.normalization.BatchNormalization(
         name=name,
         verbose=verbose,
-        gamma=config[KerasKeys.gamma],
-        beta=config[KerasKeys.beta],
+        gamma=config[KerasKeys.weights][0],
+        beta=config[KerasKeys.weights][1],
         axis=config[KerasKeys.axis],
-        mean=config[KerasKeys.moving_mean],
-        var=config[KerasKeys.moving_variance],
+        mean=config[KerasKeys.weights][2],
+        var=config[KerasKeys.weights][3],
         epsilon=config[KerasKeys.epsilon] 
     )] 
 
@@ -297,6 +296,13 @@ def sequential_container_conversion(config,
                              verbose=verbose,
                              **modes_to_pass)) 
     return converted_layers
+
+
+def input_layer_conversion(config, name, **kwargs):
+    deeplift_input_layer =\
+     layers.core.Input(batch_shape=config[KerasKeys.batch_input_shape],
+                       name=name)
+    return [deeplift_input_layer]
      
 
 def activation_to_conversion_function(activation_name):
@@ -311,6 +317,8 @@ def activation_to_conversion_function(activation_name):
 
 def layer_name_to_conversion_function(layer_name):
     name_dict = {
+        'inputlayer': input_layer_conversion,
+
         'conv1d': conv1d_conversion,
         'maxpooling1d': maxpool1d_conversion,
         'averagepooling1d': avgpool1d_conversion,
@@ -369,14 +377,6 @@ def convert_sequential_model(
     return models.SequentialModel(converted_layers)
 
 
-def input_layer_conversion(config, layer_name):
-    input_shape = config['batch_input_shape']
-    deeplift_input_layer =\
-     layers.core.Input(batch_shape=input_shape,
-                       name=layer_name)
-    return deeplift_input_layer
-
-
 def get_previous_layer(keras_layer):
     if (hasattr(keras_layer,'previous')):
         return keras_layer.previous
@@ -388,104 +388,158 @@ def get_previous_layer(keras_layer):
 
 
 def convert_functional_model(
-        model,
-        nonlinear_mxts_mode=\
-         NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
-        verbose=True,
-        dense_mxts_mode=DenseMxtsMode.Linear,
-        conv_mxts_mode=ConvMxtsMode.Linear,
-        maxpool_deeplift_mode=default_maxpool_deeplift_mode,
-        auto_build_outputs=True):
+    layer_configs,
+    nonlinear_mxts_mode=\
+     NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
+    verbose=True,
+    dense_mxts_mode=DenseMxtsMode.Linear,
+    conv_mxts_mode=ConvMxtsMode.Linear,
+    maxpool_deeplift_mode=default_maxpool_deeplift_mode,
+    layer_overrides={}):
+
     if (verbose):
         print("nonlinear_mxts_mode is set to: "+str(nonlinear_mxts_mode))
-    keras_layer_name_to_keras_nodes = OrderedDict()
-    for keras_node_depth in sorted(model.nodes_by_depth.keys()):
-        keras_nodes_at_depth = model.nodes_by_depth[keras_node_depth]
-        for keras_node in keras_nodes_at_depth:
-            keras_layer_name = keras_node.outbound_layer.name 
-            if (keras_layer_name not in keras_layer_name_to_keras_nodes):
-                keras_layer_name_to_keras_nodes[keras_layer_name] = []
-            keras_layer_name_to_keras_nodes[keras_layer_name]\
-                                           .append(keras_node)
 
-    name_to_blob = OrderedDict()
-    #for each node, we only know the input tensor ids. Thus, to figure out
-    #which nodes link to which ids, we need to create a mapping from output
-    #tensor ids to node ids (this is a many-to-one mapping as a single node
-    #can have multiple output tensors)
-    keras_tensor_id_to_node_id = {}
-    keras_node_id_to_deeplift_blobs = {}
-    for keras_layer_name in keras_layer_name_to_keras_nodes:
-        keras_nodes = keras_layer_name_to_keras_nodes[keras_layer_name]
-        num_nodes_for_layer = len(keras_nodes)
-        for i,keras_node in enumerate(keras_nodes):
-            #record the mapping from output tensor ids to node
-            for keras_tensor in keras_node.output_tensors:
-                keras_tensor_id_to_node_id[id(keras_tensor)] = id(keras_node)
-            #figure out what to call the deeplift layer based on whether
-            #there are multiple shared instances of the associated layer
-            if (num_nodes_for_layer == 1):
-                deeplift_layer_name = keras_layer_name
-            else:
-                deeplift_layer_name = keras_layer_name+"_"+str(i)
+    node_id_to_deeplift_layers = {}
+    node_id_to_input_node_info = {}
+    name_to_deeplift_layer = {}
+
+    for layer_config in layer_configs:
+        conversion_function = layer_name_to_conversion_function(
+                               layer_config["class_name"])
+        config = layer_config["config"]
+
+        #We need to deal with the case of shared layers, i.e. the same
+        # parameters are repeated across multiple layers. In the keras
+        # functional models API, shared layers are represented
+        # as a single "layer" object with multiple "nodes". Each node
+        # has an associated entry in config["inbound_nodes"] that details
+        # the node's input (where the input consists of node(s) of 
+        # other layer(s)).
+        #Different nodes are only distinguished by
+        # the fact that they act on different inputs since all their
+        # parameters are the same. The exception are nodes corresponding to
+        # keras InputLayers because those nodes take no inputs.
+        #For each layer, we iterate over each of its nodes
+        # and instantiate a separate deeplift layer object for each node.
+        #Note that there is no need for deeplift to remember
+        # which nodes have shared parameters as weight sharing is only
+        # important during training. Once the model is trained, each node
+        # of a shared layer is treated as an entirely separate deeplift
+        # layer. In other words, a "layer" in deeplift terminology corresponds
+        # to a "node" of a layer in keras terminology. The deeplift layer
+        # name will be the keras layer name + _ + <idx of node>
+
+        #To iterate over each of the nodes of the layer, we can just iterate
+        # over each of the entries in config["inbound_nodes"] because each
+        # node of a layer is associated with different input node(s).
+        # All layer types have at least one entry in config["inbound_nodes"],
+        # except for keras layers of type InputLayer which have
+        # exactly one associated node that takes no input
+        # (thus, config["inbound_nodes"] is an empty list).
+        #To handle the case of InputLayer, we iterate up to
+        # max(len(config["inbound_nodes"]),1)
+        for node_idx in range(max(len(config["inbound_nodes"]),1)):
+            #generate the base deeplift layer name, also called the node id
+            node_id = config["name"]+"_"+str(node_idx) 
+            #Instantiate the deeplift layers associated with the node_id.
+            # Note that a single keras node can map to multiple deeplift
+            # layers - e.g. if the keras node is of type Conv with
+            # a ReLU activation, this will be turned into two deeplift
+            # layers - one for the Conv and one for the ReLU. This is
+            # why the return type of conversion_function is a list of layers.
+            # In the aforementioned example, the ReLU layer will retain
+            # the original deeplift layer name and the Conv layer will
+            # have 'preact_' prefixed to the deeplift layer name 
+            converted_deeplift_layers = conversion_function(
+                             config=config,
+                             name=node_id,
+                             verbose=verbose,
+                             nonlinear_mxts_mode=nonlinear_mxts_mode,
+                             dense_mxts_mode=dense_mxts_mode,
+                             conv_mxts_mode=conv_mxts_mode,
+                             maxpool_deeplift_mode=maxpool_deeplift_mode)
+            deeplift.util.connect_list_of_layers(converted_deeplift_layers)
+            node_id_to_deeplift_layers[node_id] = converted_deeplift_layers
+            for layer in converted_deeplift_layers:
+                name_to_deeplift_layer[layer.name] = layer
+
+            #We also need to keep track of the input node id(s) for this
+            # node as we will need that info when
+            # we are linking up the whole graph
+            #First, we deal with the case of InputLayer
+            if (len(config["inbound_nodes"])==0):
+                #if there are no input nodes (i.e. this node is an
+                #instance of InputLayer), set the input node info to None
+                node_id_to_input_node_info[node_id] = None
+            #Now we deal with nodes of a type other than InputLayer.
+            #Most nodes are of a type that takes only one input node,
+            # however there are some nodes (i.e. nodes of type Merge)
+            # that take multiple input nodes. 
+            else: 
+                inbound_node_info =\
+                    config["inbound_nodes"][node_idx]
+                #If we are dealing with a node that takes a single
+                # input node (i.e. most layers), then
+                # inbound_node_info is a 4-tuple of the format
+                # (keras_input_layer_name, node_index_in_keras_input_layer,
+                #  output_tensor_index, other_kwargs).
+                #In all the examples I have dealt with, output_tensor_index
+                # is 0 and other_kwargs is an empty dict. I think those
+                # are there for edge cases where a single node outputs
+                # multiple tensors and only one of them are used later. 
+                if (isinstance(inbound_node_info[0], str)):
+                    #We are dealing with a node that takes a single input node
+                    #Validate my assumptions about the format:
+                    assert (len(inbound_node_info)==4
+                            and isinstance(inbound_node_info[1],int)
+                            and inbound_node_info[2]==0
+                            and len(inbound_node_info[3])==0),\
+                       ("Unsupported format for inbound_node_info: "
+                        +str(inbound_node_info))
+                    inbound_node_id =\
+                        inbound_node_info[0]+"_"+str(inbound_node_info[1])
+                    node_id_to_input_node_info[node_id] = inbound_node_id
+                #The other case I have in mind are merge layers that
+                # take multiple input nodes. In this case,
+                # inbound_node_info should be a list of 4-tuples 
+                else:
+                    assert (isinstance(inbound_node_info[0], list)
+                            and isinstance(inbound_node_info[0][0], str),\
+                       ("Unsupported format for inbound_node_info: "
+                        +str(inbound_node_info))
+                    for single_inbound_node_info in inbound_node_infos:
+                        assert (len(single_inbound_node_info)==4
+                                and isinstance(single_inbound_node_info[1],int)
+                                and single_inbound_node_info[2]==0
+                                and len(single_inbound_node_info[3])==0),\
+                           ("Unsupported format for inbound_node_info: "
+                            +str(inbound_node_info))
+                    inbound_node_ids =\
+                        [x[0]+str(x[1]) for x in inbound_node_info]
+                    node_id_to_input_node_info[node_id] = inbound_node_ids
             
-            keras_layer = keras_node.outbound_layer
-            #convert the node
-            if (type(keras_layer).__name__=="InputLayer"):
-                #there should be only one edition of each input layer
-                #so the deeplift layer name and keras layer name should
-                #converge
-                assert deeplift_layer_name==keras_layer.name
-                converted_deeplift_blobs = [input_layer_conversion(
-                    keras_input_layer = keras_layer,
-                    layer_name = deeplift_layer_name)]
+    #Link up all the deeplift layers
+    for node_id in node_id_to_input_node_info:
+        input_node_info = node_id_to_input_node_info[node_id]
+        if (input_node_info is not None):
+            if (isinstance(input_node_info, list)):
+                node_id_to_deeplift_layers[node_id][0].set_inputs(
+                    [node_id_to_deeplift_layers[input_node_id][-1]
+                     for input_node_id in input_node_info])
             else:
-                conversion_function = layer_name_to_conversion_function(
-                                       type(keras_layer).__name__)
-                converted_deeplift_blobs = conversion_function(
-                                 layer=keras_layer,
-                                 name=deeplift_layer_name,
-                                 verbose=verbose,
-                                 nonlinear_mxts_mode=nonlinear_mxts_mode,
-                                 dense_mxts_mode=dense_mxts_mode,
-                                 conv_mxts_mode=conv_mxts_mode,
-                                 maxpool_deeplift_mode=maxpool_deeplift_mode)
-                deeplift.util.connect_list_of_layers(converted_deeplift_blobs)
-            #record the converted blobs in name_to_blob
-            for blob in converted_deeplift_blobs:
-                name_to_blob[blob.get_name()] = blob 
-            #record the converted blobs in the node id -> blobs dict
-            keras_node_id_to_deeplift_blobs[id(keras_node)] =\
-             converted_deeplift_blobs
+                node_id_to_deeplift_layers[node_id][0].set_inputs(
+                    node_id_to_deeplift_layers[input_node_id][-1])
 
-    #link up all the blobs 
-    for node_depth in sorted(model.nodes_by_depth.keys()):
-        for node in model.nodes_by_depth[node_depth]:
-            if (type(node.outbound_layer).__name__!="InputLayer"):
-                input_node_ids = []
-                #map the input tensors of each node to the node ids
-                for input_tensor in node.input_tensors:
-                    if id(input_tensor) not in input_node_ids:
-                        input_node_ids.append(
-                         keras_tensor_id_to_node_id[id(input_tensor)])
-                #map the node ids to deeplift blobs
-                #if a single node id translates into multiple deeplift blobs
-                #(eg, if the node came with an activation), take the last
-                #deeplift blob in the list.
-                input_deeplift_blobs = [
-                    keras_node_id_to_deeplift_blobs[x][-1] for x
-                    in input_node_ids]
-                #if there is only one input blob, unlist
-                if (len(input_deeplift_blobs)==1):
-                    input_deeplift_blobs = input_deeplift_blobs[0]
-                #link the inputs 
-                keras_node_id_to_deeplift_blobs[id(node)][0]\
-                                              .set_inputs(input_deeplift_blobs)
-             
-    if (auto_build_outputs):
-        for output_node in model.nodes_by_depth[0]:
-            layer_to_build = keras_node_id_to_deeplift_blobs[
-                              id(output_node)][-1]
-            layer_to_build.build_fwd_pass_vars()
-    return models.GraphModel(name_to_blob=name_to_blob,
-                             input_layer_names=model.input_names)
+    #Get the model's input node ids
+    #The entries in layer_config["input_layers"] are 3-tuples of the format
+    # (layer name, node_idx, output_tensor_idx). Once again, I am
+    # assuming output_tensor_idx is always 0.
+    assert all([x==0 for x in layer_config["input_layers"]]),\
+        ("Unsupported format for input_layers: "
+         +str(layer_config["input_layers"]))
+    input_node_ids = [x[0]+str(x[1]) for x in layer_config["input_layers"]]
+
+    return models.GraphModel(name_to_blob=name_to_deeplift_layer,
+                             input_layer_names=input_node_ids)
+
