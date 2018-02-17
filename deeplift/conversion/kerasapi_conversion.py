@@ -10,6 +10,8 @@ from deeplift.layers.core import NonlinearMxtsMode,\
  DenseMxtsMode, ConvMxtsMode, MaxPoolDeepLiftMode
 import deeplift.util  
 import numpy as np
+import json
+import yaml
 
 
 KerasKeys = deeplift.util.enum(
@@ -119,7 +121,7 @@ def conv2d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=config[KerasKeys.weights][0],
+            bias=config[KerasKeys.weights][1],
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
@@ -341,6 +343,45 @@ def layer_name_to_conversion_function(layer_name):
     # was a problem with previous Keras versions
     return name_dict[layer_name.lower()]
 
+def convert_model_from_saved_files(
+    h5_file, json_file=None, yaml_file=None, **kwargs):
+    assert json_file is None or yaml_file is None,\
+        "At most one of json_file and yaml_file can be specified"
+    if (json_file is not None):
+        model_class_and_config=json.loads(open(json_file))
+    elif (yaml_file is not None):
+        model_class_and_config=yaml.load(open(yaml_file))
+    else:
+        model_class_and_config =\
+            json.loads(h5py.File(h5_file).attrs["model_config"])
+    model_class_name = model_class_and_config["class"] 
+    model_config = model_class_and_config["config"]
+
+    model_weights = h5py.File(h5_file)
+    if ('model_weights' in model_weights.keys()):
+        model_weights=model_weights['model_weights']
+
+    if (model_class_name=="Sequential"):
+        layer_configs = model_config
+        conversion_function = convert_sequential_model
+    elif (model_class_name=="Model"):
+        layer_configs = model_config["layers"]
+        conversion_function = convert_functional_model
+    else:
+        raise NotImplementedError("Don't know how to convert "+class_name)
+
+    #add in the weights of the layer to the layer config
+    for layer_config in layer_configs:
+        layer_name = layer_config["config"]["name"]
+        assert layer_name in model_weights,\
+            ("Layer "+layer_name+" is in the layer names but not in the "
+             +" weights file which has layer names "+model_weights.keys())
+        layer_weights = [model_weights[layer_name][x] for x in
+                         model_weights[layer_name].attrs["weight_names"]]
+        layer_config["weights"] = layer_weights
+    
+   conversion_function(layer_configs=layer_configs, **kwargs) 
+ 
 
 def convert_sequential_model(
     layer_configs,
@@ -377,18 +418,8 @@ def convert_sequential_model(
     return models.SequentialModel(converted_layers)
 
 
-def get_previous_layer(keras_layer):
-    if (hasattr(keras_layer,'previous')):
-        return keras_layer.previous
-    elif (type(keras_layer).__name__ == 'Sequential'):
-        return keras_layer.layers[0].previous
-    else:
-        raise RuntimeError("Not sure how to get prev layer for"
-                           +" "+str(keras_layer))
-
-
 def convert_functional_model(
-    layer_configs,
+    model_config,
     nonlinear_mxts_mode=\
      NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
     verbose=True,
@@ -404,7 +435,7 @@ def convert_functional_model(
     node_id_to_input_node_info = {}
     name_to_deeplift_layer = {}
 
-    for layer_config in layer_configs:
+    for layer_config in model_config["layers"]:
         conversion_function = layer_name_to_conversion_function(
                                layer_config["class_name"])
         config = layer_config["config"]
@@ -535,10 +566,10 @@ def convert_functional_model(
     #The entries in layer_config["input_layers"] are 3-tuples of the format
     # (layer name, node_idx, output_tensor_idx). Once again, I am
     # assuming output_tensor_idx is always 0.
-    assert all([x==0 for x in layer_config["input_layers"]]),\
+    assert all([x==0 for x in model_config["input_layers"]]),\
         ("Unsupported format for input_layers: "
-         +str(layer_config["input_layers"]))
-    input_node_ids = [x[0]+str(x[1]) for x in layer_config["input_layers"]]
+         +str(model_config["input_layers"]))
+    input_node_ids = [x[0]+str(x[1]) for x in model_config["input_layers"]]
 
     return models.GraphModel(name_to_blob=name_to_deeplift_layer,
                              input_layer_names=input_node_ids)
