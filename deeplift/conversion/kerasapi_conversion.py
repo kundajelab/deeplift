@@ -535,9 +535,9 @@ def convert_functional_model(
                 # inbound_node_info should be a list of 4-tuples 
                 else:
                     assert (isinstance(inbound_node_info[0], list)
-                            and isinstance(inbound_node_info[0][0], str),\
+                            and isinstance(inbound_node_info[0][0], str)),\
                        ("Unsupported format for inbound_node_info: "
-                        +str(inbound_node_info)))
+                        +str(inbound_node_info))
                     for single_inbound_node_info in inbound_node_infos:
                         assert (len(single_inbound_node_info)==4
                                 and isinstance(single_inbound_node_info[1],int)
