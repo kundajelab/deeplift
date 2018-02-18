@@ -11,6 +11,7 @@ import deeplift.util
 from .helper_functions import (
  pseudocount_near_zero, add_val_to_col)
 from . import helper_functions as hf
+from .core import SingleInputMixin, Node
 import tensorflow as tf
 
 

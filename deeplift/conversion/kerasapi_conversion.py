@@ -29,10 +29,9 @@ KerasKeys = deeplift.util.enum(
     concat_axis='concat_axis',
     weights='weights',
     alpha='alpha',
-    batch_input_shape='batch_input_shape'
+    batch_input_shape='batch_input_shape',
     axis='axis',
     epsilon='epsilon',
-    batch_input_shape='batch_input_shape'
 )
 
 
@@ -363,10 +362,10 @@ def convert_model_from_saved_files(
 
     if (model_class_name=="Sequential"):
         layer_configs = model_config
-        conversion_function = convert_sequential_model
+        model_conversion_function = convert_sequential_model
     elif (model_class_name=="Model"):
         layer_configs = model_config["layers"]
-        conversion_function = convert_functional_model
+        model_conversion_function = convert_functional_model
     else:
         raise NotImplementedError("Don't know how to convert "+class_name)
 
@@ -380,7 +379,7 @@ def convert_model_from_saved_files(
                          model_weights[layer_name].attrs["weight_names"]]
         layer_config["weights"] = layer_weights
     
-   conversion_function(layer_configs=layer_configs, **kwargs) 
+    model_conversion_function(layer_configs=layer_configs, **kwargs) 
  
 
 def convert_sequential_model(
@@ -538,7 +537,7 @@ def convert_functional_model(
                     assert (isinstance(inbound_node_info[0], list)
                             and isinstance(inbound_node_info[0][0], str),\
                        ("Unsupported format for inbound_node_info: "
-                        +str(inbound_node_info))
+                        +str(inbound_node_info)))
                     for single_inbound_node_info in inbound_node_infos:
                         assert (len(single_inbound_node_info)==4
                                 and isinstance(single_inbound_node_info[1],int)
@@ -571,6 +570,6 @@ def convert_functional_model(
          +str(model_config["input_layers"]))
     input_node_ids = [x[0]+str(x[1]) for x in model_config["input_layers"]]
 
-    return models.GraphModel(name_to_blob=name_to_deeplift_layer,
+    return models.GraphModel(name_to_layer=name_to_deeplift_layer,
                              input_layer_names=input_node_ids)
 

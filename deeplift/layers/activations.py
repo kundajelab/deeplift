@@ -5,7 +5,7 @@ from .core import (SingleInputMixin, OneDimOutputMixin, Node,
     ScoringMode, NonlinearMxtsMode) 
 import tensorflow as tf
 from deeplift.util import NEAR_ZERO_THRESHOLD
-from deeplift.blobs import helper_functions as hf
+from deeplift.layers import helper_functions as hf
 
 
 class Activation(SingleInputMixin, OneDimOutputMixin, Node):

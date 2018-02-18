@@ -5,8 +5,6 @@ from .core import *
 from .helper_functions import conv1d_transpose_via_conv2d
 from . import helper_functions as hf
 
-MaxPoolDeepLiftMode = deeplift.util.enum(gradient = 'gradient')
-
 class Pool1D(SingleInputMixin, Node):
 
     def __init__(self, pool_length, strides, padding_mode, **kwargs):

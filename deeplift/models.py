@@ -9,9 +9,9 @@ from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
 import deeplift.util
-from deeplift import blobs
-from deeplift.blobs import *
-from deeplift.blobs import ScoringMode
+from deeplift import layers
+from deeplift.layers import *
+from deeplift.layers import ScoringMode
 from deeplift.util import compile_func
 
 
@@ -124,7 +124,7 @@ class Model(object):
 
     def _set_scoring_mode_for_target_layer(self, target_layer):
         if (deeplift.util.is_type(target_layer,
-                                  blobs.Activation)):
+                                  layers.Activation)):
             raise RuntimeError("You set the target layer to an"
                   +" activation layer, which is unusual so I am"
                   +" throwing an error - did you mean"
@@ -140,13 +140,13 @@ class Model(object):
                    str(target_layer.get_output_layers())
             final_activation_layer = target_layer.get_output_layers()[0]
             if (deeplift.util.is_type(final_activation_layer,
-                                      blobs.Activation)==False):
+                                      layers.Activation)==False):
                 raise RuntimeError("There is a layer after your target"
                       +" layer but it is not an activation layer"
                       +", which seems odd...if doing regression, make"
                       +" sure to set the target layer to the last layer")
             deeplift.util.assert_is_type(final_activation_layer,
-                                         blobs.Activation,
+                                         layers.Activation,
                                          "final_activation_layer")
             final_activation_type = type(final_activation_layer).__name__
 
@@ -233,27 +233,6 @@ class SequentialModel(Model):
                     input_layers=[self.get_layers()[0]],
                     **kwargs) 
 
-    def save_to_yaml_only(self, yaml_file_name):
-        yamld_layers = []
-        for layer in self.get_layers():
-            yamld_layers.append(layer.get_yaml_compatible_object())
-        yaml_file_handle = deeplift.util.get_file_handle(yaml_file_name)
-        yaml_file_handle.write(deeplift.util.format_json_dump(yamld_layers))
-        yaml_file_handle.close()
-
-    @classmethod
-    def load_model_from_yaml_contents_only(cls, yaml_contents):
-        assert isinstance(yaml_contents, list) 
-        layers = [] #sequential models have an array of blobs/layers
-        for blob_yaml_contents in yaml_contents:
-            blob_class = eval(blob_yaml_contents\
-                               [blobs.Blob.YamlKeys.blob_class])
-            blob_kwargs = blob_yaml_contents[blobs.Blob.YamlKeys.blob_kwargs]
-            blob = blob_class.load_blob_from_yaml_contents_only(**blob_kwargs)
-            layers.append(blob)
-        deeplift.util.connect_list_of_layers(layers)
-        return cls(layers)
-
     def get_prediction_function(self, input_layer_idx, output_layer_idx):
         return self._get_prediction_function(
             inputs=[self.get_layers()[input_layer_idx].get_activation_vars()],
@@ -261,13 +240,13 @@ class SequentialModel(Model):
         
 
 class GraphModel(Model):
-    def __init__(self, name_to_blob, input_layer_names):
+    def __init__(self, name_to_layer, input_layer_names):
         super(GraphModel, self).__init__()
-        self._name_to_blob = name_to_blob
+        self._name_to_layer = name_to_layer
         self._input_layer_names = input_layer_names
     
-    def get_name_to_blob(self):
-        return self._name_to_blob
+    def get_name_to_layer(self):
+        return self._name_to_layer
 
     def get_input_layer_names(self):
         return self._input_layer_names
@@ -277,21 +256,21 @@ class GraphModel(Model):
                         **kwargs):
         if (isinstance(find_scores_layer_name,list)):
             find_scores_layers = [
-             self.get_name_to_blob()[x] for x in find_scores_layer_name]
+             self.get_name_to_layer()[x] for x in find_scores_layer_name]
         else:
-            find_scores_layers = self.get_name_to_blob()[
+            find_scores_layers = self.get_name_to_layer()[
                                   find_scores_layer_name]
         return super(GraphModel, self)._get_func(
                 find_scores_layers=find_scores_layers,
-                target_layer=self.get_name_to_blob()\
+                target_layer=self.get_name_to_layer()\
                              [pre_activation_target_layer_name],
-                input_layers=[self.get_name_to_blob()[input_layer]
+                input_layers=[self.get_name_to_layer()[input_layer]
                               for input_layer in self.get_input_layer_names()],
                 **kwargs)
 
     def get_prediction_function(self, input_layer_names, output_layer_name):
         return self._get_prediction_function(
     inputs=[
-     self.get_name_to_blob()[input_layer_name].get_activation_vars()
+     self.get_name_to_layer()[input_layer_name].get_activation_vars()
      for input_layer_name in input_layer_names],
-    output=self.get_name_to_blob()[output_layer_name].get_activation_vars())
+    output=self.get_name_to_layer()[output_layer_name].get_activation_vars())

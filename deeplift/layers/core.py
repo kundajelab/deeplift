@@ -36,6 +36,7 @@ ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      tanh="tanh",
                                      relu="relu",
                                      linear="linear")
+MaxPoolDeepLiftMode = deeplift.util.enum(gradient = 'gradient')
 
 
 class Blob(object):
