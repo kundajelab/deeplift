@@ -39,9 +39,9 @@ ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
 MaxPoolDeepLiftMode = deeplift.util.enum(gradient = 'gradient')
 
 
-class Blob(object):
+class Layer(object):
     """
-        Blob can be an input to the network or a node (layer) in the network
+        Layer can be an input to the network or a node (layer) in the network
     """
     
     YamlKeys = deeplift.util.enum(blob_class="blob_class",
@@ -90,7 +90,7 @@ class Blob(object):
 
     def get_inputs(self):
         """
-            return an object representing the input Blobs
+            return an object representing the input Layers
         """
         return self.inputs
 
@@ -190,17 +190,6 @@ class Blob(object):
         self._mxts_updated = True 
         self._target_contrib_vars = self._build_target_contrib_vars()
 
-    def get_yaml_compatible_object(self):
-        """
-            return the data of the blob
-            in a format that can be saved to yaml
-        """
-        to_return = OrderedDict()
-        to_return[Blob.YamlKeys.blob_class] = type(self).__name__
-        to_return[Blob.YamlKeys.blob_kwargs] =\
-         self.get_yaml_compatible_object_kwargs()
-        return to_return
-
     def get_yaml_compatible_object_kwargs(self):
         return OrderedDict([('name', self.name)])
 
@@ -217,7 +206,7 @@ class Blob(object):
                     **self.get_yaml_compatible_object_kwargs())
 
 
-class Input(Blob):
+class Input(Layer):
     """
         Input layer
     """
@@ -227,7 +216,7 @@ class Input(Blob):
         self._num_dims = len(batch_shape)
         self._shape = batch_shape
         self._activation_vars = tf.placeholder(
-                                 dtype=tf.float32, shape=shape,
+                                 dtype=tf.float32, shape=batch_shape,
                                  name="inp_"+str(self.get_name()))
 
     def get_activation_vars(self):
@@ -260,7 +249,7 @@ class Input(Blob):
         pass
 
 
-class Node(Blob):
+class Node(Layer):
 
     def __init__(self, **kwargs):
         super(Node, self).__init__(**kwargs)
@@ -270,7 +259,7 @@ class Node(Blob):
 
     def set_inputs(self, inputs):
         """
-            set an object representing the input Blobs
+            set an object representing the input Layers
             return 'self' for syntactic convenience
         """
         self.inputs = inputs
@@ -392,7 +381,7 @@ class Node(Blob):
 
 class SingleInputMixin(object):
     """
-        Mixin for blobs that just have one Blob as their input;
+        Mixin for blobs that just have one Layer as their input;
          defines _check_inputs and _call_function_on_blobs_within_inputs
     """
 
@@ -401,7 +390,7 @@ class SingleInputMixin(object):
            check that self.inputs is a single instance of Node 
         """
         deeplift.util.assert_is_type(instance=self.inputs,
-                                   the_class=Blob,
+                                   the_class=Layer,
                                    instance_var_name="self.inputs")
 
     def _build_fwd_pass_vars_for_all_inputs(self):
@@ -437,7 +426,7 @@ class ListInputMixin(object):
         assert isinstance(self.inputs, list)
         assert len(self.inputs) > 0
         deeplift.util.assert_is_type(instance=self.inputs[0],
-                                    the_class=Blob,
+                                    the_class=Layer,
                                     instance_var_name="self.inputs[0]")
     
     def _build_fwd_pass_vars_for_all_inputs(self):

@@ -12,13 +12,15 @@ import deeplift.util
 import numpy as np
 import json
 import yaml
+import h5py
 
 
 KerasKeys = deeplift.util.enum(
     name='name',
+    data_format="data_format",
     activation='activation',
-    subsample='subsample',
-    subsample_length='subsample_length',
+    filters='filters',
+    kernel_size='kernel_size',
     padding='padding',
     output_dim='output_dim',
     pool_length='pool_length',
@@ -123,6 +125,7 @@ def conv2d_conversion(config,
             bias=config[KerasKeys.weights][1],
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
+            data_format=config[KerasKeys.data_format],
             conv_mxts_mode=conv_mxts_mode)] 
     to_return.extend(converted_activation)
 
@@ -267,38 +270,6 @@ def dropout_conversion(name, **kwargs):
     return [blobs.NoOp(name=name)]
 
 
-def sequential_container_conversion(config,
-                                    name, verbose,
-                                    nonlinear_mxts_mode,
-                                    dense_mxts_mode,
-                                    conv_mxts_mode,
-                                    maxpool_deeplift_mode,
-                                    converted_layers=None,
-                                    layer_overrides={}):
-    if (converted_layers is None):
-        converted_layers = []
-    name_prefix=name
-    for layer_idx, layer_config in enumerate(layer_configs):
-        modes_to_pass = {'dense_mxts_mode': dense_mxts_mode,
-                         'conv_mxts_mode': conv_mxts_mode,
-                         'nonlinear_mxts_mode': nonlinear_mxts_mode,
-                         'maxpool_deeplift_mode': maxpool_deeplift_mode}
-        if layer_idx in layer_overrides:
-            for mode in ['dense_mxts_mode', 'conv_mxts_mode',
-                         'nonlinear_mxts_mode']:
-                if mode in layer_overrides[layer_idx]:
-                    modes_to_pass[mode] = layer_overrides[layer_idx][mode] 
-        conversion_function = layer_name_to_conversion_function(
-                               layer_config["class_name"])
-        converted_layers.extend(conversion_function(
-                             config=layer_config,
-                             name=(name_prefix+"-" if name_prefix != ""
-                                   else "")+str(layer_idx),
-                             verbose=verbose,
-                             **modes_to_pass)) 
-    return converted_layers
-
-
 def input_layer_conversion(config, name, **kwargs):
     deeplift_input_layer =\
      layers.core.Input(batch_shape=config[KerasKeys.batch_input_shape],
@@ -353,7 +324,7 @@ def convert_model_from_saved_files(
     else:
         model_class_and_config =\
             json.loads(h5py.File(h5_file).attrs["model_config"])
-    model_class_name = model_class_and_config["class"] 
+    model_class_name = model_class_and_config["class_name"] 
     model_config = model_class_and_config["config"]
 
     model_weights = h5py.File(h5_file)
@@ -367,7 +338,8 @@ def convert_model_from_saved_files(
         layer_configs = model_config["layers"]
         model_conversion_function = convert_functional_model
     else:
-        raise NotImplementedError("Don't know how to convert "+class_name)
+        raise NotImplementedError("Don't know how to convert "
+                                  +model_class_name)
 
     #add in the weights of the layer to the layer config
     for layer_config in layer_configs:
@@ -377,13 +349,13 @@ def convert_model_from_saved_files(
              +" weights file which has layer names "+model_weights.keys())
         layer_weights = [model_weights[layer_name][x] for x in
                          model_weights[layer_name].attrs["weight_names"]]
-        layer_config["weights"] = layer_weights
+        layer_config["config"]["weights"] = layer_weights
     
-    model_conversion_function(layer_configs=layer_configs, **kwargs) 
+    model_conversion_function(model_config=model_config, **kwargs) 
  
 
 def convert_sequential_model(
-    layer_configs,
+    model_config,
     nonlinear_mxts_mode=\
      NonlinearMxtsMode.DeepLIFT_GenomicsDefault,
     verbose=True,
@@ -398,14 +370,14 @@ def convert_sequential_model(
         sys.stdout.flush()
 
     converted_layers = []
-    batch_input_shape = layer_configs[0][KerasKeys.batch_input_shape]
+    batch_input_shape = model_configs[0][KerasKeys.batch_input_shape]
     converted_layers.append(
         layers.core.Input(batch_shape=batch_input_shape, name="input"))
     #converted_layers is actually mutated to be extended with the
     #additional layers so the assignment is not strictly necessary,
     #but whatever
     converted_layers = sequential_container_conversion(
-                config=layer_configs, name="", verbose=verbose,
+                config=model_config, name="", verbose=verbose,
                 nonlinear_mxts_mode=nonlinear_mxts_mode,
                 dense_mxts_mode=dense_mxts_mode,
                 conv_mxts_mode=conv_mxts_mode,
@@ -415,6 +387,40 @@ def convert_sequential_model(
     deeplift.util.connect_list_of_layers(converted_layers)
     converted_layers[-1].build_fwd_pass_vars()
     return models.SequentialModel(converted_layers)
+
+
+def sequential_container_conversion(config,
+                                    name, verbose,
+                                    nonlinear_mxts_mode,
+                                    dense_mxts_mode,
+                                    conv_mxts_mode,
+                                    maxpool_deeplift_mode,
+                                    converted_layers=None,
+                                    layer_overrides={}):
+    if (converted_layers is None):
+        converted_layers = []
+    name_prefix=name
+    for layer_idx, layer_config in enumerate(layer_configs):
+        modes_to_pass = {'dense_mxts_mode': dense_mxts_mode,
+                         'conv_mxts_mode': conv_mxts_mode,
+                         'nonlinear_mxts_mode': nonlinear_mxts_mode,
+                         'maxpool_deeplift_mode': maxpool_deeplift_mode}
+        if layer_idx in layer_overrides:
+            for mode in ['dense_mxts_mode', 'conv_mxts_mode',
+                         'nonlinear_mxts_mode']:
+                if mode in layer_overrides[layer_idx]:
+                    modes_to_pass[mode] = layer_overrides[layer_idx][mode] 
+        conversion_function = layer_name_to_conversion_function(
+                               layer_config["class_name"])
+        converted_layers.extend(conversion_function(
+                             config=layer_config["config"],
+                             name=(name_prefix+"-" if name_prefix != ""
+                                   else "")+str(layer_idx),
+                             verbose=verbose,
+                             **modes_to_pass)) 
+    return converted_layers
+
+
 
 
 def convert_functional_model(
@@ -437,7 +443,6 @@ def convert_functional_model(
     for layer_config in model_config["layers"]:
         conversion_function = layer_name_to_conversion_function(
                                layer_config["class_name"])
-        config = layer_config["config"]
 
         #We need to deal with the case of shared layers, i.e. the same
         # parameters are repeated across multiple layers. In the keras
@@ -461,17 +466,18 @@ def convert_functional_model(
         # name will be the keras layer name + _ + <idx of node>
 
         #To iterate over each of the nodes of the layer, we can just iterate
-        # over each of the entries in config["inbound_nodes"] because each
+        # over each of the entries in layer_config["inbound_nodes"] as each
         # node of a layer is associated with different input node(s).
-        # All layer types have at least one entry in config["inbound_nodes"],
-        # except for keras layers of type InputLayer which have
-        # exactly one associated node that takes no input
-        # (thus, config["inbound_nodes"] is an empty list).
+        # All layer types have at least one entry in
+        # layer_config["inbound_nodes"], except for keras layers of
+        # type InputLayer which have exactly one associated node that
+        # takes no input (thus, layer_config["inbound_nodes"]
+        # is an empty list).
         #To handle the case of InputLayer, we iterate up to
-        # max(len(config["inbound_nodes"]),1)
-        for node_idx in range(max(len(config["inbound_nodes"]),1)):
+        # max(len(layer_config["inbound_nodes"]),1)
+        for node_idx in range(max(len(layer_config["inbound_nodes"]),1)):
             #generate the base deeplift layer name, also called the node id
-            node_id = config["name"]+"_"+str(node_idx) 
+            node_id = layer_config["name"]+"_"+str(node_idx) 
             #Instantiate the deeplift layers associated with the node_id.
             # Note that a single keras node can map to multiple deeplift
             # layers - e.g. if the keras node is of type Conv with
@@ -482,7 +488,7 @@ def convert_functional_model(
             # the original deeplift layer name and the Conv layer will
             # have 'preact_' prefixed to the deeplift layer name 
             converted_deeplift_layers = conversion_function(
-                             config=config,
+                             config=layer_config["config"],
                              name=node_id,
                              verbose=verbose,
                              nonlinear_mxts_mode=nonlinear_mxts_mode,
@@ -498,7 +504,7 @@ def convert_functional_model(
             # node as we will need that info when
             # we are linking up the whole graph
             #First, we deal with the case of InputLayer
-            if (len(config["inbound_nodes"])==0):
+            if (len(layer_config["inbound_nodes"])==0):
                 #if there are no input nodes (i.e. this node is an
                 #instance of InputLayer), set the input node info to None
                 node_id_to_input_node_info[node_id] = None
@@ -508,7 +514,7 @@ def convert_functional_model(
             # that take multiple input nodes. 
             else: 
                 inbound_node_info =\
-                    config["inbound_nodes"][node_idx]
+                    layer_config["inbound_nodes"][node_idx]
                 #If we are dealing with a node that takes a single
                 # input node (i.e. most layers), then
                 # inbound_node_info is a 4-tuple of the format
@@ -562,7 +568,7 @@ def convert_functional_model(
                     node_id_to_deeplift_layers[input_node_id][-1])
 
     #Get the model's input node ids
-    #The entries in layer_config["input_layers"] are 3-tuples of the format
+    #The entries in model_config["input_layers"] are 3-tuples of the format
     # (layer name, node_idx, output_tensor_idx). Once again, I am
     # assuming output_tensor_idx is always 0.
     assert all([x==0 for x in model_config["input_layers"]]),\
