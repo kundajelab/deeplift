@@ -29,7 +29,7 @@ pip install --editable deeplift/ #install deeplift from the cloned repository. T
 
 While DeepLIFT does not require your models to be trained with any particular library, we have provided autoconversion functions to convert models trained using Keras into the DeepLIFT format. If you used a different library to train your models, you can still use DeepLIFT if you recreate the model using DeepLIFT layers.
 
-The theano implementation of DeepLIFT depends on theano >= 0.8 and autoconversion with sequential models was tested using keras 0.2, 0.3 and 1.2. Graph model conversion was tested with keras 0.3. Functional model conversion was tested with keras 1.2
+The theano implementation of DeepLIFT was tested with theano 0.8 and 0.9, and autoconversion with sequential models was tested using keras 0.2, 0.3 and 1.2. Graph model conversion was tested with keras 0.3. Functional model conversion was tested with keras 1.2
 
 An alpha version of the tensorflow implementation (developed using tensorflow 1.0.1 and Keras 1.1.2) is available. Version 0.5 of deeplift in tensorflow (with support for the revealcancel rule) is on branch dev-tf; you can use it by doing `git checkout dev-tf` when in the deeplift repository. Version 0.4 in tensorflow, which supports the rescale rule but not the revealcancel rule, is on branch `tensorflow`. Run through the example notebooks to check that it works on your machine. 
 
