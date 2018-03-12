@@ -483,6 +483,7 @@ def convert_functional_model(
         dense_mxts_mode=DenseMxtsMode.Linear,
         conv_mxts_mode=ConvMxtsMode.Linear,
         maxpool_deeplift_mode=default_maxpool_deeplift_mode,
+        custom_conversion_funcs={},
         auto_build_outputs=True):
     if (verbose):
         print("nonlinear_mxts_mode is set to: "+str(nonlinear_mxts_mode))
@@ -528,8 +529,11 @@ def convert_functional_model(
                     keras_input_layer = keras_layer,
                     layer_name = deeplift_layer_name)]
             else:
-                conversion_function = layer_name_to_conversion_function(
-                                       type(keras_layer).__name__)
+                if type(keras_layer).__name__ in custom_conversion_funcs:
+                    conversion_function = custom_conversion_funcs[type(keras_layer).__name__]
+                else:
+                    conversion_function = layer_name_to_conversion_function(
+                        type(keras_layer).__name__)
                 converted_deeplift_blobs = conversion_function(
                                  layer=keras_layer,
                                  name=deeplift_layer_name,
