@@ -373,7 +373,10 @@ def convert_sequential_model(model,
 
 
 def input_layer_conversion(keras_input_layer, layer_name):
-    input_shape = keras_input_layer.get_config()['batch_input_shape']
+    if ('batch_input_shape' in keras_input_layer.get_config()):
+        input_shape = keras_input_layer.get_config()['batch_input_shape']
+    else:
+        input_shape = keras_input_layer.get_config()['input_shape']
     if (input_shape[0] is not None):
         input_shape = [None]+[x for x in input_shape]
     assert input_shape[0] is None #for the batch axis
