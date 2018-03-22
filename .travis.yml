@@ -28,7 +28,7 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pytest h5py nose
   - source activate test-environment
-  - pip install theano
+  - pip install theano==0.9
   - pip install keras==1.2
 
 script:
