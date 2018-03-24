@@ -760,7 +760,8 @@ class Merge(ListInputMixin, Node):
         for dim_idx in range(len(input_shapes[0])):
             lengths_for_that_dim = [input_shape[dim_idx]
                                     for input_shape in input_shapes]
-            if (dim_idx != self.axis):
+            if (dim_idx != self.axis and
+                dim_idx != (len(self.inputs[0].get_shape())+self.axis)):
                 assert len(set(lengths_for_that_dim))==1,\
                        "lengths for dim "+str(dim_idx)\
                        +" should be the same, got: "+str(lengths_for_that_dim)
@@ -797,7 +798,9 @@ class Concat(OneDimOutputMixin, Merge):
         pos_mxts_increments_for_inputs = []
         neg_mxts_increments_for_inputs = []
         input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        slices = [slice(None,None,None) if i != self.axis
+        slices = [slice(None,None,None) if (
+                        i != self.axis and
+                        i != len(self.inputs[0].get_shape())+self.axis)
                     else None for i in range(len(input_shapes[0]))]
         idx_along_concat_axis = 0
         for idx, input_shape in enumerate(input_shapes):
