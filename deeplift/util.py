@@ -501,7 +501,7 @@ def get_shuffle_seq_ref_function(score_computation_function,
                                  shuffle_func, one_hot_func):
     def compute_scores_with_shuffle_seq_refs(
         task_idx, input_data_sequences, num_refs_per_seq,
-        batch_size, seed=1, progress_update=None):
+        batch_size, other_modes_data=[], seed=1, progress_update=None):
 
         import numpy as np
         np.random.seed(seed)
@@ -509,9 +509,10 @@ def get_shuffle_seq_ref_function(score_computation_function,
         random.seed(seed)
 
         to_run_input_data_seqs = []
-        to_run_input_data_refs = []
+        to_run_input_other_modes_data = [list() for x in other_modes_data]
+        to_run_input_data_seq_refs = []
         references_generated = 0
-        for seq in input_data_sequences:
+        for seq_idx, seq in enumerate(input_data_sequences):
             for i in range(num_refs_per_seq):
                 references_generated += 1
                 if (progress_update is not None and
@@ -519,11 +520,18 @@ def get_shuffle_seq_ref_function(score_computation_function,
                     print(str(references_generated)
                           +" reference seqs generated")
                 to_run_input_data_seqs.append(seq) 
-                to_run_input_data_refs.append(shuffle_func(seq)) 
+                for mode_idx,other_mode_data in enumerate(other_modes_data):
+                    to_run_input_other_modes_data[mode_idx].append(
+                        other_mode_data[seq_idx])
+                to_run_input_data_seq_refs.append(shuffle_func(seq)) 
         if (progress_update is not None):
             print("One hot encoding sequences...")
-        input_data_list = [one_hot_func(to_run_input_data_seqs)] 
-        input_references_list = [one_hot_func(to_run_input_data_refs)]
+        #The reference for the modes other than sequence will be the
+        #original input
+        input_data_list = ([one_hot_func(to_run_input_data_seqs)]
+                           +to_run_input_other_modes_data)
+        input_references_list = ([one_hot_func(to_run_input_data_seq_refs)]
+                                 +to_run_input_other_modes_data)
         if (progress_update is not None):
             print("One hot encoding done...")
 
