@@ -270,9 +270,10 @@ def connect_list_of_layers(deeplift_layers):
         #layer as input
         last_layer_processed = deeplift_layers[0] 
         for layer in deeplift_layers[1:]:
-            apply_softmax_normalization_if_needed(layer, last_layer_processed)
+            #apply_softmax_normalization_if_needed(layer, last_layer_processed)
             layer.set_inputs(last_layer_processed)
             last_layer_processed = layer
+    return deeplift_layers
 
 
 def format_json_dump(json_data, indent=2):

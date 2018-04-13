@@ -6,7 +6,7 @@ from unittest import skip
 import sys
 import os
 import numpy as np
-from deeplift.conversion import keras_conversion as kc
+from deeplift.conversion import kerasapi_conversion as kc
 import deeplift.blobs as blobs
 from deeplift.blobs import NonlinearMxtsMode
 from deeplift.util import compile_func
