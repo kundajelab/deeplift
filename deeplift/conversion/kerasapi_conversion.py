@@ -308,10 +308,12 @@ def layer_name_to_conversion_function(layer_name):
         'prelu': prelu_conversion,
 
         'sequential': sequential_container_conversion,
+        'model': functional_container_conversion
     }
     # lowercase to create resistance to capitalization changes
     # was a problem with previous Keras versions
     return name_dict[layer_name.lower()]
+
 
 def convert_model_from_saved_files(
     h5_file, json_file=None, yaml_file=None, **kwargs):
@@ -343,15 +345,57 @@ def convert_model_from_saved_files(
 
     #add in the weights of the layer to the layer config
     for layer_config in layer_configs:
+         
         layer_name = layer_config["config"]["name"]
         assert layer_name in model_weights,\
             ("Layer "+layer_name+" is in the layer names but not in the "
              +" weights file which has layer names "+model_weights.keys())
-        layer_weights = [model_weights[layer_name][x] for x in
-                         model_weights[layer_name].attrs["weight_names"]]
-        layer_config["config"]["weights"] = layer_weights
+
+        if (layer_config["class_name"] in ["Model", "Sequential"]):
+            nested_model_weights =\
+                OrderedDict(zip(
+                 model_weights[layer_name].attrs["weight_names"],
+                 [model_weights[layer_name][x] for x in
+                  model_weights[layer_name].attrs["weight_names"]]))
+
+        if (layer_config["class_name"]=="Model"):
+            insert_weights_into_nested_model_config(
+                nested_model_weights=nested_model_weights,
+                nested_model_layer_config=layer_config["config"]["layers"])
+        elif (layer_config["class_name"]=="Sequential"):
+            insert_weights_into_nested_model_config(
+                nested_model_weights=nested_model_weights,
+                nested_model_layer_config=layer_config["config"])
+        else:  
+            layer_weights = [model_weights[layer_name][x] for x in
+                             model_weights[layer_name].attrs["weight_names"]]
+            layer_config["config"]["weights"] = layer_weights
+        
+
+    print(model_config)
     
     model_conversion_function(model_config=model_config, **kwargs) 
+
+
+def insert_weights_into_nested_model_config(nested_model_weights,
+                                            nested_model_layer_config):
+
+        for layer_config in nested_model_layer_config:
+            if (layer_config["class_name"]=="Model"):
+                insert_weights_into_nested_model_config(
+                    nested_model_weights=nested_model_weights,
+                    nested_model_layer_config=layer_config["config"]["layers"])
+            elif (layer_config["class_name"]=="Sequential"):
+                insert_weights_into_nested_model_config(
+                    nested_model_weights=nested_model_weights,
+                    nested_model_layer_config=layer_config["config"])
+            else: 
+                layer_name = layer_config["config"]["name"] 
+                layer_weights = [nested_model_weights[x] for x in
+                                 nested_model_weights.keys() if
+                                 x.startswith(layer_name+"/")]
+                if (len(layer_weights) > 0):
+                    layer_config["config"]["weights"] = layer_weights
  
 
 def convert_sequential_model(
@@ -464,7 +508,7 @@ def functional_container_conversion(config,
 
         #they should all be 2-tuples of the input node id
         # and the output node index.
-        assert all([len(x)==2 for x in outer_inbound_node_ids])
+        assert all([len(x)==2 for x in outer_inbound_node_infos])
         
         #Get the model config's input node ids
         #The entries in model_config["input_layers"] are 3-tuples of the format
@@ -476,9 +520,11 @@ def functional_container_conversion(config,
         input_node_ids = [(name_prefix+"_" if name_prefix!="" else "")+
                           x[0]+str(x[1]) for x in config["input_layers"]]
 
-        assert len(input_node_ids)==len(outer_inbound_node_ids)
+        assert len(input_node_ids)==len(outer_inbound_node_infos)
         input_node_id_to_outer_inbound_node =\
-            OrderedDict(zip(input_node_ids, outer_inbound_node_ids)) 
+            OrderedDict(zip(input_node_ids, outer_inbound_node_infos)) 
+    else:
+        input_node_id_to_outer_inbound_node = {}
 
 
     #keep track of the output layers
@@ -577,10 +623,11 @@ def functional_container_conversion(config,
                 # inbound_node_info should be a list of 4-tuples 
                 else:
                     assert (isinstance(inbound_node_info[0], list)
-                            and isinstance(inbound_node_info[0][0], str)),\
+                        and (isinstance(inbound_node_info[0][0], str)
+                            or isinstance(inbound_node_info[0][0], unicode))),\
                        ("Unsupported format for inbound_node_info: "
                         +str(inbound_node_info))
-                    for single_inbound_node_info in inbound_node_infos:
+                    for single_inbound_node_info in inbound_node_info:
                         assert (len(single_inbound_node_info)==4
                                 and isinstance(single_inbound_node_info[1],int)
                                 and len(single_inbound_node_info[3])==0),\
@@ -620,7 +667,7 @@ def functional_container_conversion(config,
                          verbose=verbose,
                          layer_overrides=layer_overrides,
 
-                         outer_inbound_node_ids =\
+                         outer_inbound_node_infos =\
                             processed_inbound_node_info,
                          node_id_to_deeplift_layers=node_id_to_deeplift_layers,
                          node_id_to_input_node_info=node_id_to_input_node_info,
@@ -628,9 +675,8 @@ def functional_container_conversion(config,
                        
                          **modes_to_pass)
 
-            if (isinstance(
-                type(converted_deeplift_layers).__name__
-                == "ConvertedModelContainer")):
+            if (type(converted_deeplift_layers).__name__
+                == "ConvertedModelContainer"):
                 #the inputs for the model will be linked up internally
                 #as part of the call to the model container conversion
                 pass
@@ -643,8 +689,8 @@ def functional_container_conversion(config,
                 for layer in converted_deeplift_layers:
                     name_to_deeplift_layer[layer.name] = layer
             else:
-                for layer_name,layer
-                    in converted_deeplift_layers.name_to_deeplift_layer:
+                for (layer_name,layer) in\
+                    converted_deeplift_layers.name_to_deeplift_layer.items():
                     assert layer_name==layer.name
                     name_to_deeplift_layer[layer.name] = layer
 
