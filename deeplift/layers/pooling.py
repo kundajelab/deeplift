@@ -5,6 +5,7 @@ from .core import *
 from .helper_functions import conv1d_transpose_via_conv2d
 from . import helper_functions as hf
 
+
 class Pool1D(SingleInputMixin, Node):
 
     def __init__(self, pool_length, strides, padding_mode, **kwargs):
@@ -69,6 +70,53 @@ class MaxPool1D(Pool1D):
                 ksize=(1,1,self.pool_length,1),
                 strides=(1,1,self.strides,1),
                 padding=self.padding_mode),1)
+
+    def _get_mxts_increments_for_inputs(self):
+        if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
+            pos_mxts_increments = self._grad_op(self.get_pos_mxts())
+            neg_mxts_increments = self._grad_op(self.get_neg_mxts())
+        else:
+            raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
+                               str(self.maxpool_deeplift_mode))
+        return pos_mxts_increments, neg_mxts_increments
+
+
+class GlobalMaxPool1D(SingleInputMixin, Node):
+
+    def __init__(self, maxpool_deeplift_mode, **kwargs):
+        super(GlobalMaxPool1D, self).__init__(**kwargs) 
+        self.maxpool_deeplift_mode = maxpool_deeplift_mode
+
+    def _compute_shape(self, input_shape):
+        shape_to_return = [None] 
+        if (self.padding_mode != PaddingMode.valid):
+            raise RuntimeError("Please implement shape inference for"
+                               " padding mode: "+str(self.padding_mode))
+        #assuming that overhangs are excluded
+        shape_to_return.append(1+
+            int((input_shape[1]-self.pool_length)/self.strides)) 
+        shape_to_return.append(input_shape[-1]) #channels unchanged
+        return shape_to_return
+
+    def _build_activation_vars(self, input_act_vars):
+        return tf.max(input_act_vars, axis=1) 
+
+    def _build_pos_and_neg_contribs(self):
+        if (self.verbose):
+            print("Heads-up: current implementation assumes maxpool layer "
+                  "is followed by a linear transformation (conv/dense layer)")
+        #placeholder; not used for linear layer, hence assumption above
+        return tf.zeros_like(tensor=self.get_activation_vars(),
+                      name="dummy_pos_cont_"+str(self.get_name())),\
+               tf.zeros_like(tensor=self.get_activation_vars(),
+                      name="dummy_neg_cont_"+str(self.get_name()))
+
+    def _grad_op(self, out_grad):
+        mask = tf.equal(tf.max(input_act_vars, axis=1, keepdims=True),
+                        input_act_vars)
+        #mask should sum to 1 across axis=1
+        mask = mask/tf.reduce_sum(input_act_vars, axis=1, keepdims=True)
+        return tf.multiply(out_grad, tf.expand_dims(mask, axis=1))
 
     def _get_mxts_increments_for_inputs(self):
         if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):

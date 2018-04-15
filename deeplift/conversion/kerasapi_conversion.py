@@ -150,16 +150,16 @@ def conv1d_conversion(config,
                             layer_name=name,
                             verbose=verbose,
                             nonlinear_mxts_mode=nonlinear_mxts_mode)
-    to_return = [blobs.Conv1D(
+    to_return = [layers.Conv1D(
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
             bias=config[KerasKeys.weights][1],
-            strides=config[KerasKeys.strides],
+            stride=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
     to_return.extend(converted_activation)
-    return deeplift.connect_list_of_layers(to_return)
+    return deeplift.util.connect_list_of_layers(to_return)
 
 
 def dense_conversion(config,
@@ -195,7 +195,7 @@ def batchnorm_conversion(config, name, verbose, **kwargs):
                            KerasKeys.units])
     #note: the variable called "running_std" actually stores
     #the variance...
-    return [blobs.normalization.BatchNormalization(
+    return [layers.normalization.BatchNormalization(
         name=name,
         verbose=verbose,
         gamma=config[KerasKeys.weights][0],
@@ -225,7 +225,7 @@ def maxpool2d_conversion(config, name, verbose,
                         config=config,
                         name=name,
                         verbose=verbose)
-    return [blobs.MaxPool2D(
+    return [layers.MaxPool2D(
              maxpool_deeplift_mode=maxpool_deeplift_mode,
              **pool2d_kwargs)]
 
@@ -235,7 +235,7 @@ def avgpool2d_conversion(config, name, verbose, **kwargs):
                         config=config,
                         name=name,
                         verbose=verbose)
-    return [blobs.AvgPool2D(**pool2d_kwargs)]
+    return [layers.AvgPool2D(**pool2d_kwargs)]
 
 
 def prep_pool1d_kwargs(config, name, verbose):
@@ -247,13 +247,21 @@ def prep_pool1d_kwargs(config, name, verbose):
             }
 
 
+def globalmaxpooling1d_conversion(config, name, verbose,
+                                  maxpool_deeplift_mode, **kwargs):
+    return [layers.GlobalMaxPool1D(
+             name=name,
+             verbose=verbose,
+             maxpool_deeplift_mode=maxpool_deeplift_mode)]
+
+
 def maxpool1d_conversion(config, name, verbose,
                          maxpool_deeplift_mode, **kwargs):
     pool1d_kwargs = prep_pool1d_kwargs(
                         layer=layer,
                         name=name,
                         verbose=verbose)
-    return [blobs.MaxPool1D(
+    return [layers.MaxPool1D(
              maxpool_deeplift_mode=maxpool_deeplift_mode,
              **pool1d_kwargs)]
 
@@ -263,11 +271,11 @@ def avgpool1d_conversion(config, name, verbose, **kwargs):
                         config=config,
                         name=name,
                         verbose=verbose)
-    return [blobs.AvgPool1D(**pool1d_kwargs)]
+    return [layers.AvgPool1D(**pool1d_kwargs)]
 
 
 def noop_conversion(name, **kwargs):
-    return [blobs.NoOp(name=name)]
+    return [layers.NoOp(name=name)]
 
 
 def input_layer_conversion(config, name, **kwargs):
@@ -293,6 +301,7 @@ def layer_name_to_conversion_function(layer_name):
 
         'conv1d': conv1d_conversion,
         'maxpooling1d': maxpool1d_conversion,
+        'globalmaxpooling1d': globalmaxpooling1d_conversion,
         'averagepooling1d': avgpool1d_conversion,
 
         'conv2d': conv2d_conversion,
@@ -371,9 +380,6 @@ def convert_model_from_saved_files(
                              model_weights[layer_name].attrs["weight_names"]]
             layer_config["config"]["weights"] = layer_weights
         
-
-    print(model_config)
-    
     model_conversion_function(model_config=model_config, **kwargs) 
 
 
@@ -466,7 +472,7 @@ def sequential_container_conversion(config,
 
 class ConvertedModelContainer(object):
 
-    def __init__(node_id_to_deeplift_layers,
+    def __init__(self, node_id_to_deeplift_layers,
                  node_id_to_input_node_info,
                  name_to_deeplift_layer,
                  input_layers,
@@ -518,7 +524,7 @@ def functional_container_conversion(config,
             ("Unsupported format for input_layers: "
              +str(config["input_layers"]))
         input_node_ids = [(name_prefix+"_" if name_prefix!="" else "")+
-                          x[0]+str(x[1]) for x in config["input_layers"]]
+                          x[0]+"_"+str(x[1]) for x in config["input_layers"]]
 
         assert len(input_node_ids)==len(outer_inbound_node_infos)
         input_node_id_to_outer_inbound_node =\
@@ -572,9 +578,16 @@ def functional_container_conversion(config,
         #To handle the case of InputLayer, we iterate up to
         # max(len(layer_config["inbound_nodes"]),1)
         for node_idx in range(max(len(layer_config["inbound_nodes"]),1)):
+
+            if (layer_config["class_name"]=="Model"):
+                actual_node_idx += 1 #I am not sure why, but this is what I
+                #observe for nested models...
+            else:
+                actual_node_idx = node_idx
+
             #generate the base deeplift layer name, also called the node id
             node_id = ((name_prefix+"_" if name_prefix!="" else "")
-                       +layer_config["name"]+"_"+str(node_idx))
+                       +layer_config["name"]+"_"+str(actual_node_idx))
 
             #We also need to keep track of the input node id(s) for this
             # node as we will need that info when
@@ -635,7 +648,8 @@ def functional_container_conversion(config,
                             +str(inbound_node_info))
                     inbound_node_ids =\
                         [(((name_prefix+"_" if name_prefix!="" else "")
-                           +x[0]+str(x[1])), x[2]) for x in inbound_node_info]
+                           +x[0]+"_"+str(x[1])), x[2])
+                         for x in inbound_node_info]
                     processed_inbound_node_info = inbound_node_ids
             
             if (node_id in input_node_id_to_outer_inbound_node):
@@ -700,24 +714,24 @@ def functional_container_conversion(config,
         input_node_info = node_id_to_input_node_info[node_id]
         if (input_node_info is not None):
             if (isinstance(input_node_info, list)):
-
                 temp_inp = []
                 for input_node_id,output_idx in input_node_info:
                     deeplift_layers = node_id_to_deeplift_layers[input_node_id] 
                     if (isinstance(deeplift_layers, list)):
                         assert output_idx==0
                         temp_inp.append(deeplift_layers[-1])
-                    elif (isinstance(type(deeplift_layers).__name__
-                                     == "ConvertedModelContainer")):
+                    elif (type(deeplift_layers).__name__
+                                     == "ConvertedModelContainer"):
                         temp_inp.append(
                             deeplift_layers.output_layers[output_idx]) 
             else:
+                input_node_id,output_idx = input_node_info
                 deeplift_layers = node_id_to_deeplift_layers[input_node_id] 
                 if (isinstance(deeplift_layers, list)):
                     assert output_idx==0
                     temp_inp = deeplift_layers[-1]
-                elif (isinstance(type(deeplift_layers).__name__
-                                 == "ConvertedModelContainer")):
+                elif (type(deeplift_layers).__name__
+                                 == "ConvertedModelContainer"):
                     temp_inp = deeplift_layers.output_layers[output_idx]
             node_id_to_deeplift_layers[node_id][0].set_inputs(temp_inp)
 
@@ -730,7 +744,7 @@ def functional_container_conversion(config,
         ("Unsupported format for input_layers: "
          +str(config["input_layers"]))
     input_node_ids = [(name_prefix+"_" if name_prefix!="" else "")+
-                      x[0]+str(x[1]) for x in config["input_layers"]]
+                      x[0]+"_"+str(x[1]) for x in config["input_layers"]]
 
     return ConvertedModelContainer(
                  node_id_to_deeplift_layers=node_id_to_deeplift_layers,

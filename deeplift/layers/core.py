@@ -389,6 +389,9 @@ class SingleInputMixin(object):
         """
            check that self.inputs is a single instance of Node 
         """
+        if (isinstance(self.inputs, list)):
+            assert len(self.inputs)==1
+            self.inputs = self.inputs[0]
         deeplift.util.assert_is_type(instance=self.inputs,
                                    the_class=Layer,
                                    instance_var_name="self.inputs")
