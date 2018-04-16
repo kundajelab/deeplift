@@ -535,40 +535,33 @@ class NoOp(SingleInputMixin, Node):
 
 class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
-    def __init__(self, W, b, dense_mxts_mode, **kwargs):
+    def __init__(self, kernel, bias, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
-        self.W = np.array(W).astype("float32")
-        self.b = np.array(b).astype("float32")
+        self.kernel = np.array(kernel).astype("float32")
+        self.bias = np.array(bias).astype("float32")
         self.dense_mxts_mode = dense_mxts_mode
 
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Dense, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['W'] = self.W
-        kwargs_dict['b'] = self.b
-        return kwargs_dict
-
     def _compute_shape(self, input_shape):
-        return (None, self.W.shape[1])
+        return (None, self.kernel.shape[1])
 
     def _build_activation_vars(self, input_act_vars):
-        return tf.matmul(input_act_vars, self.W) + self.b
+        return tf.matmul(input_act_vars, self.kernel) + self.bias
 
     def _build_pos_and_neg_contribs(self):
         if (self.dense_mxts_mode == DenseMxtsMode.Linear): 
             inp_diff_ref = self._get_input_diff_from_reference_vars() 
             pos_contribs = (tf.matmul(
                              inp_diff_ref*hf.gt_mask(inp_diff_ref, 0.0),
-                             self.W*hf.gt_mask(self.W,0.0))
+                             self.kernel*hf.gt_mask(self.kernel,0.0))
                             +tf.matmul(
                               inp_diff_ref*hf.lt_mask(inp_diff_ref, 0.0),
-                              self.W*hf.lt_mask(self.W,0.0)))
+                              self.kernel*hf.lt_mask(self.kernel,0.0)))
             neg_contribs = (tf.matmul(
                              inp_diff_ref*hf.gt_mask(inp_diff_ref, 0.0),
-                             self.W*hf.lt_mask(self.W,0.0))
+                             self.kernel*hf.lt_mask(self.kernel,0.0))
                             +tf.matmul(
                               inp_diff_ref*hf.lt_mask(inp_diff_ref, 0.0),
-                              self.W*hf.gt_mask(self.W,0.0)))
+                              self.kernel*hf.gt_mask(self.kernel,0.0)))
         else:
             raise RuntimeError("Unsupported dense_mxts_mode: "+
                                self.dense_mxts_mode)
@@ -586,17 +579,17 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             zero_inp_mask = hf.eq_mask(inp_diff_ref,0.0)
             inp_mxts_increments = pos_inp_mask*(
                 tf.matmul(self.get_pos_mxts(),
-                          self.W.T*(hf.gt_mask(self.W.T, 0.0)))
+                          self.kernel.T*(hf.gt_mask(self.kernel.T, 0.0)))
                 + tf.matmul(self.get_neg_mxts(),
-                            self.W.T*(hf.lt_mask(self.W.T, 0.0)))) 
+                            self.kernel.T*(hf.lt_mask(self.kernel.T, 0.0)))) 
             inp_mxts_increments += neg_inp_mask*(
                 tf.matmul(self.get_pos_mxts(),
-                          self.W.T*(hf.lt_mask(self.W.T, 0.0)))
+                          self.kernel.T*(hf.lt_mask(self.kernel.T, 0.0)))
                 + tf.matmul(self.get_neg_mxts(),
-                            self.W.T*(hf.gt_mask(self.W.T, 0.0)))) 
+                            self.kernel.T*(hf.gt_mask(self.kernel.T, 0.0)))) 
             inp_mxts_increments += zero_inp_mask*(
                 tf.matmul(0.5*(self.get_pos_mxts()
-                               +self.get_neg_mxts()), self.W.T))
+                               +self.get_neg_mxts()), self.kernel.T))
             #pos_mxts and neg_mxts in the input get the same multiplier
             #because the breakdown between pos and neg wasn't used to
             #compute pos_contribs and neg_contribs in the forward pass
@@ -669,7 +662,9 @@ class Concat(OneDimOutputMixin, Merge):
         pos_mxts_increments_for_inputs = []
         neg_mxts_increments_for_inputs = []
         input_shapes = [an_input.get_shape() for an_input in self.inputs]
-        slices = [slice(None,None,None) if i != self.axis
+        slices = [slice(None,None,None) if (
+                        i != self.axis and
+                        i != len(self.inputs[0].get_shape())+self.axis)
                     else None for i in range(len(input_shapes[0]))]
         idx_along_concat_axis = 0
         for idx, input_shape in enumerate(input_shapes):
