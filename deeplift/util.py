@@ -119,7 +119,7 @@ def run_function_in_batches(func,
         if (progress_update is not None):
             if (i%progress_update == 0):
                 print("Done",i)
-        func_output = func(*([x[i:i+batch_size] for x in input_data_list]
+        func_output = func(([x[i:i+batch_size] for x in input_data_list]
                                 +([] if learning_phase is
                                    None else [learning_phase])
                         ))
