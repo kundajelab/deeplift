@@ -32,7 +32,9 @@ def get_session():
 
 def compile_func(inputs, outputs):
     assert isinstance(inputs, list)
-    def func_to_return(*inp):
+    def func_to_return(inp):
+        assert len(inp)==len(inputs),\
+            "length of provided list should be "+str(len(inputs))
         feed_dict = {}
         for input_tensor, input_val in zip(inputs, inp):
             feed_dict[input_tensor] = input_val 

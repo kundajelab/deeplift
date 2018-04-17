@@ -270,7 +270,12 @@ class GraphModel(Model):
 
     def get_prediction_function(self, input_layer_names, output_layer_name):
         return self._get_prediction_function(
-    inputs=[
-     self.get_name_to_layer()[input_layer_name].get_activation_vars()
-     for input_layer_name in input_layer_names],
-    output=self.get_name_to_layer()[output_layer_name].get_activation_vars())
+                        inputs=[
+                         self.get_name_to_layer()[input_layer_name]
+                             .get_activation_vars()
+                         for input_layer_name in input_layer_names],
+                        output=self.get_name_to_layer()[output_layer_name]
+                                   .get_activation_vars())
+
+
+

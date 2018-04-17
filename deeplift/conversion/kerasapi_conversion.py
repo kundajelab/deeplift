@@ -381,7 +381,7 @@ def convert_model_from_saved_files(
                 nested_model_weights=nested_model_weights,
                 nested_model_layer_config=layer_config["config"])
         else:  
-            layer_weights = [model_weights[layer_name][x] for x in
+            layer_weights = [np.array(model_weights[layer_name][x]) for x in
                              model_weights[layer_name].attrs["weight_names"]]
             layer_config["config"]["weights"] = layer_weights
         
@@ -402,7 +402,7 @@ def insert_weights_into_nested_model_config(nested_model_weights,
                     nested_model_layer_config=layer_config["config"])
             else: 
                 layer_name = layer_config["config"]["name"] 
-                layer_weights = [nested_model_weights[x] for x in
+                layer_weights = [np.array(nested_model_weights[x]) for x in
                                  nested_model_weights.keys() if
                                  x.startswith(layer_name+"/")]
                 if (len(layer_weights) > 0):
@@ -789,6 +789,9 @@ def convert_functional_model(
                                 conv_mxts_mode=conv_mxts_mode,
                                 maxpool_deeplift_mode=maxpool_deeplift_mode,
                                 layer_overrides=layer_overrides)
+
+    for output_layer in converted_model_container.output_layers:
+        output_layer.build_fwd_pass_vars()
 
     return models.GraphModel(
             name_to_layer=converted_model_container.name_to_deeplift_layer,

@@ -33,6 +33,9 @@ class Conv1D(Conv):
         #length x inp_channels x num output channels
         self.kernel = kernel
         self.bias = bias
+        if (hasattr(stride, '__iter__')):
+            assert len(stride)==1
+            stride=stride[0]
         self.stride = stride
         self.padding = padding
 

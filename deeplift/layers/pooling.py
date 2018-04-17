@@ -88,18 +88,12 @@ class GlobalMaxPool1D(SingleInputMixin, Node):
         self.maxpool_deeplift_mode = maxpool_deeplift_mode
 
     def _compute_shape(self, input_shape):
-        shape_to_return = [None] 
-        if (self.padding_mode != PaddingMode.valid):
-            raise RuntimeError("Please implement shape inference for"
-                               " padding mode: "+str(self.padding_mode))
-        #assuming that overhangs are excluded
-        shape_to_return.append(1+
-            int((input_shape[1]-self.pool_length)/self.strides)) 
-        shape_to_return.append(input_shape[-1]) #channels unchanged
+        assert len(input_shape)==3
+        shape_to_return = [None, input_shape[-1]] 
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
-        return tf.max(input_act_vars, axis=1) 
+        return tf.reduce_max(input_act_vars, axis=1) 
 
     def _build_pos_and_neg_contribs(self):
         if (self.verbose):
@@ -112,8 +106,9 @@ class GlobalMaxPool1D(SingleInputMixin, Node):
                       name="dummy_neg_cont_"+str(self.get_name()))
 
     def _grad_op(self, out_grad):
-        mask = tf.equal(tf.max(input_act_vars, axis=1, keepdims=True),
-                        input_act_vars)
+        input_act_vars = self._get_input_activation_vars()
+        mask = tf.cast(tf.equal(tf.reduce_max(input_act_vars, axis=1, keepdims=True),
+                        input_act_vars), dtype=tf.float32)
         #mask should sum to 1 across axis=1
         mask = mask/tf.reduce_sum(input_act_vars, axis=1, keepdims=True)
         return tf.multiply(out_grad, tf.expand_dims(mask, axis=1))
