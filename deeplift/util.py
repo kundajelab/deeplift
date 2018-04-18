@@ -31,8 +31,14 @@ def get_session():
 
 
 def compile_func(inputs, outputs):
+    if (isinstance(inputs, list)==False):
+        print("Wrapping the inputs in a list...")
+        inputs = [inputs]
     assert isinstance(inputs, list)
     def func_to_return(inp):
+        if len(inp) > len(inputs) and len(inputs)==1:
+            print("Wrapping the inputs in a list...")
+            inp = [inp]
         assert len(inp)==len(inputs),\
             "length of provided list should be "+str(len(inputs))
         feed_dict = {}
