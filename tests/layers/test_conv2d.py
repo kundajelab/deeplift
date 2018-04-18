@@ -6,9 +6,9 @@ from unittest import skip
 import sys
 import os
 import numpy as np
-import deeplift.blobs as blobs
-from deeplift.blobs import DenseMxtsMode
-from deeplift.blobs.convolution import PoolMode, PaddingMode
+import deeplift.layers as layers
+from deeplift.layers import DenseMxtsMode
+from deeplift.layers.convolutional import PoolMode, PaddingMode
 from deeplift.util import compile_func
 import itertools
 
@@ -17,9 +17,8 @@ class TestConv(unittest.TestCase):
 
     def setUp(self):
         #swap axes for tensorflow
-        self.input_layer = blobs.Input(
-                            num_dims=None,
-                            shape=(None,4,4,2))
+        self.input_layer = layers.Input(
+                            batch_shape=(None,4,4,2))
         #tensorflow, shockingly, does not flip the weights of a conv
         self.w1 = np.arange(8).reshape(2,2,2)[:,::1,::1].astype("float32")
         self.w2 = -np.arange(8).reshape(2,2,2)[:,::1,::1].astype("float32")
@@ -32,21 +31,21 @@ class TestConv(unittest.TestCase):
         self.conv_layer = conv_layer
         self.conv_layer.set_inputs(self.input_layer)
 
-        self.flatten_layer = blobs.Flatten()
+        self.flatten_layer = layers.Flatten()
         self.flatten_layer.set_inputs(self.conv_layer)
 
-        self.dense_layer = blobs.Dense(
-                           W=(np.array([
+        self.dense_layer = layers.Dense(
+                           kernel=(np.array([
     list(itertools.chain(*[[1.0,-1.0] for i in range(outputs_per_channel)]))
                                 ]).T)
                               .astype("float32"),
-                           b=np.array([1]).astype("float32"),
+                           bias=np.array([1]).astype("float32"),
                            dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
         self.input_layer.reset_mxts_updated()
-        self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)
+        self.dense_layer.set_scoring_mode(layers.ScoringMode.OneAndZeros)
         self.dense_layer.set_active()
         self.input_layer.update_mxts()
 
@@ -55,9 +54,11 @@ class TestConv(unittest.TestCase):
         
     def test_fprop(self): 
 
-        conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
-                                  strides=(1,1),
-                                  padding_mode=PaddingMode.valid)
+        conv_layer = layers.Conv2D(kernel=self.conv_W, bias=self.conv_b,
+                                   strides=(1,1),
+                                   padding=PaddingMode.valid,
+                                   data_format="channels_last",
+                                   conv_mxts_mode="Linear")
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -79,9 +80,11 @@ class TestConv(unittest.TestCase):
                                  [-1559, -1587, -1615]]]]).transpose(0,2,3,1))
 
     def test_dense_backprop(self):
-        conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
-                                  strides=(1,1),
-                                  padding_mode=PaddingMode.valid)
+        conv_layer = layers.Conv2D(kernel=self.conv_W, bias=self.conv_b,
+                                   strides=(1,1),
+                                   padding=PaddingMode.valid,
+                                   data_format="channels_last",
+                                   conv_mxts_mode="Linear")
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -89,7 +92,8 @@ class TestConv(unittest.TestCase):
         func = compile_func([self.input_layer.get_activation_vars(),
                            self.input_layer.get_reference_vars()],
                                    self.input_layer.get_mxts())
-        np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
+        np.testing.assert_almost_equal(
+            func([self.inp, np.zeros_like(self.inp)]),
                            np.array(
                             [[[[  0,   2,   2,   2],
                                [  4,  12,  12,   8],
@@ -115,9 +119,11 @@ class TestConv(unittest.TestCase):
 
     def test_fprop_stride(self): 
 
-        conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
-                                  strides=(2,2),
-                                  padding_mode=PaddingMode.valid)
+        conv_layer = layers.Conv2D(kernel=self.conv_W, bias=self.conv_b,
+                                   strides=(2,2),
+                                   padding=PaddingMode.valid,
+                                   data_format="channels_last",
+                                   conv_mxts_mode="Linear")
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=9)
 
@@ -140,9 +146,11 @@ class TestConv(unittest.TestCase):
 
 
     def test_dense_backprop_stride(self):
-        conv_layer = blobs.Conv2D(W=self.conv_W, b=self.conv_b,
-                                  strides=(2,2),
-                                  padding_mode=PaddingMode.valid)
+        conv_layer = layers.Conv2D(kernel=self.conv_W, bias=self.conv_b,
+                                   strides=(2,2),
+                                   padding=PaddingMode.valid,
+                                   data_format="channels_last",
+                                   conv_mxts_mode="Linear")
         self.create_small_net_with_conv_layer(conv_layer,
                                               outputs_per_channel=4)
 
@@ -150,7 +158,8 @@ class TestConv(unittest.TestCase):
         func = compile_func([self.input_layer.get_activation_vars(),
                            self.input_layer.get_reference_vars()],
                                    self.input_layer.get_mxts())
-        np.testing.assert_almost_equal(func(self.inp, np.zeros_like(self.inp)),
+        np.testing.assert_almost_equal(
+            func([self.inp, np.zeros_like(self.inp)]),
                                np.array(
                                 [[[[  0,   2,   0,   2],
                                    [  4,   6,   4,   6],
