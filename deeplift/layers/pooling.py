@@ -107,11 +107,11 @@ class GlobalMaxPool1D(SingleInputMixin, Node):
 
     def _grad_op(self, out_grad):
         input_act_vars = self._get_input_activation_vars()
-        mask = tf.cast(
+        mask = 1.0*tf.cast(
                 tf.equal(tf.reduce_max(input_act_vars, axis=1, keepdims=True),
                         input_act_vars), dtype=tf.float32)
         #mask should sum to 1 across axis=1
-        mask = mask/tf.reduce_sum(mask, axis=1, keepdims=True)
+        #mask = mask/tf.reduce_sum(mask, axis=1, keepdims=True)
         return tf.multiply(tf.expand_dims(out_grad, axis=1), mask)
 
     def _get_mxts_increments_for_inputs(self):
