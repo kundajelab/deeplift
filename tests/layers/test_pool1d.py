@@ -6,10 +6,10 @@ from unittest import skip
 import sys
 import os
 import numpy as np
-import deeplift.blobs as blobs
-from deeplift.blobs import DenseMxtsMode
-from deeplift.blobs import MaxPoolDeepLiftMode
-from deeplift.blobs.convolution import PaddingMode
+import deeplift.layers as layers
+from deeplift.layers import DenseMxtsMode
+from deeplift.layers import MaxPoolDeepLiftMode
+from deeplift.layers.convolutional import PaddingMode
 from deeplift.util import compile_func
 import itertools
 
@@ -29,36 +29,35 @@ class TestPool(unittest.TestCase):
                                     [[0,-1,-2,-3],
                                      [-3,-2,-1,0]
                                     ]]).transpose(0,2,1)
-        self.input_layer = blobs.Input(
-                            num_dims=None,
-                            shape=(None,4,2))
+        self.input_layer = layers.Input(
+                            batch_shape=(None,4,2))
 
     def create_small_net_with_pool_layer(self, pool_layer,
                                                outputs_per_channel):
         self.pool_layer = pool_layer
         self.pool_layer.set_inputs(self.input_layer)
 
-        self.flatten_layer = blobs.Flatten()
+        self.flatten_layer = layers.Flatten()
         self.flatten_layer.set_inputs(self.pool_layer)
 
-        self.dense_layer = blobs.Dense(
-                           W=(np.array([
-                            list(itertools.chain(*[[2,3] for i
-                             in range(outputs_per_channel)]))]
-                            )).astype("float32").T,
-                           b=np.array([1]).astype("float32"),
-                           dense_mxts_mode=DenseMxtsMode.Linear)
+        self.dense_layer = layers.Dense(
+                            kernel=(np.array([
+                             list(itertools.chain(*[[2,3] for i
+                              in range(outputs_per_channel)]))]
+                             )).astype("float32").T,
+                            bias=np.array([1]).astype("float32"),
+                            dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
-        self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)
+        self.dense_layer.set_scoring_mode(layers.ScoringMode.OneAndZeros)
         self.dense_layer.set_active()
         self.input_layer.update_mxts()
         
     def test_fprop_maxpool1d(self): 
 
-        pool_layer = blobs.MaxPool1D(pool_length=2,
-                          stride=1,
+        pool_layer = layers.MaxPool1D(pool_length=2,
+                          strides=1,
                           padding_mode=PaddingMode.valid,
                           maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
@@ -77,7 +76,7 @@ class TestPool(unittest.TestCase):
 
     def test_fprop_avgpool(self): 
 
-        pool_layer = blobs.AvgPool1D(pool_length=2,
+        pool_layer = layers.AvgPool1D(pool_length=2,
                                   stride=1,
                                   padding_mode=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
@@ -96,7 +95,7 @@ class TestPool(unittest.TestCase):
 
 
     def test_backprop_maxpool_gradients(self):
-        pool_layer = blobs.MaxPool1D(pool_length=2,
+        pool_layer = layers.MaxPool1D(pool_length=2,
                       stride=1,
                       padding_mode=PaddingMode.valid,
                       maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
@@ -118,7 +117,7 @@ class TestPool(unittest.TestCase):
 
 
     def test_backprop_avgpool(self):
-        pool_layer = blobs.AvgPool1D(pool_length=2, stride=1,
+        pool_layer = layers.AvgPool1D(pool_length=2, stride=1,
                                      padding_mode=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)

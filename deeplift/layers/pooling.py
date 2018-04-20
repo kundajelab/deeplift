@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 from .core import *
+from .convolutional import PaddingMode
 from .helper_functions import conv1d_transpose_via_conv2d
 from . import helper_functions as hf
 
