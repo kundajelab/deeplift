@@ -26,11 +26,9 @@ NonlinearMxtsMode = deeplift.util.enum(
                      PassThrough="PassThrough",
                      DeepLIFT_GenomicsDefault="DeepLIFT_GenomicsDefault")
 DenseMxtsMode = deeplift.util.enum(
-                 Linear="Linear",
-                 SepPosAndNeg="SepPosAndNeg")
+                 Linear="Linear")
 ConvMxtsMode = deeplift.util.enum(
-                Linear="Linear",
-                SepPosAndNeg="SepPosAndNeg")
+                Linear="Linear")
 ActivationNames = deeplift.util.enum(sigmoid="sigmoid",
                                      hard_sigmoid="hard_sigmoid",
                                      tanh="tanh",
