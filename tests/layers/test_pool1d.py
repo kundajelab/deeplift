@@ -57,8 +57,8 @@ class TestPool(unittest.TestCase):
     def test_fprop_maxpool1d(self): 
 
         pool_layer = layers.MaxPool1D(pool_length=2,
-                          strides=1,
-                          padding_mode=PaddingMode.valid,
+                          stride=1,
+                          padding=PaddingMode.valid,
                           maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
@@ -77,8 +77,8 @@ class TestPool(unittest.TestCase):
     def test_fprop_avgpool(self): 
 
         pool_layer = layers.AvgPool1D(pool_length=2,
-                                  stride=1,
-                                  padding_mode=PaddingMode.valid)
+                                      stride=1,
+                                      padding=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
 
@@ -97,7 +97,7 @@ class TestPool(unittest.TestCase):
     def test_backprop_maxpool_gradients(self):
         pool_layer = layers.MaxPool1D(pool_length=2,
                       stride=1,
-                      padding_mode=PaddingMode.valid,
+                      padding=PaddingMode.valid,
                       maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
@@ -107,8 +107,8 @@ class TestPool(unittest.TestCase):
                     self.input_layer.get_reference_vars()],
                 self.input_layer.get_mxts())
         np.testing.assert_almost_equal(
-            func(self.backprop_test_inps,
-                 np.ones_like(self.backprop_test_inps)*self.reference_inps),
+            func([self.backprop_test_inps,
+                  np.ones_like(self.backprop_test_inps)*self.reference_inps]),
                   np.array([
                   [np.array([0, 1, 2, 0])*2,
                    np.array([1, 1, 1, 0])*3],
@@ -118,7 +118,7 @@ class TestPool(unittest.TestCase):
 
     def test_backprop_avgpool(self):
         pool_layer = layers.AvgPool1D(pool_length=2, stride=1,
-                                     padding_mode=PaddingMode.valid)
+                                      padding=PaddingMode.valid)
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=3)
 
@@ -128,8 +128,8 @@ class TestPool(unittest.TestCase):
                            self.input_layer.get_mxts())
         avg_pool_grads = np.array([1, 2, 2, 1]).astype("float32")*0.5 
         np.testing.assert_almost_equal(func(
-                  self.backprop_test_inps,
-                  np.ones_like(self.backprop_test_inps)*self.reference_inps),
+                  [self.backprop_test_inps,
+                   np.ones_like(self.backprop_test_inps)*self.reference_inps]),
                               np.array([
                               [avg_pool_grads*2,
                                 avg_pool_grads*3], 

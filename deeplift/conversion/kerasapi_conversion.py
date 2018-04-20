@@ -240,7 +240,7 @@ def prep_pool1d_kwargs(config, name, verbose):
     return {'name': name,
             'verbose': verbose,
             'pool_length': config[KerasKeys.pool_length],
-            'strides': config[KerasKeys.strides],
+            'stride': config[KerasKeys.strides],
             'padding': config[KerasKeys.padding].upper()
             }
 
