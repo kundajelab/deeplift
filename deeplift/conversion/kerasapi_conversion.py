@@ -186,9 +186,11 @@ def dense_conversion(config,
 
 def batchnorm_conversion(config, name, verbose, **kwargs):
     validate_keys(config, [KerasKeys.weights,
-                           KerasKeys.activation])
+                           KerasKeys.axis,
+                           KerasKeys.epsilon])
     #note: the variable called "running_std" actually stores
     #the variance...
+    print(config[KerasKeys.epsilon])
     return [layers.normalization.BatchNormalization(
         name=name,
         verbose=verbose,

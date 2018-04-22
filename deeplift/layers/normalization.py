@@ -90,7 +90,7 @@ class BatchNormalization(SingleInputMixin, Node):
     def _get_mxts_increments_for_inputs(self):
         #self.reshaped_gamma and reshaped_std are created during
         #the call to _build_activation_vars in _built_fwd_pass_vars
-        std = tf.sqrt(self.reshaped_var)
+        std = tf.sqrt(self.reshaped_var + self.epsilon)
         pos_mxts_increments = (
           self.get_pos_mxts()*
             (self.reshaped_gamma*(hf.gt_mask(self.reshaped_gamma,0.0))/std)

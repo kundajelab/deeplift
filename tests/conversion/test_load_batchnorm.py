@@ -6,9 +6,9 @@ from unittest import skip
 import sys
 import os
 import numpy as np
-from deeplift.conversion import keras_conversion as kc
-import deeplift.blobs as blobs
-from deeplift.blobs import DenseMxtsMode
+from deeplift.conversion import kerasapi_conversion as kc
+import deeplift.layers as layers
+from deeplift.layers import DenseMxtsMode
 from deeplift.util import compile_func
 import tensorflow as tf
 import keras
@@ -24,7 +24,7 @@ class TestBatchNorm(unittest.TestCase):
         self.inp = (np.arange(16).reshape(2,2,2,2)
                     .transpose(0,2,3,1).astype("float32"))
         self.keras_model = keras.models.Sequential()
-        self.epsilon = 10**(-6)
+        self.epsilon = 10**(-3)
         self.gamma = np.array([2.0, 3.0]).astype("float32") 
         self.beta = np.array([4.0, 5.0]).astype("float32")
         self.mean = np.array([3.0, 3.0]).astype("float32")
@@ -60,10 +60,14 @@ class TestBatchNorm(unittest.TestCase):
         self.grad_func = compile_func(
             [self.keras_model.layers[0].input, K.learning_phase()], grad)
 
+        self.saved_file_path = "batchnorm_model.h5"
+        if (os.path.isfile(self.saved_file_path)):
+            os.remove(self.saved_file_path)
+        self.keras_model.save(self.saved_file_path)
 
     def prepare_batch_norm_deeplift_model(self, axis):
-        self.input_layer = blobs.Input(num_dims=None, shape=(None,2,2,2))
-        self.batch_norm_layer = blobs.BatchNormalization(
+        self.input_layer = layers.Input(batch_shape=(None,2,2,2))
+        self.batch_norm_layer = layers.BatchNormalization(
                                  gamma=self.gamma,
                                  beta=self.beta,
                                  axis=axis,
@@ -71,33 +75,33 @@ class TestBatchNorm(unittest.TestCase):
                                  var=self.var,
                                  epsilon=self.epsilon)
         self.batch_norm_layer.set_inputs(self.input_layer)
-        self.flatten_layer = blobs.Flatten()
+        self.flatten_layer = layers.Flatten()
         self.flatten_layer.set_inputs(self.batch_norm_layer)
-        self.dense_layer = blobs.Dense(
-                            W=np.ones((1,8)).astype("float32").T,
-                            b=np.zeros(1).astype("float32"),
+        self.dense_layer = layers.Dense(
+                            kernel=np.ones((1,8)).astype("float32").T,
+                            bias=np.zeros(1).astype("float32"),
                             dense_mxts_mode=DenseMxtsMode.Linear)
         self.dense_layer.set_inputs(self.flatten_layer)
         self.dense_layer.build_fwd_pass_vars()
-        self.dense_layer.set_scoring_mode(blobs.ScoringMode.OneAndZeros)
+        self.dense_layer.set_scoring_mode(layers.ScoringMode.OneAndZeros)
         self.dense_layer.set_active()
         self.dense_layer.update_task_index(0)
         self.input_layer.update_mxts()
-         
 
     def test_batch_norm_convert_model_fprop(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_model =\
+            kc.convert_model_from_saved_files(self.saved_file_path) 
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
                     deeplift_model.get_layers()[-1].get_activation_vars())
         np.testing.assert_almost_equal(
             deeplift_fprop_func(self.inp),
-            self.keras_output_fprop_func(self.inp, False),
+            self.keras_output_fprop_func([self.inp, 0]),
             decimal=5)
-         
 
     def test_batch_norm_convert_model_backprop(self): 
-        deeplift_model = kc.convert_sequential_model(model=self.keras_model)
+        deeplift_model =\
+            kc.convert_model_from_saved_files(self.saved_file_path) 
         deeplift_multipliers_func = deeplift_model.\
                                      get_target_multipliers_func(
                                       find_scores_layer_idx=0,
@@ -107,9 +111,8 @@ class TestBatchNorm(unittest.TestCase):
                                       input_data_list=[self.inp],
                                       batch_size=10,
                                       progress_update=None),
-            self.grad_func(self.inp, False), decimal=5)
+            self.grad_func([self.inp, 0]), decimal=5)
          
-
     def test_batch_norm_positive_axis_fwd_prop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis)
         deeplift_fprop_func = compile_func(
@@ -117,9 +120,8 @@ class TestBatchNorm(unittest.TestCase):
                                 self.batch_norm_layer.get_activation_vars())
         np.testing.assert_almost_equal(
             deeplift_fprop_func(self.inp),
-            self.keras_batchnorm_fprop_func(self.inp, False),
+            self.keras_batchnorm_fprop_func([self.inp, 0]),
             decimal=5)
-         
 
     def test_batch_norm_positive_axis_backprop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis)
@@ -128,10 +130,9 @@ class TestBatchNorm(unittest.TestCase):
                              self.input_layer.get_reference_vars()],
                              self.input_layer.get_mxts())
         np.testing.assert_almost_equal(
-                deeplift_multipliers_func(self.inp, np.zeros_like(self.inp)),
-                self.grad_func(self.inp, False), decimal=5)
+                deeplift_multipliers_func([self.inp, np.zeros_like(self.inp)]),
+                self.grad_func([self.inp, 0]), decimal=5)
          
-
     def test_batch_norm_negative_axis_fwd_prop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
         deeplift_fprop_func = compile_func(
@@ -139,10 +140,9 @@ class TestBatchNorm(unittest.TestCase):
                                   self.batch_norm_layer.get_activation_vars())
         np.testing.assert_almost_equal(
             deeplift_fprop_func(self.inp),
-            self.keras_batchnorm_fprop_func(self.inp, False),
+            self.keras_batchnorm_fprop_func([self.inp, 0]),
             decimal=5)
          
-
     def test_batch_norm_negative_axis_backprop(self):
         self.prepare_batch_norm_deeplift_model(axis=self.axis-4)
         deeplift_multipliers_func = compile_func(
@@ -150,6 +150,10 @@ class TestBatchNorm(unittest.TestCase):
                              self.input_layer.get_reference_vars()],
                              self.input_layer.get_mxts())
         np.testing.assert_almost_equal(deeplift_multipliers_func(
-                                       self.inp, np.zeros_like(self.inp)),
-                                       self.grad_func(self.inp, False),
+                                       [self.inp, np.zeros_like(self.inp)]),
+                                       self.grad_func([self.inp, 0]),
                                        decimal=5)
+
+    def tearDown(self):
+        if (os.path.isfile(self.saved_file_path)):
+            os.remove(self.saved_file_path)
