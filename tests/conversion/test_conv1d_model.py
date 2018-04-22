@@ -46,7 +46,8 @@ class TestConvolutionalModel(unittest.TestCase):
         self.grad_func = compile_func(
             [self.keras_model.layers[0].input,
              K.learning_phase()], grad) 
-        self.saved_file_path = "convmodel.h5"
+
+        self.saved_file_path = "conv1model.h5"
         if (os.path.isfile(self.saved_file_path)):
             os.remove(self.saved_file_path)
         self.keras_model.save(self.saved_file_path)
@@ -62,7 +63,6 @@ class TestConvolutionalModel(unittest.TestCase):
             self.keras_output_fprop_func([self.inp, 0]),
             decimal=6)
          
-
     def test_convert_conv1d_model_compute_scores(self): 
         deeplift_model =\
             kc.convert_model_from_saved_files(self.saved_file_path) 

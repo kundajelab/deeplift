@@ -23,7 +23,6 @@ KerasKeys = deeplift.util.enum(
     kernel_size='kernel_size',
     padding='padding',
     output_dim='output_dim',
-    pool_length='pool_length',
     stride='stride',
     pool_size='pool_size',
     strides='strides',
@@ -81,13 +80,13 @@ def softmax_conversion(name, verbose, nonlinear_mxts_mode, **kwargs):
 
 
 def activation_conversion(
-    activation_name, 
     config,
-    layer_name,
+    name,
     verbose, nonlinear_mxts_mode, **kwargs):
+    activation_name=config[KerasKeys.activation]
     return activation_to_conversion_function(activation_name)(
                  config=config,
-                 name=layer_name, verbose=verbose,
+                 name=name, verbose=verbose,
                  nonlinear_mxts_mode=nonlinear_mxts_mode) 
 
 
@@ -111,9 +110,8 @@ def conv2d_conversion(config,
 
     #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
-                            activation_name=config[KerasKeys.activation],
-                            config={},
-                            layer_name=name,
+                            config=config,
+                            name=name,
                             verbose=verbose,
                             nonlinear_mxts_mode=nonlinear_mxts_mode)
 
@@ -128,7 +126,7 @@ def conv2d_conversion(config,
             conv_mxts_mode=conv_mxts_mode)] 
     to_return.extend(converted_activation)
 
-    return deeplift.connect_list_of_layers(to_return)
+    return deeplift.util.connect_list_of_layers(to_return)
 
 
 def conv1d_conversion(config,
@@ -144,9 +142,8 @@ def conv1d_conversion(config,
                            KerasKeys.strides])
     #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
-                            activation_name=config[KerasKeys.activation],
-                            config={},
-                            layer_name=name,
+                            config=config,
+                            name=name,
                             verbose=verbose,
                             nonlinear_mxts_mode=nonlinear_mxts_mode)
     to_return = [layers.Conv1D(
@@ -172,9 +169,8 @@ def dense_conversion(config,
                            KerasKeys.activation])
 
     converted_activation = activation_conversion(
-                            activation_name=config[KerasKeys.activation],
-                            config={},
-                            layer_name=name,
+                            config=config,
+                            name=name,
                             verbose=verbose,
                             nonlinear_mxts_mode=nonlinear_mxts_mode) 
     to_return = [layers.core.Dense(
@@ -239,7 +235,7 @@ def avgpool2d_conversion(config, name, verbose, **kwargs):
 def prep_pool1d_kwargs(config, name, verbose):
     return {'name': name,
             'verbose': verbose,
-            'pool_length': config[KerasKeys.pool_length],
+            'pool_length': config[KerasKeys.pool_size],
             'stride': config[KerasKeys.strides],
             'padding': config[KerasKeys.padding].upper()
             }
@@ -256,7 +252,7 @@ def globalmaxpooling1d_conversion(config, name, verbose,
 def maxpool1d_conversion(config, name, verbose,
                          maxpool_deeplift_mode, **kwargs):
     pool1d_kwargs = prep_pool1d_kwargs(
-                        layer=layer,
+                        config=config,
                         name=name,
                         verbose=verbose)
     return [layers.MaxPool1D(
@@ -290,7 +286,7 @@ def activation_to_conversion_function(activation_name):
         ActivationTypes.sigmoid: sigmoid_conversion,
         ActivationTypes.softmax: softmax_conversion
     }
-    return activation_dict[activation_name]
+    return activation_dict[activation_name.lower()]
 
 
 def concat_conversion_function(config, name, verbose, **kwargs):
@@ -317,7 +313,7 @@ def layer_name_to_conversion_function(layer_name):
         'flatten': flatten_conversion,
         'dense': dense_conversion,
 
-        'activation': activation_conversion, 
+        'activation': activation_conversion,
         'prelu': prelu_conversion,
 
         'sequential': sequential_container_conversion,
@@ -425,7 +421,7 @@ def convert_sequential_model(
         sys.stdout.flush()
 
     converted_layers = []
-    batch_input_shape = model_configs[0][KerasKeys.batch_input_shape]
+    batch_input_shape = model_config[0]['config'][KerasKeys.batch_input_shape]
     converted_layers.append(
         layers.core.Input(batch_shape=batch_input_shape, name="input"))
     #converted_layers is actually mutated to be extended with the
@@ -454,7 +450,7 @@ def sequential_container_conversion(config,
     if (converted_layers is None):
         converted_layers = []
     name_prefix=name
-    for layer_idx, layer_config in enumerate(layer_configs):
+    for layer_idx, layer_config in enumerate(config):
         modes_to_pass = {'dense_mxts_mode': dense_mxts_mode,
                          'conv_mxts_mode': conv_mxts_mode,
                          'nonlinear_mxts_mode': nonlinear_mxts_mode,
@@ -472,6 +468,7 @@ def sequential_container_conversion(config,
                                    else "")+str(layer_idx),
                              verbose=verbose,
                              **modes_to_pass)) 
+    deeplift.util.connect_list_of_layers(converted_layers)
     return converted_layers
 
 

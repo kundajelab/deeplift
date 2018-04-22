@@ -212,7 +212,7 @@ class Conv2D(Conv):
         conv_without_bias = tf.nn.conv2d(
                              input=x,
                              filter=kernel,
-                             strides=(1,)+self.strides+(1,),
+                             strides=[1]+list(self.strides)+[1],
                              padding=self.padding)
         return conv_without_bias
 
@@ -220,7 +220,7 @@ class Conv2D(Conv):
         pos_mxts = self.get_pos_mxts()
         neg_mxts = self.get_neg_mxts()
         output_shape = tf.shape(self.inputs.get_activation_vars())
-        strides_to_supply = (1,)+self.strides+(1,)
+        strides_to_supply = [1]+list(self.strides)+[1]
         if (self.conv_mxts_mode == ConvMxtsMode.Linear): 
             inp_diff_ref = self._get_input_diff_from_reference_vars() 
             pos_inp_mask = hf.gt_mask(inp_diff_ref,0.0)

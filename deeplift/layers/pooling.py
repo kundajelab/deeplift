@@ -11,10 +11,13 @@ class Pool1D(SingleInputMixin, Node):
 
     def __init__(self, pool_length, stride, padding, **kwargs):
         super(Pool1D, self).__init__(**kwargs) 
+        if (hasattr(pool_length, '__iter__')):
+            assert len(pool_length)==1
+            pool_length=pool_length[0]
         self.pool_length = pool_length
         if (hasattr(stride, '__iter__')):
             assert len(stride)==1
-            strides=strides[0]
+            stride=stride[0]
         self.stride = stride
         self.padding = padding
 
@@ -200,8 +203,8 @@ class MaxPool2D(Pool2D):
 
     def _build_activation_vars(self, input_act_vars):
         return tf.nn.max_pool(value=input_act_vars,
-                             ksize=(1,)+self.pool_size+(1,),
-                             strides=(1,)+self.strides+(1,),
+                             ksize=[1]+list(self.pool_size)+[1],
+                             strides=[1]+list(self.strides)+[1],
                              padding=self.padding)
 
     def _build_pos_and_neg_contribs(self):
@@ -219,8 +222,8 @@ class MaxPool2D(Pool2D):
                 orig_input=self._get_input_activation_vars(),
                 orig_output=self.get_activation_vars(),
                 grad=out_grad,
-                ksize=(1,)+self.pool_size+(1,),
-                strides=(1,)+self.strides+(1,),
+                ksize=[1]+list(self.pool_size)+[1],
+                strides=[1]+list(self.strides)+[1],
                 padding=self.padding)
 
     def _get_mxts_increments_for_inputs(self):
@@ -249,8 +252,8 @@ class AvgPool2D(Pool2D):
 
     def _build_activation_vars(self, input_act_vars):
         return tf.nn.avg_pool(value=input_act_vars,
-                             ksize=(1,)+self.pool_size+(1,),
-                             strides=(1,)+self.strides+(1,),
+                             ksize=[1]+list(self.pool_size)+[1],
+                             strides=[1]+list(self.strides)+[1],
                              padding=self.padding)
 
     def _build_pos_and_neg_contribs(self):
@@ -264,8 +267,8 @@ class AvgPool2D(Pool2D):
         return tf.nn._nn_grad.gen_nn_ops.avg_pool_grad(
             orig_input_shape=tf.shape(self._get_input_activation_vars()),
             grad=out_grad,
-            ksize=(1,)+self.pool_size+(1,),
-            strides=(1,)+self.strides+(1,),
+            ksize=[1]+list(self.pool_size)+[1],
+            strides=[1]+list(self.strides)+[1],
             padding=self.padding)
 
     def _get_mxts_increments_for_inputs(self):
