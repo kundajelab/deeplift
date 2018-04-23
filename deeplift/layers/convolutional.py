@@ -4,9 +4,12 @@ from __future__ import absolute_import
 from .core import *
 from .helper_functions import conv1d_transpose_via_conv2d
 from . import helper_functions as hf
+import tensorflow as tf
 
 PoolMode = deeplift.util.enum(max='max', avg='avg')
 PaddingMode = deeplift.util.enum(same='SAME', valid='VALID')
+DataFormat = deeplift.util.enum(channels_first='channels_first',
+                                channels_last='channels_last')
 
 
 class Conv(SingleInputMixin, Node):
@@ -162,35 +165,66 @@ class Conv2D(Conv):
         self.strides = strides
         self.padding = padding
         self.data_format = data_format
-        if (data_format != 'channels_last'):
-            raise NotImplementedError("channels_first data format"
+        if (data_format not in ['channels_last', 'channels_first']):
+            raise NotImplementedError(data_format+" data format"
                                       +" not implemented")
 
     def _compute_shape(self, input_shape):
+
+        if (self.data_format == DataFormat.channels_first):
+            input_shape = [input_shape[0], input_shape[2],
+                           input_shape[3], input_shape[1]]
+
+        #assuming channels_last dimension ordering here
         shape_to_return = [None]
         if (input_shape is None):
             shape_to_return += [None, None]
         else:
-            if (self.padding != PaddingMode.valid):
-                raise NotImplementedError("Please implement shape inference for"
-                                          " border mode: "+str(self.padding))
-            for (dim_inp_len, dim_kern_width, dim_stride) in\
-                zip(input_shape[1:3], self.kernel.shape[:2], self.strides):
-                #assuming that overhangs are excluded
-                shape_to_return.append(
-                 1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+            if (self.padding == PaddingMode.valid):
+                for (dim_inp_len, dim_kern_width, dim_stride) in\
+                    zip(input_shape[1:3], self.kernel.shape[:2], self.strides):
+                    #overhangs are excluded
+                    shape_to_return.append(
+                     1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+            elif (self.padding == PaddingMode.same):
+                for (dim_inp_len, dim_kern_width, dim_stride) in\
+                    zip(input_shape[1:3], self.kernel.shape[:2], self.strides):
+                    shape_to_return.append(
+                     int((dim_inp_len+dim_stride-1)/dim_stride)) 
+            else:
+                raise RuntimeError("Please implement shape inference for"
+                                   " border mode: "+str(self.padding))
         shape_to_return.append(self.kernel.shape[-1]) #num output channels
+
+
+        if (self.data_format == DataFormat.channels_first):
+            input_shape = [input_shape[0], input_shape[3],
+                           input_shape[1], input_shape[2]]
+
         return shape_to_return
 
     def _build_activation_vars(self, input_act_vars):
+
+        if (self.data_format == DataFormat.channels_first):
+            input_act_vars = tf.transpose(a=input_act_vars,
+                                          perm=[0,2,3,1])
+
         conv_without_bias = self._compute_conv_without_bias(
                              x=input_act_vars,
                              kernel=self.kernel)
-        return conv_without_bias + self.bias[None,None,None,:]
+        to_return = conv_without_bias + self.bias[None,None,None,:]
+
+        if (self.data_format == DataFormat.channels_first):
+            to_return = tf.transpose(a=input_act_vars,
+                                     perm=[0,3,1,2])
+        return to_return 
 
     def _build_pos_and_neg_contribs(self):
         if (self.conv_mxts_mode == ConvMxtsMode.Linear):
             inp_diff_ref = self._get_input_diff_from_reference_vars() 
+            if (self.data_format == DataFormat.channels_first):
+                inp_diff_ref = tf.transpose(a=input_act_vars,
+                                            perm=[0,2,3,1])
             pos_contribs = (self._compute_conv_without_bias(
                              x=inp_diff_ref*hf.gt_mask(inp_diff_ref,0.0),
                              kernel=self.kernel*hf.gt_mask(self.kernel,0.0))
@@ -206,6 +240,12 @@ class Conv2D(Conv):
         else:
             raise RuntimeError("Unsupported conv_mxts_mode: "+
                                self.conv_mxts_mode)
+
+        if (self.data_format == DataFormat.channels_first):
+            pos_contribs = tf.transpose(a=pos_contribs,
+                                        perm=[0,3,1,2])
+            neg_contribs = tf.transpose(a=neg_contribs,
+                                        perm=[0,3,1,2])
         return pos_contribs, neg_contribs
 
     def _compute_conv_without_bias(self, x, kernel):
@@ -219,10 +259,18 @@ class Conv2D(Conv):
     def _get_mxts_increments_for_inputs(self): 
         pos_mxts = self.get_pos_mxts()
         neg_mxts = self.get_neg_mxts()
+        inp_diff_ref = self._get_input_diff_from_reference_vars() 
         output_shape = tf.shape(self.inputs.get_activation_vars())
         strides_to_supply = [1]+list(self.strides)+[1]
+
+        if (self.data_format == DataFormat.channels_first):
+            pos_mxts = tf.transpose(a=pos_mxts, perm=(0,2,3,1))
+            neg_mxts = tf.transpose(a=neg_mxts, perm=(0,2,3,1))
+            inp_diff_ref = tf.transpose(a=inp_diff_ref, perm=(0,2,3,1))
+            output_shape = [output_shape[0], output_shape[2],
+                            output_shape[3], output_shape[1]]
+
         if (self.conv_mxts_mode == ConvMxtsMode.Linear): 
-            inp_diff_ref = self._get_input_diff_from_reference_vars() 
             pos_inp_mask = hf.gt_mask(inp_diff_ref,0.0)
             neg_inp_mask = hf.lt_mask(inp_diff_ref,0.0)
             zero_inp_mask = hf.eq_mask(inp_diff_ref, 0.0)
@@ -268,4 +316,11 @@ class Conv2D(Conv):
         else:
             raise RuntimeError("Unsupported conv mxts mode: "
                                +str(self.conv_mxts_mode))
+
+        if (self.data_format == DataFormat.channels_first):
+            pos_mxts_increments = tf.transpose(a=pos_mxts_increments,
+                                               perm=(0,3,1,2)) 
+            neg_mxts_increments = tf.transpose(a=neg_mxts_increments,
+                                               perm=(0,3,1,2))
+
         return pos_mxts_increments, neg_mxts_increments

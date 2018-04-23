@@ -42,6 +42,7 @@ ActivationTypes = deeplift.util.enum(
     softmax='softmax',
     linear='linear')
 
+
 default_maxpool_deeplift_mode = MaxPoolDeepLiftMode.gradient
 
 
@@ -212,7 +213,8 @@ def prep_pool2d_kwargs(config, name, verbose):
             'verbose': verbose,
             'pool_size': config[KerasKeys.pool_size],
             'strides': config[KerasKeys.strides],
-            'padding': config[KerasKeys.padding].upper()}
+            'padding': config[KerasKeys.padding].upper(),
+            'data_format': config[KerasKeys.data_format]}
 
 
 def maxpool2d_conversion(config, name, verbose,

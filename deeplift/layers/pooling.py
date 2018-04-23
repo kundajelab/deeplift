@@ -3,8 +3,9 @@ from __future__ import print_function
 from __future__ import absolute_import
 from .core import *
 from .helper_functions import conv1d_transpose_via_conv2d
-from .convolutional import PaddingMode
+from .convolutional import PaddingMode, DataFormat
 from . import helper_functions as hf
+import tensorflow as tf
 
 
 class Pool1D(SingleInputMixin, Node):
@@ -164,13 +165,19 @@ class AvgPool1D(Pool1D):
 
 class Pool2D(SingleInputMixin, Node):
 
-    def __init__(self, pool_size, strides, padding, **kwargs):
+    def __init__(self, pool_size, strides, padding, data_format, **kwargs):
         super(Pool2D, self).__init__(**kwargs) 
         self.pool_size = pool_size 
         self.strides = strides
-        self.padding  = padding
+        self.padding = padding
+        self.data_format = data_format
 
     def _compute_shape(self, input_shape):
+
+        if (self.data_format == DataFormat.channels_first):
+            input_shape = [input_shape[0], input_shape[2],
+                           input_shape[3], input_shape[1]] 
+
         shape_to_return = [None] #num channels unchanged 
         if (self.padding != PaddingMode.valid):
             raise RuntimeError("Please implement shape inference for"
@@ -181,6 +188,11 @@ class Pool2D(SingleInputMixin, Node):
             shape_to_return.append(
              1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
         shape_to_return.append(input_shape[-1])
+
+        if (self.data_format == DataFormat.channels_first):
+            input_shape = [input_shape[0], input_shape[3],
+                           input_shape[1], input_shape[2]] 
+
         return shape_to_return
 
     def _get_mxts_increments_for_inputs(self):
@@ -202,10 +214,18 @@ class MaxPool2D(Pool2D):
         self.maxpool_deeplift_mode = maxpool_deeplift_mode
 
     def _build_activation_vars(self, input_act_vars):
-        return tf.nn.max_pool(value=input_act_vars,
+
+        if (self.data_format == DataFormat.channels_first):
+            input_act_vars = tf.transpose(a=input_act_vars,
+                                          perm=(0,2,3,1))
+        to_return = tf.nn.max_pool(value=input_act_vars,
                              ksize=[1]+list(self.pool_size)+[1],
                              strides=[1]+list(self.strides)+[1],
                              padding=self.padding)
+        if (self.data_format == DataFormat.channels_first):
+            to_return = tf.transpose(a=to_return,
+                                     perm=(0,3,1,2))
+        return to_return
 
     def _build_pos_and_neg_contribs(self):
         if (self.verbose):
@@ -218,13 +238,26 @@ class MaxPool2D(Pool2D):
                       name="dummy_neg_cont_"+str(self.get_name()))
 
     def _grad_op(self, out_grad):
-        return tf.nn._nn_grad.gen_nn_ops.max_pool_grad(
-                orig_input=self._get_input_activation_vars(),
-                orig_output=self.get_activation_vars(),
+
+        orig_input = self._get_input_activation_vars()
+        orig_output = self.get_activation_vars()
+
+        if (self.data_format == DataFormat.channels_first):
+            out_grad = tf.transpose(out_grad, (0,2,3,1))            
+            orig_input = tf.transpose(orig_input, (0,2,3,1))
+            orig_output = tf.transpose(orig_output, (0,2,3,1))
+
+        to_return = tf.nn._nn_grad.gen_nn_ops.max_pool_grad(
+                orig_input=orig_input,
+                orig_output=orig_output,
                 grad=out_grad,
                 ksize=[1]+list(self.pool_size)+[1],
                 strides=[1]+list(self.strides)+[1],
                 padding=self.padding)
+
+        if (self.data_format == DataFormat.channels_first):
+            to_return = tf.transpose(to_return, (0,3,1,2))
+        return to_return
 
     def _get_mxts_increments_for_inputs(self):
         if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
@@ -251,10 +284,18 @@ class AvgPool2D(Pool2D):
         super(AvgPool2D, self).__init__(**kwargs) 
 
     def _build_activation_vars(self, input_act_vars):
-        return tf.nn.avg_pool(value=input_act_vars,
+
+        if (self.data_format == DataFormat.channels_first):
+            input_act_vars = tf.transpose(a=input_act_vars,
+                                          perm=(0,2,3,1)) 
+        to_return = tf.nn.avg_pool(value=input_act_vars,
                              ksize=[1]+list(self.pool_size)+[1],
                              strides=[1]+list(self.strides)+[1],
                              padding=self.padding)
+        if (self.data_format == DataFormat.channels_first):
+            input_act_vars = tf.transpose(a=input_act_vars,
+                                          perm=(0,3,1,2)) 
+        return to_return
 
     def _build_pos_and_neg_contribs(self):
         inp_pos_contribs, inp_neg_contribs =\
@@ -264,12 +305,29 @@ class AvgPool2D(Pool2D):
         return pos_contribs, neg_contribs
 
     def _grad_op(self, out_grad):
-        return tf.nn._nn_grad.gen_nn_ops.avg_pool_grad(
-            orig_input_shape=tf.shape(self._get_input_activation_vars()),
+
+        orig_input = self._get_input_activation_vars() 
+
+        if (self.data_format == DataFormat.channels_first):
+            orig_input = tf.transpose(a=orig_input,
+                                      perm=(0,2,3,1))
+            out_grad = tf.transpose(a=out_grad,
+                                    perm=(0,2,3,1))
+
+        to_return = tf.nn._nn_grad.gen_nn_ops.avg_pool_grad(
+            orig_input_shape=tf.shape(orig_input),
             grad=out_grad,
             ksize=[1]+list(self.pool_size)+[1],
             strides=[1]+list(self.strides)+[1],
             padding=self.padding)
+
+        if (self.data_format == DataFormat.channels_first):
+            orig_input = tf.transpose(a=orig_input,
+                                      perm=(0,3,1,2))
+            out_grad = tf.transpose(a=out_grad,
+                                    perm=(0,3,1,2))
+
+        return to_return
 
     def _get_mxts_increments_for_inputs(self):
         pos_mxts_increments = self._grad_op(self.get_pos_mxts())
