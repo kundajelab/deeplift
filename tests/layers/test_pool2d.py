@@ -75,7 +75,8 @@ class TestPool(unittest.TestCase):
         pool_layer = layers.MaxPool2D(pool_size=(2,2),
                           strides=(1,1),
                           padding=PaddingMode.valid,
-                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                          maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient,
+                          data_format="channels_last")
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -102,7 +103,8 @@ class TestPool(unittest.TestCase):
 
         pool_layer = layers.AvgPool2D(pool_size=(2,2),
                                   strides=(1,1),
-                                  padding=PaddingMode.valid)
+                                  padding=PaddingMode.valid,
+                                  data_format="channels_last")
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -128,7 +130,8 @@ class TestPool(unittest.TestCase):
         pool_layer = layers.MaxPool2D(pool_size=(2,2),
                   strides=(1,1),
                   padding=PaddingMode.valid,
-                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient)
+                  maxpool_deeplift_mode=MaxPoolDeepLiftMode.gradient,
+                  data_format="channels_last")
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 
@@ -161,7 +164,8 @@ class TestPool(unittest.TestCase):
     def test_backprop_avgpool2d(self):
         pool_layer = layers.AvgPool2D(pool_size=(2,2),
                   strides=(1,1),
-                  padding=PaddingMode.valid)
+                  padding=PaddingMode.valid,
+                  data_format="channels_last")
         self.create_small_net_with_pool_layer(pool_layer,
                                               outputs_per_channel=9)
 

@@ -188,21 +188,6 @@ class Layer(object):
         self._mxts_updated = True 
         self._target_contrib_vars = self._build_target_contrib_vars()
 
-    def get_yaml_compatible_object_kwargs(self):
-        return OrderedDict([('name', self.name)])
-
-    @classmethod
-    def load_blob_from_yaml_contents_only(cls, **kwargs):
-        return cls(**kwargs) #default to calling init
-
-    def copy_blob_keep_params(self):
-        """
-            Make a copy of the layer that retains the parameters, but
-            not any of the other aspects (eg output layers)
-        """
-        return self.load_blob_from_yaml_contents_only( 
-                    **self.get_yaml_compatible_object_kwargs())
-
 
 class Input(Layer):
     """
@@ -603,12 +588,6 @@ class Merge(ListInputMixin, Node):
     def __init__(self, axis, **kwargs):
         super(Merge, self).__init__(**kwargs)
         self.axis = axis
-
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Merge, self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['axis'] = self.axis
-        return kwargs_dict
 
     def compute_shape_for_merge_axis(self, lengths_for_merge_axis_dim):
         raise NotImplementedError()

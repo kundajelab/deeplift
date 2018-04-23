@@ -172,53 +172,6 @@ def mean_normalise_weights_for_sequence_convolution(weights,
     return renormalised_weights, new_bias
 
 
-def get_mean_normalised_softmax_weights(weights, biases):
-    new_weights = weights - np.mean(weights, axis=1)[:,None]
-    new_biases = biases - np.mean(biases)
-    return new_weights, new_biases
-
-
-def get_effective_width_and_stride(widths,strides):
-    effectiveStride = strides[0] 
-    effectiveWidth = widths[0]
-    assert len(strides)==len(widths)
-    if len(strides)>1:
-        for (stride, width) in zip(strides[1:],widths[1:]):
-            effectiveWidth = ((width-1)*effectiveStride)+effectiveWidth 
-            effectiveStride = effectiveStride*stride
-    return effectiveWidth, effectiveStride
-
-
-def get_lengthwise_widths_and_strides(layers):
-    """
-        layers: a list of convolutional/pooling blobs
-    """
-    import deeplift.blobs
-    widths = [] 
-    strides = []
-    for layer in layers:
-        if type(layer).__name__ == "Conv2D":
-            strides.append(layer.strides[1]) 
-            widths.append(layer.W.shape[3])
-        elif isinstance(layer, deeplift.blobs.Pool2D):
-            strides.append(layer.strides[1]) 
-            widths.append(layer.pool_size[1])
-        elif isinstance(layer, deeplift.blobs.Activation):
-            pass
-        elif isinstance(layer, deeplift.blobs.NoOp):
-            pass
-        else:
-            raise RuntimeError("Please implement how to extract width and"
-                               "stride from layer of type: "
-                               +type(layer).__name__)
-    return widths, strides
-
-
-def get_lengthwise_effective_width_and_stride(layers):
-    widths, strides = get_lengthwise_widths_and_strides(layers)
-    return get_effective_width_and_stride(widths, strides)
-
-
 def load_yaml_data_from_file(file_name):
     file_handle = get_file_handle(file_name)
     data = yaml.load(file_handle) 
@@ -264,51 +217,15 @@ def is_gzipped(file_name):
     return is_gzipped
 
 
-def apply_softmax_normalization_if_needed(layer, previous_layer):
-    if (type(layer)==deeplift.blobs.Softmax):
-        #mean normalise the inputs to the softmax
-        previous_layer.W, previous_layer.b =\
-         deeplift.util.get_mean_normalised_softmax_weights(
-            previous_layer.W, previous_layer.b)
-
-
 def connect_list_of_layers(deeplift_layers):
     if (len(deeplift_layers) > 1):
         #string the layers together so that subsequent layers take the previous
         #layer as input
         last_layer_processed = deeplift_layers[0] 
         for layer in deeplift_layers[1:]:
-            #apply_softmax_normalization_if_needed(layer, last_layer_processed)
             layer.set_inputs(last_layer_processed)
             last_layer_processed = layer
     return deeplift_layers
-
-
-def format_json_dump(json_data, indent=2):
-    return json.dumps(jsonData, indent=indent, separators=(',', ': ')) 
-
-
-def get_top_n_scores_per_region(
-    scores, n, exclude_hits_within_window):
-    scores = scores.copy()
-    assert len(scores.shape)==2, scores.shape
-    if (n==1):
-        return np.max(scores, axis=1)[:,None]
-    else:
-        top_n_scores = []
-        top_n_indices = []
-        for i in range(scores.shape[0]):
-            top_n_scores_for_region=[]
-            top_n_indices_for_region=[]
-            for j in range(n):
-                max_idx = np.argmax(scores[i]) 
-                top_n_scores_for_region.append(scores[i][max_idx])
-                top_n_indices_for_region.append(max_idx)
-                scores[i][max_idx-exclude_hits_within_window:
-                          max_idx+exclude_hits_within_window-1] = -np.inf
-            top_n_scores.append(top_n_scores_for_region) 
-            top_n_indices.append(top_n_indices_for_region)
-        return np.array(top_n_scores), np.array(top_n_indices)
 
 
 def get_integrated_gradients_function(gradient_computation_function, 

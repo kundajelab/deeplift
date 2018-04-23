@@ -42,12 +42,6 @@ class Conv1D(Conv):
         self.stride = stride
         self.padding = padding
 
-    def get_yaml_compatible_object_kwargs(self):
-        kwargs_dict = super(Conv1D,self).\
-                       get_yaml_compatible_object_kwargs()
-        kwargs_dict['stride'] = self.stride
-        return kwargs_dict
-
     def _compute_shape(self, input_shape):
         #assuming a theano dimension ordering here...
         shape_to_return = [None]
