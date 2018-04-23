@@ -198,8 +198,8 @@ class Conv2D(Conv):
 
 
         if (self.data_format == DataFormat.channels_first):
-            input_shape = [input_shape[0], input_shape[3],
-                           input_shape[1], input_shape[2]]
+            shape_to_return = [shape_to_return[0], shape_to_return[3],
+                               shape_to_return[1], shape_to_return[2]]
 
         return shape_to_return
 
@@ -215,7 +215,7 @@ class Conv2D(Conv):
         to_return = conv_without_bias + self.bias[None,None,None,:]
 
         if (self.data_format == DataFormat.channels_first):
-            to_return = tf.transpose(a=input_act_vars,
+            to_return = tf.transpose(a=to_return,
                                      perm=[0,3,1,2])
         return to_return 
 
@@ -223,7 +223,7 @@ class Conv2D(Conv):
         if (self.conv_mxts_mode == ConvMxtsMode.Linear):
             inp_diff_ref = self._get_input_diff_from_reference_vars() 
             if (self.data_format == DataFormat.channels_first):
-                inp_diff_ref = tf.transpose(a=input_act_vars,
+                inp_diff_ref = tf.transpose(a=inp_diff_ref,
                                             perm=[0,2,3,1])
             pos_contribs = (self._compute_conv_without_bias(
                              x=inp_diff_ref*hf.gt_mask(inp_diff_ref,0.0),
@@ -260,15 +260,16 @@ class Conv2D(Conv):
         pos_mxts = self.get_pos_mxts()
         neg_mxts = self.get_neg_mxts()
         inp_diff_ref = self._get_input_diff_from_reference_vars() 
-        output_shape = tf.shape(self.inputs.get_activation_vars())
+        inp_act_vars = self.inputs.get_activation_vars()
         strides_to_supply = [1]+list(self.strides)+[1]
 
         if (self.data_format == DataFormat.channels_first):
             pos_mxts = tf.transpose(a=pos_mxts, perm=(0,2,3,1))
             neg_mxts = tf.transpose(a=neg_mxts, perm=(0,2,3,1))
             inp_diff_ref = tf.transpose(a=inp_diff_ref, perm=(0,2,3,1))
-            output_shape = [output_shape[0], output_shape[2],
-                            output_shape[3], output_shape[1]]
+            inp_act_vars = tf.transpose(a=inp_act_vars, perm=(0,2,3,1))
+
+        output_shape = tf.shape(inp_act_vars)
 
         if (self.conv_mxts_mode == ConvMxtsMode.Linear): 
             pos_inp_mask = hf.gt_mask(inp_diff_ref,0.0)

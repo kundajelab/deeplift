@@ -267,15 +267,6 @@ class MaxPool2D(Pool2D):
             raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
                                str(self.maxpool_deeplift_mode))
         return pos_mxts_increments, neg_mxts_increments
-
-    def _get_mxts_increments_for_inputs(self):
-        if (self.maxpool_deeplift_mode==MaxPoolDeepLiftMode.gradient):
-            pos_mxts_increments = self._grad_op(self.get_pos_mxts())
-            neg_mxts_increments = self._grad_op(self.get_neg_mxts())
-        else:
-            raise RuntimeError("Unsupported maxpool_deeplift_mode: "+
-                               str(self.maxpool_deeplift_mode))
-        return pos_mxts_increments, neg_mxts_increments
             
 
 class AvgPool2D(Pool2D):
@@ -293,8 +284,8 @@ class AvgPool2D(Pool2D):
                              strides=[1]+list(self.strides)+[1],
                              padding=self.padding)
         if (self.data_format == DataFormat.channels_first):
-            input_act_vars = tf.transpose(a=input_act_vars,
-                                          perm=(0,3,1,2)) 
+            to_return = tf.transpose(a=to_return,
+                                     perm=(0,3,1,2)) 
         return to_return
 
     def _build_pos_and_neg_contribs(self):
@@ -322,10 +313,8 @@ class AvgPool2D(Pool2D):
             padding=self.padding)
 
         if (self.data_format == DataFormat.channels_first):
-            orig_input = tf.transpose(a=orig_input,
-                                      perm=(0,3,1,2))
-            out_grad = tf.transpose(a=out_grad,
-                                    perm=(0,3,1,2))
+            to_return = tf.transpose(a=to_return,
+                                     perm=(0,3,1,2))
 
         return to_return
 
