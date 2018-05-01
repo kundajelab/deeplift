@@ -1,6 +1,6 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
-[![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=keras2compat)](https://travis-ci.org/kundajelab/keras2compat)
+[![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=keras2compat)](https://travis-ci.org/kundajelab/deeplift)
 
 **This branch has been developed for keras 2.0 models and tensorflow 1.7. It passes the unit tests, but I have not updated the examples folder. The only part of the API that changed was the conversion of the keras models to the deeplift format, which now takes the saved hdf5 file directly. Once the model is converted to the deeplift format, you should be able to use it as before**
 
