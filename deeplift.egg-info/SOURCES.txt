@@ -1,5 +1,6 @@
 README.md
 deeplift/__init__.py
+deeplift/dinuc_shuffle.py
 deeplift/models.py
 deeplift/util.py
 deeplift.egg-info/PKG-INFO

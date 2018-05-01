@@ -1,7 +1,7 @@
 Metadata-Version: 1.1
 Name: deeplift
-Version: 0.6-tensorflow
-Summary: Interpretable deep learning
+Version: 0.6
+Summary: DeepLIFT (Deep Learning Important FeaTures)
 Home-page: NA
 Author: UNKNOWN
 Author-email: UNKNOWN
