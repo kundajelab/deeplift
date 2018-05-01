@@ -8,7 +8,7 @@ import sys
 import os
 import numpy as np
 import deeplift.layers as layers
-from deeplift.backend import function as compile_func
+from deeplift.util import compile_func
 from deeplift.layers import ConvMxtsMode, DenseMxtsMode, NonlinearMxtsMode
 from deeplift.layers.convolutional import PaddingMode, PoolMode
 
