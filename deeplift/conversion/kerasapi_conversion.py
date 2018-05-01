@@ -339,7 +339,7 @@ def convert_model_from_saved_files(
         model_class_and_config=yaml.load(open(yaml_file))
     else:
         model_class_and_config =\
-            json.loads(h5py.File(h5_file).attrs["model_config"])
+            json.loads(str(h5py.File(h5_file).attrs["model_config"]))
     model_class_name = model_class_and_config["class_name"] 
     model_config = model_class_and_config["config"]
 
