@@ -54,7 +54,9 @@ class TestConvolutionalModel(unittest.TestCase):
 
     def test_convert_conv1d_model_forward_prop(self): 
         deeplift_model =\
-            kc.convert_model_from_saved_files(self.saved_file_path) 
+            kc.convert_model_from_saved_files(
+                self.saved_file_path,
+                nonlinear_mxts_mode=NonlinearMxtsMode.Rescale) 
         deeplift_fprop_func = compile_func(
                 inputs=[deeplift_model.get_layers()[0].get_activation_vars()],
                 outputs=deeplift_model.get_layers()[-1].get_activation_vars())
@@ -65,7 +67,8 @@ class TestConvolutionalModel(unittest.TestCase):
          
     def test_convert_conv1d_model_compute_scores(self): 
         deeplift_model =\
-            kc.convert_model_from_saved_files(self.saved_file_path) 
+            kc.convert_model_from_saved_files(self.saved_file_path,
+            nonlinear_mxts_mode=NonlinearMxtsMode.Rescale) 
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
                                       find_scores_layer_idx=0,
@@ -75,7 +78,8 @@ class TestConvolutionalModel(unittest.TestCase):
                                       input_data_list=[self.inp],
                                       batch_size=10,
                                       progress_update=None),
-            #when biases are 0 and ref is 0, deeplift is the same as grad*inp 
+            #when biases are 0 and ref is 0, deeplift
+            #with the rescale rule is the same as grad*inp 
             self.grad_func([self.inp, 0])*self.inp, decimal=6)
 
     def tearDown(self):

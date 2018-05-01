@@ -54,7 +54,9 @@ class TestConvolutionalModel(unittest.TestCase):
          
     def test_convert_conv2d_model_forward_prop(self): 
         deeplift_model =\
-            kc.convert_model_from_saved_files(self.saved_file_path) 
+            kc.convert_model_from_saved_files(
+                self.saved_file_path,
+                nonlinear_mxts_mode=NonlinearMxtsMode.Rescale) 
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
                      deeplift_model.get_layers()[-1].get_activation_vars())
@@ -65,7 +67,9 @@ class TestConvolutionalModel(unittest.TestCase):
          
     def test_convert_conv2d_model_compute_scores(self): 
         deeplift_model =\
-            kc.convert_model_from_saved_files(self.saved_file_path) 
+            kc.convert_model_from_saved_files(
+                self.saved_file_path,
+                nonlinear_mxts_mode=NonlinearMxtsMode.Rescale) 
         deeplift_contribs_func = deeplift_model.\
                                      get_target_contribs_func(
                                       find_scores_layer_idx=0,

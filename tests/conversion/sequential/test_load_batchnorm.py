@@ -8,7 +8,7 @@ import os
 import numpy as np
 from deeplift.conversion import kerasapi_conversion as kc
 import deeplift.layers as layers
-from deeplift.layers import DenseMxtsMode
+from deeplift.layers import NonlinearMxtsMode, DenseMxtsMode
 from deeplift.util import compile_func
 import tensorflow as tf
 import keras
@@ -90,7 +90,9 @@ class TestBatchNorm(unittest.TestCase):
 
     def test_batch_norm_convert_model_fprop(self): 
         deeplift_model =\
-            kc.convert_model_from_saved_files(self.saved_file_path) 
+            kc.convert_model_from_saved_files(
+                self.saved_file_path,
+                nonlinear_mxts_mode=NonlinearMxtsMode.Rescale) 
         deeplift_fprop_func = compile_func(
                     [deeplift_model.get_layers()[0].get_activation_vars()],
                     deeplift_model.get_layers()[-1].get_activation_vars())
@@ -101,7 +103,9 @@ class TestBatchNorm(unittest.TestCase):
 
     def test_batch_norm_convert_model_backprop(self): 
         deeplift_model =\
-            kc.convert_model_from_saved_files(self.saved_file_path) 
+            kc.convert_model_from_saved_files(
+                self.saved_file_path,
+                nonlinear_mxts_mode=NonlinearMxtsMode.Rescale) 
         deeplift_multipliers_func = deeplift_model.\
                                      get_target_multipliers_func(
                                       find_scores_layer_idx=0,
