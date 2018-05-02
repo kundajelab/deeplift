@@ -8,7 +8,7 @@ Algorithms for computing importance scores in deep neural networks. Implements t
 
 **please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. suggestions on good heuristics for different applications are welcome**
 
-Please join the [google group](https://groups.google.com/forum/#!forum/deeplift) to stay abreast of updates and feature announcements.
+Please feel free to follow this repository to stay abreast of updates
 
 ## Table of contents
 
