@@ -338,8 +338,10 @@ def convert_model_from_saved_files(
     elif (yaml_file is not None):
         model_class_and_config=yaml.load(open(yaml_file))
     else:
-        model_class_and_config =\
-            json.loads(str(h5py.File(h5_file).attrs["model_config"]))
+        str_data = h5py.File(h5_file).attrs["model_config"]
+        if (hasattr(str_data,'decode')):
+            str_data = str_data.decode("utf-8")
+        model_class_and_config = json.loads(str_data)
     model_class_name = model_class_and_config["class_name"] 
     model_config = model_class_and_config["config"]
 
