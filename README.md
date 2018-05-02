@@ -128,7 +128,7 @@ Please explore the examples folder in the main repository for ipython notebooks 
 ## Contact
 Please email avanti [dot] shrikumar [at] gmail.com with questions, ideas, feature requests, etc. We would love to hear from you!
 
-Please consider joining the [google group](https://groups.google.com/forum/#!forum/deeplift) to stay abreast of updates and feature announcements.
+Please consider joining the [google group](https://groups.google.com/forum/#!forum/deeplift) or following the repository to stay abreast of updates and feature announcements.
 
 ## Under the hood
 This section explains finer aspects of the deeplift implementation
