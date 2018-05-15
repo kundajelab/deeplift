@@ -145,6 +145,10 @@ Just as you supply `input_data_list` as an argument to the scoring function, you
 
 The choice of reference depends on the question you wish to ask of the data. Generally speaking, the reference should retain the properties you don't care about and scramble the properties you do care about. In the [supplement of the DeepLIFT paper](http://proceedings.mlr.press/v70/shrikumar17a/shrikumar17a-supp.pdf), Appendix L looks at the results on a CIFAR10 model with two different choices of the reference. You'll notice that when a blurred version of the input is used as a reference, the outlines of objects stand out. When a black reference is used, the results are more confusing, possibly because the net is also highlighting color. One thing to consider is using multiple different references to interpret a single image and averaging the results over all the different references. We use this approach in genomics; we generate a collection of references per input sequence by shuffling the sequence (this is demonstrated in the genomics example notebook).
 
+#### How can I get a sense of how much an input contributes across all examples?
+
+It is fine to average the DeepLIFT contribution scores across examples. Be aware that there might be considerable heterogeneity in your data (i.e. some inputs may be very important for some subset of examples but not others) so clustering may prove more insightful than averaging.
+
 #### Can I have multiple input modes?
 
 Yes. Rather than providing a single numpy array to input_data_list, provide a list of numpy arrays containing the input to each mode. You can also provide a dictionary to input_data_list where the key is the mode name and the value is the numpy array. Each numpy array should have the first axis be the sample axis.
