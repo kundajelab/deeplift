@@ -15,6 +15,7 @@ Please feel free to follow this repository to stay abreast of updates.
   * [Installation](#installation)
   * [Quickstart](#quickstart)
   * [Examples](#examples)
+  * [FAQ](#faq)
   * [Contact](#contact)
   * [Under The Hood](#under-the-hood)
     * [Blobs](#blobs)
@@ -125,10 +126,44 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
 ## Examples
 Please explore the examples folder in the main repository for ipython notebooks illustrating the use of DeepLIFT and other importance-scoring methods. Figures from the paper are reproduced here.
 
-## Contact
-Please email avanti [dot] shrikumar [at] gmail.com with questions, ideas, feature requests, etc. We would love to hear from you!
+## FAQ
 
-Please consider joining the [google group](https://groups.google.com/forum/#!forum/deeplift) or following the repository to stay abreast of updates and feature announcements.
+#### Keras 2?
+For a keras 2-compatible version developed using tensorflow 1.7, see the keras2compat branch. You can also look at the implementation provided by the authors of [DeepExplain](https://github.com/marcoancona/DeepExplain) which has DeepLIFT with the Rescale rule (the authors found that “Integrated Gradients and DeepLIFT (with the Rescale rule) have very high correlation, suggesting that the latter is a good (and faster) approximation of the former in practice”).
+
+#### Non-keras models?
+If you are able to convert your model into the saved file format used by the Keras 2 API, then you can use the keras2compat branch to load it into the DeepLIFT format. The keras2compat branch works directly from keras saved files, without ever actually loading the models into keras.
+
+#### What do negative scores mean?
+A negative contribution score on an input means that the input contributed to moving the output below its reference value, where the reference value of the output is the value that it has when provided the reference input. A negative contribution does not mean that the input is "unimportant". If you want to find inputs that DeepLIFT considers "unimportant" (i.e. DeepLIFT thinks they don't influence the output of the model much), these would be the inputs that have contribution scores near 0.
+
+#### How do I provide a reference argument?
+
+Just as you supply `input_data_list` as an argument to the scoring function, you can also supply `input_references_list`. It would have the same dimensions as `input_data_list`, but would contain reference images for each input.
+
+#### What should I use as my reference?
+
+The choice of reference depends on the question you wish to ask of the data. Generally speaking, the reference should retain the properties you don't care about and scramble the properties you do care about. In the [supplement of the DeepLIFT paper](http://proceedings.mlr.press/v70/shrikumar17a/shrikumar17a-supp.pdf), Appendix L looks at the results on a CIFAR10 model with two different choices of the reference. You'll notice that when a blurred version of the input is used as a reference, the outlines of objects stand out. When a black reference is used, the results are more confusing, possibly because the net is also highlighting color. One thing to consider is using multiple different references to interpret a single image and averaging the results over all the different references. We use this approach in genomics; we generate a collection of references per input sequence by shuffling the sequence (this is demonstrated in the genomics example notebook).
+
+#### Can I have multiple input modes?
+
+Yes. Rather than providing a single numpy array to input_data_list, provide a list of numpy arrays containing the input to each mode. You can also provide a dictionary to input_data_list where the key is the mode name and the value is the numpy array. Each numpy array should have the first axis be the sample axis.
+
+#### Can I get the contribution scores on multiple input layers at once?
+
+Also yes. Just provide a list to `find_scores_layer_name` rather than a single argument.
+
+#### How does DeepLIFT compare to integrated gradients?
+
+As illustrated in the DeepLIFT paper, the RevealCancel rule of DeepLIFT can allow DeepLIFT to properly handle cases where integrated gradients may give misleading results. [Independent researchers](https://arxiv.org/pdf/1711.06104.pdf) have found that DeepLIFT with just the Rescale rule performs comparably to Integrated Gradients (they write: “Integrated Gradients and DeepLIFT have very high correlation, suggesting that the latter is a good (and faster) approximation of the former in practice”). Their finding was consistent with our own personal experience. The speed improvement of DeepLIFT relative to Integrated Gradients becomes particularly useful when using a collection of references (since having a collection of references per example increases runtime).
+
+#### What's the license?
+MIT License. While we had originally filed a patent on some of our interpretability work, we have since disbanded the patent as it appears this project has enough interest from the community to be best distributed in open-source format.
+
+## Contact
+Please email avanti [dot] shrikumar [at] gmail.com with questions, ideas, feature requests, etc. If I don't respond, keep emailing me until I feel guilty and respond. Also feel free to email my adviser (anshul [at] kundaje [dot] net), who can further guilt trip me into responding. I promise I do actually want to respond; I'm just busy with other things because the incentive structure of academia doesn't reward maintenance of projects.
+
+Please consider joining the [google group](https://groups.google.com/forum/#!forum/deeplift) or following the repository to stay abreast of updates. It seems that the ML community favors posting github issues over using Google Groups.
 
 ## Under the hood
 This section explains finer aspects of the deeplift implementation
