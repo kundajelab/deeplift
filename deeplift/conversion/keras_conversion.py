@@ -108,9 +108,9 @@ def conv2d_conversion(layer, name, verbose,
                             nonlinear_mxts_mode=nonlinear_mxts_mode)
     W = layer.get_weights()[0]
     channels_come_last=False
-    if KerasKeys.dim_ordering in layer.get_config():
-        dim_ordering = layer.get_config()[KerasKeys.dim_ordering] 
-        if (dim_ordering=='tf'):
+    if 'data_format' in layer.get_config():
+        dim_ordering = layer.get_config()['data_format'] 
+        if (dim_ordering=='channels_last'):
             W = W.transpose(3,2,0,1)
             channels_come_last=True
     to_return = [blobs.Conv2D(
@@ -118,8 +118,8 @@ def conv2d_conversion(layer, name, verbose,
                         else "")+name,
             W=W,
             b=layer.get_weights()[1],
-            strides=layer.get_config()[KerasKeys.subsample],
-            border_mode=layer.get_config()[KerasKeys.border_mode],
+            strides=layer.get_config()['strides'],
+            border_mode=layer.get_config()['padding'],
             channels_come_last=channels_come_last,
             conv_mxts_mode=conv_mxts_mode)] 
     to_return.extend(converted_activation)
@@ -129,27 +129,22 @@ def conv2d_conversion(layer, name, verbose,
 def prep_pool2d_kwargs(layer, name, verbose):
 
     channels_come_last = False
-    if (KerasKeys.dim_ordering in layer.get_config()):
-        dim_ordering = layer.get_config()[KerasKeys.dim_ordering] 
-        if (dim_ordering in 'tf'):
-            channels_come_last = True 
-    if KerasKeys.strides in layer.get_config():
-        strides=layer.get_config()[KerasKeys.strides]
-    elif KerasKeys.stride in layer.get_config():
-        strides=layer.get_config()[KerasKeys.stride]
+    if 'data_format' in layer.get_config():
+        dim_ordering = layer.get_config()['data_format'] 
+        if (dim_ordering=='channels_last'):
+            channels_come_last=True
+    if 'strides' in layer.get_config():
+        strides=layer.get_config()['strides']
+    elif 'stride' in layer.get_config():
+        strides=layer.get_config()['stride']
     else:
         raise RuntimeError("Unsure how to get strides argument")
 
-    if (KerasKeys.border_mode in layer.get_config()):
-        border_mode = layer.get_config()[KerasKeys.border_mode]
-    else:
-        border_mode = 'valid'
-
     return {'name': name,
             'verbose': verbose,
-            'pool_size': layer.get_config()[KerasKeys.pool_size],
+            'pool_size': layer.get_config()['pool_size'],
             'strides': strides,
-            'border_mode': border_mode,
+            'border_mode': layer.get_config()['padding'],
             'ignore_border': True,
             'channels_come_last': channels_come_last}
 
@@ -311,7 +306,7 @@ def layer_name_to_conversion_function(layer_name):
         'convolution1d': conv1d_conversion,
         'maxpooling1d': maxpool1d_conversion,
         'averagepooling1d': avgpool1d_conversion,
-        'convolution2d': conv2d_conversion,
+        'conv2d': conv2d_conversion,
         'maxpooling2d': maxpool2d_conversion,
         'averagepooling2d': avgpool2d_conversion,
         'batchnormalization': batchnorm_conversion,
