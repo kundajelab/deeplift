@@ -1,6 +1,7 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
 [![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=dev-th)](https://travis-ci.org/kundajelab/deeplift)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/kundajelab/deeplift/blob/master/LICENSE)
 
 **\*\*For a keras 2.0-compatible version developed using tensorflow 1.7, see the keras2compat branch.\*\***
 
