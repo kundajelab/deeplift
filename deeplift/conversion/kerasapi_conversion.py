@@ -466,14 +466,18 @@ def sequential_container_conversion(config,
                          'nonlinear_mxts_mode']:
                 if mode in layer_overrides[layer_idx]:
                     modes_to_pass[mode] = layer_overrides[layer_idx][mode] 
-        conversion_function = layer_name_to_conversion_function(
-                               layer_config["class_name"])
-        converted_layers.extend(conversion_function(
-                             config=layer_config["config"],
-                             name=(name_prefix+"-" if name_prefix != ""
-                                   else "")+str(layer_idx),
-                             verbose=verbose,
-                             **modes_to_pass)) 
+        if (layer_config["class_name"] != "InputLayer"):
+            conversion_function = layer_name_to_conversion_function(
+                                   layer_config["class_name"])
+            converted_layers.extend(conversion_function(
+                                 config=layer_config["config"],
+                                 name=(name_prefix+"-" if name_prefix != ""
+                                       else "")+str(layer_idx),
+                                 verbose=verbose,
+                                 **modes_to_pass)) 
+        else:
+            print("Encountered an Input layer in sequential container; "
+                  "skipping due to redundancy")
     deeplift.util.connect_list_of_layers(converted_layers)
     return converted_layers
 

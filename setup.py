@@ -5,7 +5,7 @@ if __name__== '__main__':
           description='DeepLIFT (Deep Learning Important FeaTures)',
           url='NA',
           download_url='NA',
-          version='0.6',
+          version='0.6.1',
           packages=['deeplift',
                     'deeplift.layers', 'deeplift.visualization',
                     'deeplift.conversion'],

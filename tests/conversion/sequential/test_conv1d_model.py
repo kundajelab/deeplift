@@ -23,6 +23,7 @@ class TestConvolutionalModel(unittest.TestCase):
         self.inp = (np.random.randn(10*10*51)
                     .reshape(10,10,51)).transpose(0,2,1)
         self.keras_model = keras.models.Sequential()
+        self.keras_model.add(keras.layers.InputLayer((51,10)))
         conv_layer = keras.layers.convolutional.Convolution1D(
                         nb_filter=2, filter_length=4, subsample_length=2,
                         activation="relu", input_shape=(51,10))

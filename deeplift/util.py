@@ -40,7 +40,9 @@ def compile_func(inputs, outputs):
             print("Wrapping the inputs in a list...")
             inp = [inp]
         assert len(inp)==len(inputs),\
-            "length of provided list should be "+str(len(inputs))
+            ("length of provided list should be "
+             +str(len(inputs))+" for tensors "+str(inputs)
+             +" but got input of length "+str(len(inp)))
         feed_dict = {}
         for input_tensor, input_val in zip(inputs, inp):
             feed_dict[input_tensor] = input_val 
