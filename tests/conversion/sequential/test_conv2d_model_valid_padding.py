@@ -47,7 +47,7 @@ class TestConvolutionalModel(unittest.TestCase):
             [self.keras_model.layers[0].input,
              K.learning_phase()], grad)
 
-        self.saved_file_path = "conv2model.h5"
+        self.saved_file_path = "conv2model_validpadding.h5"
         if (os.path.isfile(self.saved_file_path)):
             os.remove(self.saved_file_path)
         self.keras_model.save(self.saved_file_path)
