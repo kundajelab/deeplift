@@ -24,12 +24,19 @@ class Pool1D(SingleInputMixin, Node):
 
     def _compute_shape(self, input_shape):
         shape_to_return = [None] 
-        if (self.padding != PaddingMode.valid):
-            raise RuntimeError("Please implement shape inference for"
-                               " padding mode: "+str(self.padding))
-        #assuming that overhangs are excluded
-        shape_to_return.append(1+
-            int((input_shape[1]-self.pool_length)/self.stride)) 
+        if (input_shape is None or input_shape[1] is None):
+            shape_to_return += [None]
+        else:
+            if (self.padding == PaddingMode.valid):
+                #overhands are excluded
+                shape_to_return.append(
+                    1+int((input_shape[1]-self.pool_length)/self.stride))
+            elif (self.padding == PaddingMode.same):
+                shape_to_return.append(
+                    int((input_shape[1]+self.stride-1)/self.stride)) 
+            else:
+                raise RuntimeError("Please implement shape inference for"
+                                   " padding mode: "+str(self.padding))
         shape_to_return.append(input_shape[-1]) #channels unchanged
         return shape_to_return
 
@@ -179,14 +186,18 @@ class Pool2D(SingleInputMixin, Node):
                            input_shape[3], input_shape[1]] 
 
         shape_to_return = [None] #num channels unchanged 
-        if (self.padding != PaddingMode.valid):
-            raise RuntimeError("Please implement shape inference for"
-                               " padding mode: "+str(self.padding))
         for (dim_inp_len, dim_kern_width, dim_stride) in\
             zip(input_shape[1:3], self.pool_size, self.strides):
-            #assuming that overhangs are excluded
-            shape_to_return.append(
-             1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+            if (self.padding != PaddingMode.valid):
+                #assuming that overhangs are excluded
+                shape_to_return.append(
+                 1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
+            elif (self.padding != PaddingMode.same):
+                shape_to_return.append(
+                 int((dim_inp_len+dim_stride-1)/dim_stride)) 
+            else:
+                raise RuntimeError("Please implement shape inference for"
+                                   " padding mode: "+str(self.padding))
         shape_to_return.append(input_shape[-1])
 
         if (self.data_format == DataFormat.channels_first):

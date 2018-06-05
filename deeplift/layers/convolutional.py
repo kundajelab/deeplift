@@ -48,11 +48,16 @@ class Conv1D(Conv):
         if (input_shape is None or input_shape[1] is None):
             shape_to_return += [None]
         else:
-            if (self.padding != PaddingMode.valid):
+            if (self.padding == PaddingMode.valid):
+                #overhands are excluded
+                shape_to_return.append(
+                    1+int((input_shape[1]-self.kernel.shape[0])/self.stride))
+            elif (self.padding == PaddingMode.same):
+                shape_to_return.append(
+                    int((input_shape[1]+self.stride-1)/self.stride)) 
+            else:
                 raise RuntimeError("Please implement shape inference for"
-                                   " border mode: "+str(self.padding))
-            shape_to_return.append(
-             1+int((input_shape[1]-self.kernel.shape[0])/self.stride)) 
+                                   " padding mode: "+str(self.padding))
         shape_to_return.append(self.kernel.shape[-1]) #num output channels
         return shape_to_return
 
