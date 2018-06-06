@@ -7,3 +7,4 @@
 **/*.json
 **/*.coverage
 **/*cov_html
+**/*.h5
