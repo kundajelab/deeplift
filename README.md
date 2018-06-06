@@ -107,7 +107,7 @@ A notebook replicating the results in the paper on MNIST is at `examples/mnist/M
 ## FAQ
 
 #### Non-keras models?
-If you are able to convert your model into the saved file format used by the Keras 2 API, then you can use this branch to load it into the DeepLIFT format. For inspiration on how to achieve this, you can look at `examples/convert_models/keras1.2to2` for a notebook demonstrating how to convert models saved in the keras1.2 format to keras 2. Deeplift conversion works directly from keras saved files without ever actually loading the models into keras.
+If you are able to convert your model into the saved file format used by the Keras 2 API, then you can use this branch to load it into the DeepLIFT format. For inspiration on how to achieve this, you can look at `examples/convert_models/keras1.2to2` for a notebook demonstrating how to convert models saved in the keras1.2 format to keras 2. DeepLIFT conversion works directly from keras saved files without ever actually loading the models into keras.
 
 #### What do negative scores mean?
 A negative contribution score on an input means that the input contributed to moving the output below its reference value, where the reference value of the output is the value that it has when provided the reference input. A negative contribution does not mean that the input is "unimportant". If you want to find inputs that DeepLIFT considers "unimportant" (i.e. DeepLIFT thinks they don't influence the output of the model much), these would be the inputs that have contribution scores near 0.
