@@ -334,7 +334,7 @@ def convert_model_from_saved_files(
     assert json_file is None or yaml_file is None,\
         "At most one of json_file and yaml_file can be specified"
     if (json_file is not None):
-        model_class_and_config=json.loads(open(json_file))
+        model_class_and_config=json.loads(open(json_file).read())
     elif (yaml_file is not None):
         model_class_and_config=yaml.load(open(yaml_file))
     else:

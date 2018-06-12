@@ -102,7 +102,7 @@ deeplift_contribs_func = deeplift_model.get_target_contribs_func(
 ```
 
 ## Examples
-A notebook replicating the results in the paper on MNIST is at `examples/mnist/MNIST_replicate_figures.ipynb`. I have not updated the examples folder for the genomics figures, but if you look at the master branch you can follow that example; the only part of the API that has changed is the conversion of models to the DeepLIFT format. After that, the API is the same.
+A notebook replicating the results in the paper on MNIST is at `examples/mnist/MNIST_replicate_figures.ipynb`, and a notebook demonstrating use on a genomics model with 1d convolutions is at `examples/genomics/genomics_simulation.ipynb`.
 
 ## FAQ
 
