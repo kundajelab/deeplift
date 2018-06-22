@@ -165,8 +165,11 @@ As illustrated in the DeepLIFT paper, the RevealCancel rule of DeepLIFT can allo
 #### What's the license?
 MIT License. While we had originally filed a patent on some of our interpretability work, we have since disbanded the patent as it appears this project has enough interest from the community to be best distributed in open-source format.
 
+#### I have heard DeepLIFT can do pattern discovery - is that right?
+You are likely thinking of TF-MoDISco. [Here](https://github.com/kundajelab/tfmodisco) is a link to the code. There is no preprint yet as the method is still in development. [Here](https://www.youtube.com/watch?v=fXPGVJg956E) is a talk on the method given at the NIPS MLCB workshop.
+
 ## Contact
-Please email avanti [dot] shrikumar [at] gmail.com with questions, ideas, feature requests, etc. If I don't respond, keep emailing me until I feel guilty and respond. Also feel free to email my adviser (anshul [at] kundaje [dot] net), who can further guilt trip me into responding. I promise I do actually want to respond; I'm just busy with other things because the incentive structure of academia doesn't reward maintenance of projects.
+Please email avanti [dot] shrikumar [at] gmail.com with questions, ideas, feature requests, etc. If I don't respond, keep emailing me until I feel guilty and respond. Also feel free to email my adviser (anshul [at] kundaje [dot] net), who can further guilt me into responding. I promise I do actually want to respond; I'm just busy with other things because the incentive structure of academia doesn't reward maintenance of projects.
 
 Please consider joining the [google group](https://groups.google.com/forum/#!forum/deeplift) or following the repository to stay abreast of updates. It seems that the ML community favors posting github issues over using Google Groups.
 
