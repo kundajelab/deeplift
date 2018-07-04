@@ -4,9 +4,9 @@ language: python
 matrix:
     include:
         - python: 2.7
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=tensorflow
         - python: 3.5
-          env: KERAS_BACKEND=theano
+          env: KERAS_BACKEND=tensorflow
 
 notifications:
   email: true
@@ -26,10 +26,11 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pytest h5py nose
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy pytest h5py nose
   - source activate test-environment
-  - pip install theano==0.9
-  - pip install keras==1.2
+  - pip install numpy==1.14.0
+  - pip install tensorflow==1.7
+  - pip install keras==2.1.5
 
 script:
 - PYTHONPATH=$PWD:$PYTHONPATH py.test

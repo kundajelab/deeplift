@@ -5,6 +5,8 @@
 **/*.DS_Store
 **/*.swp
 **/*.json
-.coverage
+**/*.coverage
 .cache
 **/*,cover
+**/*cov_html
+**/*.h5
