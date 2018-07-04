@@ -1,8 +1,8 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
-[![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=keras2compat)](https://travis-ci.org/kundajelab/deeplift)
+[![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=master)](https://travis-ci.org/kundajelab/deeplift)
 
-**This branch has been developed for keras 2.0 models and tensorflow 1.7. It passes the unit tests, but I have not updated the examples folder. The only part of the API that changed was the conversion of the keras models to the deeplift format, which now takes the saved hdf5 file directly. Once the model is converted to the deeplift format, you should be able to use it as before**
+**This branch has been developed for keras 2.0 models and tensorflow 1.7.**
 
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
