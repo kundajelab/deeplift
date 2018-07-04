@@ -9,13 +9,46 @@ from collections import namedtuple
 from collections import OrderedDict
 import json
 import deeplift
+import tensorflow as tf
 
 NEAR_ZERO_THRESHOLD = 10**(-7)
 
+_SESS = None
+
+def get_session():
+    try:
+        #use the keras session if there is one
+        import keras.backend as K
+        return K.get_session()
+    except:
+        #Warning: I haven't really tested this behaviour out...
+        global _SESS 
+        if _SESS is None:
+            print("MAKING A SESSION")
+            _SESS = tf.Session()
+            _SESS.run(tf.global_variables_initializer()) 
+        return _SESS
+
 
 def compile_func(inputs, outputs):
-    import deeplift.backend as B
-    return B.function(inputs, outputs)
+    if (isinstance(inputs, list)==False):
+        print("Wrapping the inputs in a list...")
+        inputs = [inputs]
+    assert isinstance(inputs, list)
+    def func_to_return(inp):
+        if len(inp) > len(inputs) and len(inputs)==1:
+            print("Wrapping the inputs in a list...")
+            inp = [inp]
+        assert len(inp)==len(inputs),\
+            ("length of provided list should be "
+             +str(len(inputs))+" for tensors "+str(inputs)
+             +" but got input of length "+str(len(inp)))
+        feed_dict = {}
+        for input_tensor, input_val in zip(inputs, inp):
+            feed_dict[input_tensor] = input_val 
+        sess = get_session()
+        return sess.run(outputs, feed_dict=feed_dict)  
+    return func_to_return
 
 
 def enum(**enums):
@@ -94,7 +127,7 @@ def run_function_in_batches(func,
         if (progress_update is not None):
             if (i%progress_update == 0):
                 print("Done",i)
-        func_output = func(*([x[i:i+batch_size] for x in input_data_list]
+        func_output = func(([x[i:i+batch_size] for x in input_data_list]
                                 +([] if learning_phase is
                                    None else [learning_phase])
                         ))
@@ -139,62 +172,6 @@ def mean_normalise_weights_for_sequence_convolution(weights,
                                  axis_of_normalisation)
     renormalised_weights=weights-mean_weights_at_positions
     return renormalised_weights, new_bias
-
-
-def mean_normalise_rnn_weights(weights, bias):
-    assert len(weights.shape)==2
-    assert weights.shape[0]==4
-    mean_per_unit = np.mean(weights, axis=0) 
-    new_weights = weights-mean_per_unit[None,:]
-    new_bias = bias + mean_per_unit
-    return new_weights, new_bias
-
-
-def get_mean_normalised_softmax_weights(weights, biases):
-    new_weights = weights - np.mean(weights, axis=1)[:,None]
-    new_biases = biases - np.mean(biases)
-    return new_weights, new_biases
-
-
-def get_effective_width_and_stride(widths,strides):
-    effectiveStride = strides[0] 
-    effectiveWidth = widths[0]
-    assert len(strides)==len(widths)
-    if len(strides)>1:
-        for (stride, width) in zip(strides[1:],widths[1:]):
-            effectiveWidth = ((width-1)*effectiveStride)+effectiveWidth 
-            effectiveStride = effectiveStride*stride
-    return effectiveWidth, effectiveStride
-
-
-def get_lengthwise_widths_and_strides(layers):
-    """
-        layers: a list of convolutional/pooling blobs
-    """
-    import deeplift.blobs
-    widths = [] 
-    strides = []
-    for layer in layers:
-        if type(layer).__name__ == "Conv2D":
-            strides.append(layer.strides[1]) 
-            widths.append(layer.W.shape[3])
-        elif isinstance(layer, deeplift.blobs.Pool2D):
-            strides.append(layer.strides[1]) 
-            widths.append(layer.pool_size[1])
-        elif isinstance(layer, deeplift.blobs.Activation):
-            pass
-        elif isinstance(layer, deeplift.blobs.NoOp):
-            pass
-        else:
-            raise RuntimeError("Please implement how to extract width and"
-                               "stride from layer of type: "
-                               +type(layer).__name__)
-    return widths, strides
-
-
-def get_lengthwise_effective_width_and_stride(layers):
-    widths, strides = get_lengthwise_widths_and_strides(layers)
-    return get_effective_width_and_stride(widths, strides)
 
 
 def load_yaml_data_from_file(file_name):
@@ -242,141 +219,68 @@ def is_gzipped(file_name):
     return is_gzipped
 
 
-def apply_softmax_normalization_if_needed(layer, previous_layer):
-    if (type(layer)==deeplift.blobs.Softmax):
-        #mean normalise the inputs to the softmax
-        previous_layer.W, previous_layer.b =\
-         deeplift.util.get_mean_normalised_softmax_weights(
-            previous_layer.W, previous_layer.b)
-
-
 def connect_list_of_layers(deeplift_layers):
     if (len(deeplift_layers) > 1):
         #string the layers together so that subsequent layers take the previous
         #layer as input
         last_layer_processed = deeplift_layers[0] 
         for layer in deeplift_layers[1:]:
-            #apply_softmax_normalization_if_needed(layer, last_layer_processed)
             layer.set_inputs(last_layer_processed)
             last_layer_processed = layer
+    return deeplift_layers
 
 
-def format_json_dump(json_data, indent=2):
-    return json.dumps(jsonData, indent=indent, separators=(',', ': ')) 
-
-
-def get_cross_corr_function(filters):
-    from deeplift import backend as B
-
-    if (len(filters.shape)==3):
-        filters = filters[:,None,:,:]
-    assert filters.shape[1]==1 #input channels=1
-    assert filters.shape[2]==4 #acgt
-
-    #set up the convolution. Note that convolutions reverse things
-    filters = np.array(filters[:,:,::-1,::-1]).astype("float32") 
-    input_var = B.tensor_with_dims(num_dims=4, name="input")
-    conv_out = B.conv2d(inp=input_var,
-                        filters=filters,
-                        border_mode="valid",
-                        subsample=(1,1))
-    compiled_func = B.function(inputs=[input_var], outputs=conv_out)
-
-    def cross_corr(regions_to_scan, batch_size, progress_update=None):
-        assert len(regions_to_scan.shape)==4
-        assert regions_to_scan.shape[1]==1 #input channels=1
-        assert regions_to_scan.shape[2]==4 #acgt
-        #run function in batches
-        conv_results = np.array(deeplift.util.run_function_in_batches(
-                                func=compiled_func,
-                                input_data_list=[regions_to_scan],
-                                batch_size=batch_size,
-                                progress_update=progress_update))
-        return conv_results
-    return cross_corr
-
-
-def get_smoothen_function(window_size, same_size_return=True):
-    """
-        Returns a function for smoothening inputs with a window
-         of size window_size.
-
-        Returned function has arguments of inp,
-         batch_size and progress_update
-    """
-    from deeplift import backend as B
-    inp_tensor = B.tensor_with_dims(2, "inp_tensor") 
-
-    if (same_size_return):
-        #do padding so that the output will have the same size as the input
-        #remember, the output will have length of input length - (window_size-1)
-        #so, we're going to pad with int(window_size/2), and for even window_size
-        #we will trim off the value from the front of the output later on
-        padding = int(window_size/2)  
-        new_dims = [inp_tensor.shape[0], inp_tensor.shape[1]+2*padding]
-        padded_inp = B.zeros(new_dims)
-        #fill the middle region with the original input
-        padded_inp = B.set_subtensor(
-                        padded_inp[:,padding:(inp_tensor.shape[1]+padding)],
-                        inp_tensor) 
-        #duplicate the left end for padding
-        padded_inp = B.set_subtensor(padded_inp[:,0:padding],
-                                     inp_tensor[:,0:padding])
-        #duplicate the right end for padding
-        padded_inp = B.set_subtensor(
-                        padded_inp[:,(inp_tensor.shape[1]+padding):],
-                        inp_tensor[:,(inp_tensor.shape[1]-padding):])
-    else:
-        padded_inp = inp_tensor
-    padded_inp = padded_inp[:,None,None,:]
-
-    averaged_padded_inp = B.pool2d(
-                            inp=padded_inp,
-                            pool_size=(1,window_size),
-                            strides=(1,1),
-                            border_mode="valid",
-                            ignore_border=True,
-                            pool_mode=B.PoolMode.avg) 
-
-    #if window_size is even, then we have an extra value in the output,
-    #so kick off the value from the front
-    if (window_size%2==0 and same_size_return):
-        averaged_padded_inp = averaged_padded_inp[:,:,:,1:]
-
-    averaged_padded_inp = averaged_padded_inp[:,0,0,:]
-    smoothen_func = B.function([inp_tensor], averaged_padded_inp)
-
-    def smoothen(inp, batch_size, progress_update=None):
-       return run_function_in_batches(
-                func=smoothen_func,
-                input_data_list=[inp],
-                batch_size=batch_size,
-                progress_update=progress_update)
-
-    return smoothen
-
-
-def get_top_n_scores_per_region(
-    scores, n, exclude_hits_within_window):
-    scores = scores.copy()
-    assert len(scores.shape)==2, scores.shape
-    if (n==1):
-        return np.max(scores, axis=1)[:,None]
-    else:
-        top_n_scores = []
-        top_n_indices = []
-        for i in range(scores.shape[0]):
-            top_n_scores_for_region=[]
-            top_n_indices_for_region=[]
-            for j in range(n):
-                max_idx = np.argmax(scores[i]) 
-                top_n_scores_for_region.append(scores[i][max_idx])
-                top_n_indices_for_region.append(max_idx)
-                scores[i][max_idx-exclude_hits_within_window:
-                          max_idx+exclude_hits_within_window-1] = -np.inf
-            top_n_scores.append(top_n_scores_for_region) 
-            top_n_indices.append(top_n_indices_for_region)
-        return np.array(top_n_scores), np.array(top_n_indices)
+def get_integrated_gradients_function(gradient_computation_function, 
+                                      num_intervals):
+    def compute_integrated_gradients(
+        task_idx, input_data_list, input_references_list,
+        batch_size, progress_update=None):
+        outputs = []
+        #remember, input_data_list and input_references_list are
+        #a list with one entry per mode
+        input_references_list =\
+        [np.ones_like(np.array(input_data)) *input_reference for
+         input_data, input_reference in
+         zip(input_data_list, input_references_list)]
+        #will flesh out multimodal case later...
+        assert len(input_data_list)==1
+        assert len(input_references_list)==1
+        
+        vectors = []
+        interpolated_inputs = []
+        interpolated_inputs_references = []
+        for an_input, a_reference in zip(input_data_list[0],
+                                         input_references_list[0]):
+            #interpolate between reference and input with num_intervals
+            vector = an_input - a_reference
+            vectors.append(vector)
+            step = vector/float(num_intervals)
+            #prepare the array that has the inputs at different steps
+            for i in range(num_intervals):
+                interpolated_inputs.append(
+                    a_reference + step*(i+0.5))
+                interpolated_inputs_references.append(a_reference)        
+        #find the gradients at different steps for all the inputs
+        interpolated_gradients =\
+         np.array(gradient_computation_function(
+            task_idx=task_idx,
+            input_data_list=[interpolated_inputs],
+            input_references_list=[interpolated_inputs_references],
+            batch_size=batch_size,
+            progress_update=progress_update))
+        #reshape for taking the mean over all the steps
+        #the first dim is the sample idx, second dim is the step
+        #I've checked this is the appropriate axis ordering for the reshape
+        interpolated_gradients = np.reshape(
+                                interpolated_gradients,
+                                [input_data_list[0].shape[0], num_intervals]
+                                +list(input_data_list[0].shape[1:])) 
+        #take the mean gradient over all the steps, multiply by vector
+        #equivalent to the stepwise integral
+        mean_gradient = np.mean(interpolated_gradients,axis=1)
+        contribs = mean_gradient*np.array(vectors)
+        return contribs
+    return compute_integrated_gradients
 
 
 def get_hypothetical_contribs_func_onehot(multipliers_function):
@@ -438,70 +342,11 @@ def get_hypothetical_contribs_func_onehot(multipliers_function):
     return hypothetical_contribs_func
 
 
-def get_integrated_gradients_function(gradient_computation_function, 
-                                      num_intervals, right_rectangle=False):
-    def compute_integrated_gradients(
-        task_idx, input_data_list, input_references_list,
-        batch_size, progress_update=None):
-        assert len(input_data_list)==1,\
-         "only one mode of input supported atm; "+str(len(input_data_list))
-        #cast to float32 because sometimes inputs are uint8 and then
-        #when you subtract you can never get negative values!!
-        input_data_list[0] = input_data_list[0].astype("float32")
-        input_references_list[0] = input_references_list[0].astype("float32")
-        outputs = []
-        #remember, input_data_list and input_references_list are
-        #a list with one entry per mode
-        input_references_list =\
-        [np.ones_like(np.array(input_data)) *input_reference for
-         input_data, input_reference in
-         zip(input_data_list, input_references_list)]
-        #will flesh out multimodal case later...
-        assert len(input_data_list)==1
-        assert len(input_references_list)==1
-        
-        vectors = []
-        interpolated_inputs = []
-        interpolated_inputs_references = []
-        for an_input, a_reference in zip(input_data_list[0],
-                                         input_references_list[0]):
-            #interpolate between reference and input with num_intervals
-            vector = an_input - a_reference
-            vectors.append(vector)
-            step = vector/float(num_intervals)
-            #prepare the array that has the inputs at different steps
-            for i in range(num_intervals):
-                interpolated_inputs.append(
-                    a_reference + step*(i+(1.0 if right_rectangle else 0.5)))
-                interpolated_inputs_references.append(a_reference)        
-        #find the gradients at different steps for all the inputs
-        interpolated_gradients =\
-         np.array(gradient_computation_function(
-            task_idx=task_idx,
-            input_data_list=[interpolated_inputs],
-            input_references_list=[interpolated_inputs_references],
-            batch_size=batch_size,
-            progress_update=progress_update))
-        #reshape for taking the mean over all the steps
-        #the first dim is the sample idx, second dim is the step
-        #I've checked this is the appropriate axis ordering for the reshape
-        interpolated_gradients = np.reshape(
-                                interpolated_gradients,
-                                [input_data_list[0].shape[0], num_intervals]
-                                +list(input_data_list[0].shape[1:])) 
-        #take the mean gradient over all the steps, multiply by vector
-        #equivalent to the stepwise integral
-        mean_gradient = np.mean(interpolated_gradients,axis=1)
-        contribs = mean_gradient*np.array(vectors)
-        return contribs
-    return compute_integrated_gradients
-
-
 def get_shuffle_seq_ref_function(score_computation_function, 
                                  shuffle_func, one_hot_func):
     def compute_scores_with_shuffle_seq_refs(
         task_idx, input_data_sequences, num_refs_per_seq,
-        batch_size, other_modes_data=[], seed=1, progress_update=None):
+        batch_size, seed=1, progress_update=None):
 
         import numpy as np
         np.random.seed(seed)
@@ -509,10 +354,9 @@ def get_shuffle_seq_ref_function(score_computation_function,
         random.seed(seed)
 
         to_run_input_data_seqs = []
-        to_run_input_other_modes_data = [list() for x in other_modes_data]
-        to_run_input_data_seq_refs = []
+        to_run_input_data_refs = []
         references_generated = 0
-        for seq_idx, seq in enumerate(input_data_sequences):
+        for seq in input_data_sequences:
             for i in range(num_refs_per_seq):
                 references_generated += 1
                 if (progress_update is not None and
@@ -520,18 +364,11 @@ def get_shuffle_seq_ref_function(score_computation_function,
                     print(str(references_generated)
                           +" reference seqs generated")
                 to_run_input_data_seqs.append(seq) 
-                for mode_idx,other_mode_data in enumerate(other_modes_data):
-                    to_run_input_other_modes_data[mode_idx].append(
-                        other_mode_data[seq_idx])
-                to_run_input_data_seq_refs.append(shuffle_func(seq)) 
+                to_run_input_data_refs.append(shuffle_func(seq)) 
         if (progress_update is not None):
             print("One hot encoding sequences...")
-        #The reference for the modes other than sequence will be the
-        #original input
-        input_data_list = ([one_hot_func(to_run_input_data_seqs)]
-                           +to_run_input_other_modes_data)
-        input_references_list = ([one_hot_func(to_run_input_data_seq_refs)]
-                                 +to_run_input_other_modes_data)
+        input_data_list = [one_hot_func(to_run_input_data_seqs)] 
+        input_references_list = [one_hot_func(to_run_input_data_refs)]
         if (progress_update is not None):
             print("One hot encoding done...")
 
@@ -568,5 +405,3 @@ def in_place_shuffle(arr):
         arr[chosen_index] = arr[i]
         arr[i] = val_at_index
     return arr
-
-
