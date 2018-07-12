@@ -29,7 +29,7 @@ class TestConvolutionalModel(unittest.TestCase):
                         padding='same')
         self.keras_model.add(conv_layer1)
         self.keras_model.add(keras.layers.advanced_activations.PReLU(
-                              shared_axes=[1]))
+                              shared_axes=[1], alpha_initializer="ones"))
         conv_layer2 = keras.layers.convolutional.Convolution1D(
                         nb_filter=10, filter_length=4, subsample_length=2,
                         activation="relu",

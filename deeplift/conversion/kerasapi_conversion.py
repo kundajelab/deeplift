@@ -59,7 +59,6 @@ def linear_conversion(**kwargs):
 
 def prelu_conversion(config, name, verbose,
                      nonlinear_mxts_mode, **kwargs):
-   print(config)
    return [layers.activations.PReLU(alpha=config[KerasKeys.weights][0],
                        name=name, verbose=verbose,
                        nonlinear_mxts_mode=nonlinear_mxts_mode)] 
