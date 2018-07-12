@@ -28,7 +28,6 @@ KerasKeys = deeplift.util.enum(
     strides='strides',
     mode='mode',
     weights='weights',
-    alpha='alpha',
     batch_input_shape='batch_input_shape',
     axis='axis',
     epsilon='epsilon',
@@ -60,7 +59,8 @@ def linear_conversion(**kwargs):
 
 def prelu_conversion(config, name, verbose,
                      nonlinear_mxts_mode, **kwargs):
-   return [layers.activations.PReLU(alpha=config[KerasKeys.alpha],
+   print(config)
+   return [layers.activations.PReLU(alpha=config[KerasKeys.weights][0],
                        name=name, verbose=verbose,
                        nonlinear_mxts_mode=nonlinear_mxts_mode)] 
 
