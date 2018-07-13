@@ -6,7 +6,7 @@ DeepLIFT: Deep Learning Important FeaTures
 
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
-**please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. suggestions on good heuristics for different applications are welcome**
+**Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome.**
 
 Please feel free to follow this repository to stay abreast of updates.
 
