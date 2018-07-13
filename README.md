@@ -24,6 +24,12 @@ Please feel free to follow this repository to stay abreast of updates.
 
 ## Installation
 
+DeepLIFT is on pypi, so it can be installed using pip:
+```unix
+pip install deeplift
+```
+
+If you want to be able to make edits to the code, it is recommended that you clone the repository and install using the `--editable` flag.
 ```unix
 git clone https://github.com/kundajelab/deeplift.git #will clone the deeplift repository
 pip install --editable deeplift/ #install deeplift from the cloned repository. The "editable" flag means changes to the code will be picked up automatically.
