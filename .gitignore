@@ -10,3 +10,5 @@
 **/*,cover
 **/*cov_html
 **/*.h5
+dist
+MANIFEST
