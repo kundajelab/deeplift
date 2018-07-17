@@ -6,6 +6,8 @@ DeepLIFT: Deep Learning Important FeaTures
 
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
+Here is a link to the [slides](https://docs.google.com/file/d/0B15F_QN41VQXSXRFMzgtS01UOU0/edit?usp=docslist_api&filetype=mspresentation) and the [video](https://vimeo.com/238275076) of the 15-minute talk given at ICML. Please see the [FAQ](https://github.com/kundajelab/deeplift/blob/master/README.md#faq) and file a github issue if you have questions.
+
 **Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome.**
 
 Please feel free to follow this repository to stay abreast of updates.
@@ -112,8 +114,20 @@ A notebook replicating the results in the paper on MNIST is at `examples/mnist/M
 
 ## FAQ
 
-#### Non-keras models?
-If you are able to convert your model into the saved file format used by the Keras 2 API, then you can use this branch to load it into the DeepLIFT format. For inspiration on how to achieve this, you can look at `examples/convert_models/keras1.2to2` for a notebook demonstrating how to convert models saved in the keras1.2 format to keras 2. DeepLIFT conversion works directly from keras saved files without ever actually loading the models into keras.
+#### Can you provide a brief intuition for how DeepLIFT works?
+
+The 15-minute talk from ICML gives an intuition for the method. Here are links to the [slides](https://docs.google.com/file/d/0B15F_QN41VQXSXRFMzgtS01UOU0/edit?usp=docslist_api&filetype=mspresentation) and the [video](https://vimeo.com/238275076) (the video truncates the slides, which is why the slides are linked separately). Please file a github issue if you have questions.
+
+#### How does the implementation in this repository compare with [Ancona et al. (ICLR 2018)](https://arxiv.org/abs/1711.06104)
+
+Ancona et al., authors of the [DeepExplain](https://github.com/marcoancona/DeepExplain) repository, leveraged overriding of the gradient operators in Tensorflow to implement the Rescale rule of DeepLIFT. Their implementation can work with a wider variety of architectures than the DeepLIFT implementation in this repository, and is potentially more computationally efficient, but it does not have the advantages of the RevealCancel rule (which deals with failure modes such as the min function). Note that their implementation can work with architectures that DeepLIFT was not designed for, such as LSTMs and GRUs (their implementation would use the standard gradient backpropagation rule in all cases where the gradient operator was not overridden). We have not studied the appropriateness of this approach, but the authors did find that “Integrated Gradients and DeepLIFT have very high correlation, suggesting that the latter is a good (and faster) approximation of the former in practice”.
+
+#### How does the implementation in this repository compare with [Poerner et al. (ACL 2018)](http://www.aclweb.org/anthology/P18-1032)
+
+Poerner et al. conducted a series of benchmarks comparing DeepLIFT to other explanation methods on NLP tasks. Their implementation differs from the canonical DeepLIFT implementation in two main ways. First, they appear to have considered only the Rescale rule of DeepLIFT, based on the implementation [here](https://github.com/NPoe/neural-nlp-explanation-experiment/blob/master/HybridDocuments/ThirdParty/LRP_and_DeepLIFT/code/layers.py). Second, to handle operations that involve multiplications with gating units (which DeepLIFT was not designed for), they treat the gating neuron as a weight and assign all importance to the non-gating neuron. Note that this would differ from the implementation in Ancona et al., which would handle multiplications with gates using the standard gradient backpropagation rule (and thus would assign importance to the gating neuron). We have not studied the appropriateness of this approach, but the authors did find that "LIMSSE, LRP (Bach et al., 2015) and DeepLIFT (Shrikumar et al., 2017) are the most effective explanation methods (§4): LRP and DeepLIFT are the most consistent methods, while LIMSSE wins the hybrid document experiment."
+
+#### Do you have support for non-keras models?
+At the moment, we do not. However, if you are able to convert your model into the saved file format used by the Keras 2 API, then you can use this branch to load it into the DeepLIFT format. For inspiration on how to achieve this, you can look at `examples/convert_models/keras1.2to2` for a notebook demonstrating how to convert models saved in the keras1.2 format to keras 2. DeepLIFT conversion works directly from keras saved files without ever actually loading the models into keras.
 
 #### What do negative scores mean?
 A negative contribution score on an input means that the input contributed to moving the output below its reference value, where the reference value of the output is the value that it has when provided the reference input. A negative contribution does not mean that the input is "unimportant". If you want to find inputs that DeepLIFT considers "unimportant" (i.e. DeepLIFT thinks they don't influence the output of the model much), these would be the inputs that have contribution scores near 0.
