@@ -115,15 +115,12 @@ A notebook replicating the results in the paper on MNIST is at `examples/mnist/M
 ## FAQ
 
 #### Can you provide a brief intuition for how DeepLIFT works?
-
 The 15-minute talk from ICML gives an intuition for the method. Here are links to the [slides](https://docs.google.com/file/d/0B15F_QN41VQXSXRFMzgtS01UOU0/edit?usp=docslist_api&filetype=mspresentation) and the [video](https://vimeo.com/238275076) (the video truncates the slides, which is why the slides are linked separately). Please file a github issue if you have questions.
 
 #### How does the implementation in this repository compare with [Ancona et al. (ICLR 2018)](https://arxiv.org/abs/1711.06104)
-
 Ancona et al., authors of the [DeepExplain](https://github.com/marcoancona/DeepExplain) repository, leveraged overriding of the gradient operators in Tensorflow to implement the Rescale rule of DeepLIFT. Their implementation can work with a wider variety of architectures than the DeepLIFT implementation in this repository, and is potentially more computationally efficient, but it does not have the advantages of the RevealCancel rule (which deals with failure modes such as the min function). Note that their implementation can work with architectures that DeepLIFT was not designed for, such as LSTMs and GRUs (their implementation would use the standard gradient backpropagation rule in all cases where the gradient operator was not overridden). We have not studied the appropriateness of this approach, but the authors did find that “Integrated Gradients and DeepLIFT have very high correlation, suggesting that the latter is a good (and faster) approximation of the former in practice”.
 
 #### How does the implementation in this repository compare with [Poerner et al. (ACL 2018)](http://www.aclweb.org/anthology/P18-1032)
-
 Poerner et al. conducted a series of benchmarks comparing DeepLIFT to other explanation methods on NLP tasks. Their implementation differs from the canonical DeepLIFT implementation in two main ways. First, they appear to have considered only the Rescale rule of DeepLIFT, based on the implementation [here](https://github.com/NPoe/neural-nlp-explanation-experiment/blob/master/HybridDocuments/ThirdParty/LRP_and_DeepLIFT/code/layers.py). Second, to handle operations that involve multiplications with gating units (which DeepLIFT was not designed for), they treat the gating neuron as a weight and assign all importance to the non-gating neuron. Note that this would differ from the implementation in Ancona et al., which would handle multiplications with gates using the standard gradient backpropagation rule (and thus would assign importance to the gating neuron). We have not studied the appropriateness of this approach, but the authors did find that "LIMSSE, LRP (Bach et al., 2015) and DeepLIFT (Shrikumar et al., 2017) are the most effective explanation methods (§4): LRP and DeepLIFT are the most consistent methods, while LIMSSE wins the hybrid document experiment."
 
 #### Do you have support for non-keras models?
