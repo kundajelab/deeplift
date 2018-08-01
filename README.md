@@ -1,6 +1,7 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
 [![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=master)](https://travis-ci.org/kundajelab/deeplift)
+[![Downloads](http://pepy.tech/badge/deeplift)](http://pepy.tech/project/deeplift) (Downloads since July 13th, 2018, via pypi)
 
 **This branch has been developed for keras 2.0 models and tensorflow 1.7.** See the tags for older versions.
 
