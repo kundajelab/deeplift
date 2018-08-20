@@ -39,11 +39,6 @@ class BatchNormalization(SingleInputMixin, Node):
         self.mean = mean
         self.var = var
         self.epsilon = epsilon
-        print("At the time of writing (April 8th 2017), the batch norm "
-              "implementation of version 5 (this version) of deeplift has "
-              "not been thoroughly unit-tested; adding in these unit tests "
-              "is a top priority, but if you see this message, do ping me "
-              "so that I can prioritise it accordingly")
 
     def _compute_shape(self, input_shape):
         return input_shape
