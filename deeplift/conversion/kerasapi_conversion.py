@@ -190,7 +190,6 @@ def batchnorm_conversion(config, name, verbose, **kwargs):
                            KerasKeys.epsilon])
     #note: the variable called "running_std" actually stores
     #the variance...
-    print(config[KerasKeys.epsilon])
     return [layers.normalization.BatchNormalization(
         name=name,
         verbose=verbose,
