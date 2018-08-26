@@ -29,7 +29,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy pytest h5py nose
   - source activate test-environment
   - pip install numpy==1.14.0
-  - pip install tensorflow==1.7
+  - pip install tensorflow==1.10.1
   - pip install keras==2.1.5
 
 script:
