@@ -1,2 +1,7 @@
 numpy>=1.9
+
+[tensorflow]
 tensorflow>=1.7
+
+[tensorflow with gpu]
+tensorflow-gpu>=1.7

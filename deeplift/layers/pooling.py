@@ -6,6 +6,7 @@ from .helper_functions import conv1d_transpose_via_conv2d
 from .convolutional import PaddingMode, DataFormat
 from . import helper_functions as hf
 import tensorflow as tf
+from tensorflow.python.ops import nn_grad
 
 
 class Pool1D(SingleInputMixin, Node):
@@ -75,7 +76,7 @@ class MaxPool1D(Pool1D):
                       name="dummy_neg_cont_"+str(self.get_name()))
 
     def _grad_op(self, out_grad):
-        return tf.squeeze(tf.nn._nn_grad.gen_nn_ops.max_pool_grad(
+        return tf.squeeze(nn_grad.gen_nn_ops.max_pool_grad(
                 orig_input=tf.expand_dims(self._get_input_activation_vars(),1),
                 orig_output=tf.expand_dims(self.get_activation_vars(),1),
                 grad=tf.expand_dims(out_grad,1),
@@ -156,7 +157,7 @@ class AvgPool1D(Pool1D):
         return pos_contribs, neg_contribs
 
     def _grad_op(self, out_grad):
-        return tf.squeeze(tf.nn._nn_grad.gen_nn_ops.avg_pool_grad(
+        return tf.squeeze(nn_grad.gen_nn_ops.avg_pool_grad(
             orig_input_shape=
                 tf.shape(tf.expand_dims(self._get_input_activation_vars(),1)),
             grad=tf.expand_dims(out_grad,1),
@@ -258,7 +259,7 @@ class MaxPool2D(Pool2D):
             orig_input = tf.transpose(orig_input, (0,2,3,1))
             orig_output = tf.transpose(orig_output, (0,2,3,1))
 
-        to_return = tf.nn._nn_grad.gen_nn_ops.max_pool_grad(
+        to_return = nn_grad.gen_nn_ops.max_pool_grad(
                 orig_input=orig_input,
                 orig_output=orig_output,
                 grad=out_grad,
@@ -316,7 +317,7 @@ class AvgPool2D(Pool2D):
             out_grad = tf.transpose(a=out_grad,
                                     perm=(0,2,3,1))
 
-        to_return = tf.nn._nn_grad.gen_nn_ops.avg_pool_grad(
+        to_return = nn_grad.gen_nn_ops.avg_pool_grad(
             orig_input_shape=tf.shape(orig_input),
             grad=out_grad,
             ksize=[1]+list(self.pool_size)+[1],
