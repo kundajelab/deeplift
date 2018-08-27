@@ -4,9 +4,11 @@ language: python
 matrix:
     include:
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow
-        - python: 3.5
-          env: KERAS_BACKEND=tensorflow
+          env: KERAS_BACKEND=tensorflow TF_VERSION=1.7 KERAS_VERSION=2.2
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TF_VERSION=1.10.1 KERAS_VERSION=2.2
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow TF_VERSION=1.10.1 KERAS_VERSION=2.2
 
 notifications:
   email: true
@@ -28,9 +30,8 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy pytest h5py nose
   - source activate test-environment
-  - pip install numpy==1.14.0
-  - pip install tensorflow==1.10.1
-  - pip install keras==2.1.5
+  - pip install tensorflow==$TF_VERSION
+  - pip install keras==$KERAS_VERSION
 
 script:
 - PYTHONPATH=$PWD:$PYTHONPATH py.test

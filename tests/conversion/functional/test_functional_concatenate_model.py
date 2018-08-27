@@ -6,6 +6,7 @@ from unittest import skip
 import sys
 import os
 import numpy as np
+np.random.seed(1234)
 from deeplift.conversion import kerasapi_conversion as kc
 import deeplift.layers as layers
 from deeplift.layers import NonlinearMxtsMode

@@ -7,6 +7,7 @@ from nose.tools import raises
 import sys
 import os
 import numpy as np
+np.random.seed(1234)
 import deeplift.layers as layers
 from deeplift.util import compile_func
 from deeplift.layers import ConvMxtsMode, DenseMxtsMode, NonlinearMxtsMode
