@@ -125,7 +125,7 @@ class TestConv(unittest.TestCase):
                                    data_format="channels_last",
                                    conv_mxts_mode="Linear")
         self.create_small_net_with_conv_layer(conv_layer,
-                                              outputs_per_channel=9)
+                                              outputs_per_channel=4)
 
         func = compile_func([self.input_layer.get_activation_vars()],
                                 self.conv_layer.get_activation_vars())
