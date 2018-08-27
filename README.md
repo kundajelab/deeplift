@@ -3,7 +3,7 @@ DeepLIFT: Deep Learning Important FeaTures
 [![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=master)](https://travis-ci.org/kundajelab/deeplift)
 [![Downloads](http://pepy.tech/badge/deeplift)](http://pepy.tech/project/deeplift) (Downloads since July 13th, 2018, via pypi)
 
-**This branch has been developed for keras 2.0 models and tensorflow 1.7.** See the tags for older versions.
+**This version of DeepLIFT has been tested with Keras 2.2.0 & tensorflow 1.10.1**. See the tags for older versions.
 
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
