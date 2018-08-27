@@ -41,6 +41,8 @@ class TestConv(unittest.TestCase):
                               .astype("float32"),
                            bias=np.array([1]).astype("float32"),
                            dense_mxts_mode=DenseMxtsMode.Linear)
+        print(outputs_per_channel)
+        print(self.dense_layer.kernel)
         self.dense_layer.set_inputs(self.flatten_layer)
 
         self.dense_layer.build_fwd_pass_vars()
@@ -144,7 +146,7 @@ class TestConv(unittest.TestCase):
                                    padding=PaddingMode.valid,
                                    conv_mxts_mode="Linear")
         self.create_small_net_with_conv_layer(conv_layer,
-                                              outputs_per_channel=3)
+                                              outputs_per_channel=2)
         func = compile_func([self.input_layer.get_activation_vars()],
                                 self.conv_layer.get_activation_vars())
         print(self.inp)

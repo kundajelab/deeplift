@@ -1,12 +1,14 @@
-Metadata-Version: 1.1
+Metadata-Version: 2.1
 Name: deeplift
-Version: 0.6.6.2
+Version: 0.6.7.0
 Summary: DeepLIFT (Deep Learning Important FeaTures)
-Home-page: NA
-Author: UNKNOWN
-Author-email: UNKNOWN
+Home-page: https://github.com/kundajelab/deeplift
 License: UNKNOWN
-Download-URL: NA
-Description-Content-Type: UNKNOWN
-Description: UNKNOWN
+Description: 
+                  Algorithms for computing importance scores in deep neural networks.
+                  
+                  Implements the methods in "Learning Important Features Through Propagating Activation Differences" by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, guided backprop and integrated gradients. See https://github.com/kundajelab/deeplift for documentation.
+                  
 Platform: UNKNOWN
+Provides-Extra: tensorflow with gpu
+Provides-Extra: tensorflow

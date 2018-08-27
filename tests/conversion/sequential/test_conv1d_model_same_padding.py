@@ -6,6 +6,7 @@ from unittest import skip
 import sys
 import os
 import numpy as np
+np.random.seed(1234)
 from deeplift.conversion import kerasapi_conversion as kc
 import deeplift.layers as layers
 from deeplift.layers import NonlinearMxtsMode
@@ -23,10 +24,10 @@ class TestConvolutionalModel(unittest.TestCase):
         self.inp = (np.random.randn(10*10*51)
                     .reshape(10,10,51)).transpose(0,2,1)
         self.keras_model = keras.models.Sequential()
-        self.keras_model.add(keras.layers.InputLayer((51,10)))
+        #self.keras_model.add(keras.layers.InputLayer((51,10)))
         conv_layer1 = keras.layers.convolutional.Convolution1D(
                         nb_filter=20, filter_length=4, subsample_length=2,
-                        padding='same')
+                        padding='same', input_shape=(51,10))
         self.keras_model.add(conv_layer1)
         self.keras_model.add(keras.layers.advanced_activations.PReLU(
                               shared_axes=[1], alpha_initializer="ones"))
