@@ -171,6 +171,37 @@ class AvgPool1D(Pool1D):
         return pos_mxts_increments, neg_mxts_increments 
 
 
+class GlobalAvgPool1D(SingleInputMixin, Node):
+
+    def __init__(self, **kwargs):
+        super(GlobalAvgPool1D, self).__init__(**kwargs)
+
+    def _compute_shape(self, input_shape):
+        assert len(input_shape)==3
+        shape_to_return = [None, input_shape[-1]]
+        return shape_to_return
+
+    def _build_activation_vars(self, input_act_vars):
+        return tf.reduce_mean(input_act_vars, axis=1)
+
+    def _build_pos_and_neg_contribs(self):
+        inp_pos_contribs, inp_neg_contribs =\
+            self._get_input_pos_and_neg_contribs()
+        pos_contribs = self._build_activation_vars(inp_pos_contribs)
+        neg_contribs = self._build_activation_vars(inp_neg_contribs)
+        return pos_contribs, neg_contribs
+
+    def _grad_op(self, out_grad):
+        width = self._get_input_activation_vars().get_shape().as_list()[1]
+        mask = tf.ones_like(self._get_input_activation_vars()) / float(width)
+        return tf.multiply(tf.expand_dims(out_grad, axis=1), mask)
+
+    def _get_mxts_increments_for_inputs(self):
+        pos_mxts_increments = self._grad_op(self.get_pos_mxts())
+        neg_mxts_increments = self._grad_op(self.get_neg_mxts())
+        return pos_mxts_increments, neg_mxts_increments
+
+
 class Pool2D(SingleInputMixin, Node):
 
     def __init__(self, pool_size, strides, padding, data_format, **kwargs):
