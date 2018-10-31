@@ -262,6 +262,12 @@ def maxpool1d_conversion(config, name, verbose,
              **pool1d_kwargs)]
 
 
+def globalavgpooling1d_conversion(config, name, verbose, **kwargs):
+    return [layers.GlobalAvgPool1D(
+             name=name,
+             verbose=verbose)]
+
+
 def avgpool1d_conversion(config, name, verbose, **kwargs):
     pool1d_kwargs = prep_pool1d_kwargs(
                         config=config,
@@ -305,6 +311,7 @@ def layer_name_to_conversion_function(layer_name):
         'maxpooling1d': maxpool1d_conversion,
         'globalmaxpooling1d': globalmaxpooling1d_conversion,
         'averagepooling1d': avgpool1d_conversion,
+        'globalaveragepooling1d': globalavgpooling1d_conversion,
 
         'conv2d': conv2d_conversion,
         'maxpooling2d': maxpool2d_conversion,
