@@ -355,7 +355,10 @@ def convert_model_from_saved_files(
         model_weights=model_weights['model_weights']
 
     if (model_class_name=="Sequential"):
-        layer_configs = model_config
+        if (isinstance(model_config, list)):
+            layer_configs = model_config
+        else:
+            layer_configs = model_config["layers"]
         model_conversion_function = convert_sequential_model
     elif (model_class_name=="Model"):
         layer_configs = model_config["layers"]
@@ -406,7 +409,10 @@ def insert_weights_into_nested_model_config(nested_model_weights,
             elif (layer_config["class_name"]=="Sequential"):
                 insert_weights_into_nested_model_config(
                     nested_model_weights=nested_model_weights,
-                    nested_model_layer_config=layer_config["config"])
+                    nested_model_layer_config=
+                      (layer_config["config"]
+                       if isinstance(layer_config["config"],list)
+                       else layer_config["config"]["layers"]))
             else: 
                 layer_name = layer_config["config"]["name"] 
                 layer_weights = [np.array(nested_model_weights[x]) for x in
