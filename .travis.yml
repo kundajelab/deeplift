@@ -8,7 +8,7 @@ matrix:
         - python: 2.7
           env: KERAS_BACKEND=tensorflow TF_VERSION=1.10.1 KERAS_VERSION=2.2
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TF_VERSION=1.10.1 KERAS_VERSION=2.2
+          env: KERAS_BACKEND=tensorflow TF_VERSION=1.10.1 KERAS_VERSION=2.2.4
 
 notifications:
   email: true
