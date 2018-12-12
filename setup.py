@@ -8,7 +8,7 @@ if __name__== '__main__':
 Implements the methods in "Learning Important Features Through Propagating Activation Differences" by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, guided backprop and integrated gradients. See https://github.com/kundajelab/deeplift for documentation and FAQ.
           """,
           url='https://github.com/kundajelab/deeplift',
-          version='0.6.8.0',
+          version='0.6.8.1',
           packages=['deeplift',
                     'deeplift.layers', 'deeplift.visualization',
                     'deeplift.conversion'],

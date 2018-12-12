@@ -355,6 +355,8 @@ def convert_model_from_saved_files(
         model_weights=model_weights['model_weights']
 
     if (model_class_name=="Sequential"):
+        if (isinstance(model_config, list)==False): #keras 2.2.3 API change
+            model_config = model_config["layers"]
         layer_configs = model_config
         model_conversion_function = convert_sequential_model
     elif (model_class_name=="Model"):
@@ -386,7 +388,10 @@ def convert_model_from_saved_files(
         elif (layer_config["class_name"]=="Sequential"):
             insert_weights_into_nested_model_config(
                 nested_model_weights=nested_model_weights,
-                nested_model_layer_config=layer_config["config"])
+                nested_model_layer_config=
+                  (layer_config["config"] if
+                   isinstance(layer_config["config"], list)
+                   else layer_config["config"]["layers"]))
         else:  
             layer_weights = [np.array(model_weights[layer_name][x]) for x in
                              model_weights[layer_name].attrs["weight_names"]]
@@ -406,7 +411,10 @@ def insert_weights_into_nested_model_config(nested_model_weights,
             elif (layer_config["class_name"]=="Sequential"):
                 insert_weights_into_nested_model_config(
                     nested_model_weights=nested_model_weights,
-                    nested_model_layer_config=layer_config["config"])
+                    nested_model_layer_config=
+                      (layer_config["config"]
+                       if isinstance(layer_config["config"],list)
+                       else layer_config["config"]["layers"]))
             else: 
                 layer_name = layer_config["config"]["name"] 
                 layer_weights = [np.array(nested_model_weights[x]) for x in
