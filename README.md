@@ -23,7 +23,7 @@ Please feel free to follow this repository to stay abreast of updates.
     * [My model architecture is not supported by this DeepLIFT implementation. What should I do?](#my-model-architecture-is-not-supported-by-this-deeplift-implementation-what-should-i-do)
     * [What are the similarities and differences between the DeepLIFT-like implementations in DeepExplain from Ancona et al. (ICLR 2018) and DeepSHAP/DeepExplainer from the SHAP repository?](#what-are-the-similarities-and-differences-between-deepexplain-from-ancona-et-al-iclr-2018-and-deepshapdeepexplainer-from-the-shap-repository)
     * [How does DeepLIFT compare to integrated gradients?](#how-does-deeplift-compare-to-integrated-gradients)
-    * [How does the implementation in this repository compare with the DeepLIFT implementation in Poerner et al. (ACL 2018)?](#how-does-the-implementation-in-this-repository-compare-with-the-implementation-in-poerner-et-al-acl-2018)
+    * [How does the implementation in this repository compare with the DeepLIFT implementation in Poerner et al. (ACL 2018)?](#how-does-the-implementation-in-this-repository-compare-with-the-deeplift-implementation-in-poerner-et-al-acl-2018)
     * [Do you have support for non-keras models?](#do-you-have-support-for-non-keras-models)
     * [What do negative scores mean?](#what-do-negative-scores-mean)
     * [How do I provide a reference argument?](#how-do-i-provide-a-reference-argument)
