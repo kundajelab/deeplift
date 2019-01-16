@@ -19,6 +19,20 @@ Please feel free to follow this repository to stay abreast of updates.
   * [Quickstart](#quickstart)
   * [Examples](#examples)
   * [FAQ](#faq)
+    * [Can you provide a brief intuition for how DeepLIFT works?](#can-you-provide-a-brief-intuition-for-how-deeplift-works)
+    * [My model architecture is not supported by this DeepLIFT implementation. What should I do?](#my-model-architecture-is-not-supported-by-this-deeplift-implementation-what-should-i-do)
+    * [What are the similarities and differences between DeepExplain from Ancona et al. (ICLR 2018) and DeepSHAP/DeepExplainer from the SHAP repository?](#what-are-the-similarities-and-differences-between-deepexplain-from-ancona-et-al-iclr-2018-and-deepshapdeepexplainer-from-the-shap-repository)
+    * [How does DeepLIFT compare to integrated gradients?](#how-does-deeplift-compare-to-integrated-gradients)
+    * [How does the implementation in this repository compare with the implementation in Poerner et al. (ACL 2018)?](#how-does-the-implementation-in-this-repository-compare-with-the-implementation-in-poerner-et-al-acl-2018)
+    * [Do you have support for non-keras models?](#do-you-have-support-for-non-keras-models)
+    * [What do negative scores mean?](#what-do-negative-scores-mean)
+    * [How do I provide a reference argument?](#how-do-i-provide-a-reference-argument)
+    * [What should I use as my reference?](#what-should-i-use-as-my-reference)
+    * [How can I get a sense of how much an input contributes across all examples?](#how-can-i-get-a-sense-of-how-much-an-input-contributes-across-all-examples)
+    * [Can I have multiple input modes?](#can-i-have-multiple-input-modes)
+    * [Can I get the contribution scores on multiple input layers at once?](#can-i-get-the-contribution-scores-on-multiple-input-layers-at-once)
+    * [What's the license?](#whats-the-license)
+    * [I have heard DeepLIFT can do pattern discovery - is that right?](https://github.com/kundajelab/deeplift/blob/master/README.md#i-have-heard-deeplift-can-do-pattern-discovery---is-that-right)
   * [Contact](#contact)
   * [Under The Hood](#under-the-hood)
     * [Layers](#layers)
@@ -140,7 +154,7 @@ As illustrated in the DeepLIFT paper, the RevealCancel rule of DeepLIFT can allo
 Poerner et al. conducted a series of benchmarks comparing DeepLIFT to other explanation methods on NLP tasks. Their implementation differs from the canonical DeepLIFT implementation in two main ways. First, they considered only the Rescale rule of DeepLIFT (according to the implementation [here](https://github.com/NPoe/neural-nlp-explanation-experiment/blob/master/HybridDocuments/ThirdParty/LRP_and_DeepLIFT/code/layers.py)). Second, to handle operations that involve multiplications with gating units (which DeepLIFT was not designed for), they treat the gating neuron as a weight (similar to the approach in [Arras et al.](https://github.com/ArrasL/LRP_for_LSTM)) and assign all importance to the non-gating neuron. Note that this differs from the implementation in [DeepSHAP/DeepExplainer](https://github.com/slundberg/shap/tree/master/shap/explainers/deep), which handles elementwise multipications using a backprop rule base on SHAP and would assign importance to the gating neuron. We have not studied the appropriateness of Arras et al.'s approach, but the authors did find that "LIMSSE, LRP (Bach et al., 2015) and DeepLIFT (Shrikumar et al., 2017) are the most effective explanation methods (§4): LRP and DeepLIFT are the most consistent methods, while LIMSSE wins the hybrid document experiment." (They did not compare with the DeepSHAP/DeepExplainer implementation)
 
 #### Do you have support for non-keras models?
-At the moment, we do not. However, if you are able to convert your model into the saved file format used by the Keras 2 API, then you can use this branch to load it into the DeepLIFT format. For inspiration on how to achieve this, you can look at `examples/convert_models/keras1.2to2` for a notebook demonstrating how to convert models saved in the keras1.2 format to keras 2. DeepLIFT conversion works directly from keras saved files without ever actually loading the models into keras.
+At the moment, we do not. However, if you are able to convert your model into the saved file format used by the Keras 2 API, then you can use this branch to load it into the DeepLIFT format. For inspiration on how to achieve this, you can look at `examples/convert_models/keras1.2to2` for a notebook demonstrating how to convert models saved in the keras1.2 format to keras 2. DeepLIFT conversion works directly from keras saved files without ever actually loading the models into keras. If you have a pytorch model, you may also be interested in the [DeepSHAP/DeepExplainer implementation](#my-model-architecture-is-not-supported-by-this-deeplift-implementation-what-should-i-do).
 
 #### What do negative scores mean?
 A negative contribution score on an input means that the input contributed to moving the output below its reference value, where the reference value of the output is the value that it has when provided the reference input. A negative contribution does not mean that the input is "unimportant". If you want to find inputs that DeepLIFT considers "unimportant" (i.e. DeepLIFT thinks they don't influence the output of the model much), these would be the inputs that have contribution scores near 0.
