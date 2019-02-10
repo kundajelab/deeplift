@@ -26,6 +26,7 @@ class TestInceptionV3(unittest.TestCase):
 
 
     def setUp(self):
+        K.clear_session()
         self.keras_model = applications.inception_v3.InceptionV3() 
         self.keras_model.compile(loss="mse", optimizer="sgd")
         self.keras_output_fprop_func = compile_func(
@@ -51,10 +52,13 @@ class TestInceptionV3(unittest.TestCase):
     def test_inceptionv3_forward_prop(self): 
         deeplift_model =\
             kc.convert_model_from_saved_files(self.saved_file_path) 
+        print(deeplift_model.get_name_to_layer().keys())
+        first_layer_name = list(deeplift_model.get_name_to_layer().keys())[0]
+        last_layer_name = list(deeplift_model.get_name_to_layer().keys())[-2]
         deeplift_fprop_func = compile_func(
          [deeplift_model.get_name_to_layer()[
-           "input_1_0"].get_activation_vars()],
-          deeplift_model.get_name_to_layer()["preact_predictions_0"]
+           first_layer_name].get_activation_vars()],
+          deeplift_model.get_name_to_layer()[last_layer_name]
                         .get_activation_vars())
         np.testing.assert_almost_equal(
             deeplift_fprop_func(self.inp),
@@ -67,9 +71,11 @@ class TestInceptionV3(unittest.TestCase):
                 self.saved_file_path,
                 nonlinear_mxts_mode=NonlinearMxtsMode.Gradient) 
         print(deeplift_model.get_name_to_layer().keys())
+        first_layer_name = list(deeplift_model.get_name_to_layer().keys())[0]
+        last_layer_name = list(deeplift_model.get_name_to_layer().keys())[-2]
         deeplift_contribs_func = deeplift_model.get_target_contribs_func(
-                      find_scores_layer_name="input_1_0",
-                      pre_activation_target_layer_name="preact_predictions_0")
+                      find_scores_layer_name=first_layer_name,
+                      pre_activation_target_layer_name=last_layer_name)
         np.testing.assert_almost_equal(
             deeplift_contribs_func(task_idx=0,
                                       input_data_list=[self.inp],
