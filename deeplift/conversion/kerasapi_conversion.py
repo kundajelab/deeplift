@@ -119,7 +119,9 @@ def conv2d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=config[KerasKeys.weights][1],
+            bias=(config[KerasKeys.weights][1] if 
+                  len(config[KerasKeys.weights]) > 1
+                  else np.zeros(config[KerasKeys.weights][0].shape[-1])),
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             data_format=config[KerasKeys.data_format],
@@ -150,7 +152,9 @@ def conv1d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=config[KerasKeys.weights][1],
+            bias=(config[KerasKeys.weights][1] if 
+                  len(config[KerasKeys.weights]) > 1
+                  else np.zeros(config[KerasKeys.weights][0].shape[-1])),
             stride=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
@@ -177,7 +181,9 @@ def dense_conversion(config,
                   name=("preact_" if len(converted_activation) > 0
                         else "")+name, 
                   kernel=config[KerasKeys.weights][0],
-                  bias=config[KerasKeys.weights][1],
+                  bias=(config[KerasKeys.weights][1] if 
+                        len(config[KerasKeys.weights]) > 1 
+                        else np.zeros(config[KerasKeys.weights][0].shape[-1])),
                   verbose=verbose,
                   dense_mxts_mode=dense_mxts_mode)]
     to_return.extend(converted_activation)
@@ -193,11 +199,13 @@ def batchnorm_conversion(config, name, verbose, **kwargs):
     return [layers.normalization.BatchNormalization(
         name=name,
         verbose=verbose,
-        gamma=config[KerasKeys.weights][0],
-        beta=config[KerasKeys.weights][1],
+        gamma=(config[KerasKeys.weights][0]
+               if (config["scale"]==True)
+               else np.ones(config[KerasKeys.weights][0].shape)),
+        beta=config[KerasKeys.weights][(1 if config["scale"]==True else 0)],
         axis=config[KerasKeys.axis],
-        mean=config[KerasKeys.weights][2],
-        var=config[KerasKeys.weights][3],
+        mean=config[KerasKeys.weights][(2 if config["scale"]==True else 1)],
+        var=config[KerasKeys.weights][(3 if config["scale"]==True else 2)],
         epsilon=config[KerasKeys.epsilon] 
     )] 
 
@@ -224,6 +232,12 @@ def maxpool2d_conversion(config, name, verbose,
     return [layers.MaxPool2D(
              maxpool_deeplift_mode=maxpool_deeplift_mode,
              **pool2d_kwargs)]
+
+
+def globalavgpooling2d_conversion(config, name, verbose, **kwargs):
+    return [layers.GlobalAvgPool2D(
+             name=name,
+             verbose=verbose)]
 
 
 def avgpool2d_conversion(config, name, verbose, **kwargs):
@@ -316,6 +330,7 @@ def layer_name_to_conversion_function(layer_name):
         'conv2d': conv2d_conversion,
         'maxpooling2d': maxpool2d_conversion,
         'averagepooling2d': avgpool2d_conversion,
+        'globalaveragepooling2d': globalavgpooling2d_conversion,
 
         'batchnormalization': batchnorm_conversion,
         'dropout': noop_conversion, 
