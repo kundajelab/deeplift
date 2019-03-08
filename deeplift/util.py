@@ -365,7 +365,6 @@ def get_shuffle_seq_ref_function(score_computation_function,
                     print(str(references_generated)
                           +" reference seqs generated")
                 if isinstance(seq,np.ndarray):
-                    seq_shape=seq.shape
                     seq=seq.squeeze()
                 to_run_input_data_seqs.append(seq) 
                 to_run_input_data_refs.append(shuffle_func(seq))
