@@ -343,7 +343,8 @@ def get_hypothetical_contribs_func_onehot(multipliers_function):
 
 
 def get_shuffle_seq_ref_function(score_computation_function, 
-                                 shuffle_func, one_hot_func):
+                                 shuffle_func, one_hot_func=None):
+    
     def compute_scores_with_shuffle_seq_refs(
         task_idx, input_data_sequences, num_refs_per_seq,
         batch_size, seed=1, progress_update=None):
@@ -363,27 +364,36 @@ def get_shuffle_seq_ref_function(score_computation_function,
                     references_generated%progress_update==0):
                     print(str(references_generated)
                           +" reference seqs generated")
+                if isinstance(seq,np.ndarray):
+                    seq=seq.squeeze()
                 to_run_input_data_seqs.append(seq) 
-                to_run_input_data_refs.append(shuffle_func(seq)) 
-        if (progress_update is not None):
-            print("One hot encoding sequences...")
-        input_data_list = [one_hot_func(to_run_input_data_seqs)] 
-        input_references_list = [one_hot_func(to_run_input_data_refs)]
-        if (progress_update is not None):
-            print("One hot encoding done...")
-
+                to_run_input_data_refs.append(shuffle_func(seq))
+        if one_hot_func is not None:
+            if (progress_update is not None):
+                print("One hot encoding sequences...")
+            input_data_list = [one_hot_func(to_run_input_data_seqs)] 
+            input_references_list = [one_hot_func(to_run_input_data_refs)]
+            if (progress_update is not None):
+                print("One hot encoding done...")
+        else:
+            #the data is already one-hot encoded
+            input_shape=list(input_data_sequences.shape)
+            input_shape[0]=input_shape[0]*num_refs_per_seq
+            input_shape=tuple(input_shape) 
+            input_data_list = [np.reshape(np.asarray(to_run_input_data_seqs),input_shape)]
+            input_references_list = [np.reshape(np.asarray(to_run_input_data_refs),input_shape)]
         computed_scores = np.array(score_computation_function(
             task_idx=task_idx,
             input_data_list=input_data_list,
             input_references_list=input_references_list,
             batch_size=batch_size,
             progress_update=progress_update))
-        
         computed_scores = np.reshape(
                             computed_scores,
                             [len(input_data_sequences),
                              num_refs_per_seq]
-                             +list(input_data_list[0].shape[1:])) 
+                             +list(input_data_list[0].shape[1:]))
+    
         #take the mean over all the refs
         mean_scores = np.mean(computed_scores,axis=1)
         return mean_scores

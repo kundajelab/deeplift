@@ -6,7 +6,7 @@ from random import shuffle
 def prepare_edges(s):
     edges = defaultdict(list)
     for i in range(len(s)-1):
-        edges[s[i]].append(s[i+1])
+        edges[tuple(s[i])].append(s[i+1])
     return edges
 
 
@@ -26,11 +26,16 @@ def traverse_edges(s, edges):
     edges_queue_pointers = defaultdict(lambda: 0)
     for i in range(len(s)-1):
         last_char = generated[-1]
-        generated.append(edges[last_char][edges_queue_pointers[last_char]])
-        edges_queue_pointers[last_char] += 1
-    return "".join(generated)
+        generated.append(edges[tuple(last_char)][edges_queue_pointers[tuple(last_char)]])
+        edges_queue_pointers[tuple(last_char)] += 1
+    if isinstance(generated[0],str):
+        return "".join(generated)
+    else:
+        import numpy as np
+        return np.asarray(generated)
 
 
 def dinuc_shuffle(s):
-    s = s.upper()
+    if isinstance(s, str):
+        s=s.upper()
     return traverse_edges(s, shuffle_edges(prepare_edges(s)))
