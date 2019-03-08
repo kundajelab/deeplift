@@ -30,8 +30,9 @@ def traverse_edges(s, edges):
         edges_queue_pointers[tuple(last_char)] += 1
     if isinstance(generated[0],str):
         return "".join(generated)
-    import numpy as np
-    return np.asarray(generated)
+    else:
+        import numpy as np
+        return np.asarray(generated)
 
 
 def dinuc_shuffle(s):

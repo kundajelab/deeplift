@@ -364,6 +364,9 @@ def get_shuffle_seq_ref_function(score_computation_function,
                     references_generated%progress_update==0):
                     print(str(references_generated)
                           +" reference seqs generated")
+                if isinstance(seq,np.ndarray):
+                    seq_shape=seq.shape
+                    seq=seq.squeeze()
                 to_run_input_data_seqs.append(seq) 
                 to_run_input_data_refs.append(shuffle_func(seq))
         if one_hot_func is not None:
@@ -375,20 +378,23 @@ def get_shuffle_seq_ref_function(score_computation_function,
                 print("One hot encoding done...")
         else:
             #the data is already one-hot encoded
-            input_data_list = [to_run_input_data_seqs] 
-            input_references_list = [to_run_input_data_refs]
+            input_shape=list(input_data_sequences.shape)
+            input_shape[0]=input_shape[0]*num_refs_per_seq
+            input_shape=tuple(input_shape) 
+            input_data_list = [np.reshape(np.asarray(to_run_input_data_seqs),input_shape)]
+            input_references_list = [np.reshape(np.asarray(to_run_input_data_refs),input_shape)]
         computed_scores = np.array(score_computation_function(
             task_idx=task_idx,
             input_data_list=input_data_list,
             input_references_list=input_references_list,
             batch_size=batch_size,
             progress_update=progress_update))
-        
         computed_scores = np.reshape(
                             computed_scores,
                             [len(input_data_sequences),
                              num_refs_per_seq]
-                             +list(input_data_list[0].shape[1:])) 
+                             +list(input_data_list[0].shape[1:]))
+    
         #take the mean over all the refs
         mean_scores = np.mean(computed_scores,axis=1)
         return mean_scores
