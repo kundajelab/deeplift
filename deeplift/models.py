@@ -277,5 +277,3 @@ class GraphModel(Model):
                         output=self.get_name_to_layer()[output_layer_name]
                                    .get_activation_vars())
 
-
-

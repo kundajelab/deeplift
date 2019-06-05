@@ -176,12 +176,16 @@ class Conv2D(Conv):
 
         #assuming channels_last dimension ordering here
         shape_to_return = [None]
-        if (input_shape is None):
+        if (input_shape is None
+            or (input_shape[1] is None)
+            or (input_shape[2] is None)):
             shape_to_return += [None, None]
         else:
             if (self.padding == PaddingMode.valid):
                 for (dim_inp_len, dim_kern_width, dim_stride) in\
                     zip(input_shape[1:3], self.kernel.shape[:2], self.strides):
+                    if (dim_inp_len is None):
+                        raise RuntimeError(input_shape)
                     #overhangs are excluded
                     shape_to_return.append(
                      1+int((dim_inp_len-dim_kern_width)/dim_stride)) 
