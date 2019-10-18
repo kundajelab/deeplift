@@ -10,13 +10,16 @@ def prepare_edges(s):
     return edges
 
 
-def shuffle_edges(edges):
+def shuffle_edges(edges, rng=None):
     #for each character, remove the last edge, shuffle, add edge back
     for char in edges:
         last_edge = edges[char][-1]
         edges[char] = edges[char][:-1]
         the_list = edges[char]
-        shuffle(the_list)
+        if (rng is None):
+            shuffle(the_list)
+        else:
+            rng.shuffle(the_list)
         edges[char].append(last_edge)
     return edges
 
@@ -35,7 +38,7 @@ def traverse_edges(s, edges):
         return np.asarray(generated)
 
 
-def dinuc_shuffle(s):
+def dinuc_shuffle(s, rng=None):
     if isinstance(s, str):
         s=s.upper()
-    return traverse_edges(s, shuffle_edges(prepare_edges(s)))
+    return traverse_edges(s, shuffle_edges(prepare_edges(s), rng))
