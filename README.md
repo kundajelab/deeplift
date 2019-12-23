@@ -10,7 +10,7 @@ This repository implements the methods in ["Learning Important Features Through 
 
 Here is a link to the [slides](https://docs.google.com/file/d/0B15F_QN41VQXSXRFMzgtS01UOU0/edit?usp=docslist_api&filetype=mspresentation) and the [video](https://vimeo.com/238275076) of the 15-minute talk given at ICML. Please see the [FAQ](https://github.com/kundajelab/deeplift/blob/master/README.md#faq) and file a github issue if you have questions.
 
-**Please be aware that figuring out optimal references is still an unsolved problem and we are actively working on a principled solution. Suggestions on good heuristics for different applications are welcome.**
+**Please be aware that figuring out optimal references is still an unsolved problem and we are working on a principled solution. Suggestions on good heuristics for different applications are welcome.**
 
 Please feel free to follow this repository to stay abreast of updates.
 
