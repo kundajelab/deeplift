@@ -4,7 +4,7 @@ DeepLIFT: Deep Learning Important FeaTures
 [![Downloads](https://pepy.tech/badge/deeplift/month)](https://pepy.tech/project/deeplift)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/kundajelab/deeplift/blob/master/LICENSE)
 
-**This version of DeepLIFT has been tested with Keras 2.2.0 & tensorflow 1.10.1**. See the tags for older versions, and see [this FAQ question](#my-model-architecture-is-not-supported-by-this-deeplift-implementation-what-should-i-do) for information on other implementations of DeepLIFT that may work with different versions of tensorflow/pytorch.
+**This version of DeepLIFT has been tested with Keras 2.2.0 & tensorflow 1.10.1**. See [this FAQ question](#my-model-architecture-is-not-supported-by-this-deeplift-implementation-what-should-i-do) for information on other implementations of DeepLIFT that may work with different versions of tensorflow/pytorch. See the tags for older versions.
 
 Algorithms for computing importance scores in deep neural networks. Implements the methods in ["Learning Important Features Through Propagating Activation Differences"](https://arxiv.org/abs/1704.02685) by Shrikumar, Greenside & Kundaje, as well as other commonly-used methods such as gradients, gradient-times-input (equivalent to a version of Layerwise Relevance Propagation), [guided backprop](https://arxiv.org/abs/1412.6806) and [integrated gradients](https://arxiv.org/abs/1611.02639).
 
