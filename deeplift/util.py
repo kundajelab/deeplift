@@ -382,21 +382,32 @@ def get_shuffle_seq_ref_function(score_computation_function,
             input_shape=tuple(input_shape) 
             input_data_list = [np.reshape(np.asarray(to_run_input_data_seqs),input_shape)]
             input_references_list = [np.reshape(np.asarray(to_run_input_data_refs),input_shape)]
-        computed_scores = np.array(score_computation_function(
-            task_idx=task_idx,
-            input_data_list=input_data_list,
-            input_references_list=input_references_list,
-            batch_size=batch_size,
-            progress_update=progress_update))
-        computed_scores = np.reshape(
-                            computed_scores,
-                            [len(input_data_sequences),
-                             num_refs_per_seq]
-                             +list(input_data_list[0].shape[1:]))
-    
-        #take the mean over all the refs
-        mean_scores = np.mean(computed_scores,axis=1)
-        return mean_scores
+        #wrap task_idx in a list if it was not in a list
+        # (will unwrap later)
+        if (hasattr(task_idx, '__iter__')) == False:
+            list_wrapped_task_idx = [task_idx]
+        else:
+            list_wrapped_task_idx = task_idx
+        the_scores = []
+        for a_task in list_wrapped_task_idx:
+            computed_scores = np.array(score_computation_function(
+                task_idx=a_task,
+                input_data_list=input_data_list,
+                input_references_list=input_references_list,
+                batch_size=batch_size,
+                progress_update=progress_update))
+            computed_scores = np.reshape(
+                                computed_scores,
+                                [len(input_data_sequences),
+                                 num_refs_per_seq]
+                                 +list(input_data_list[0].shape[1:]))
+            #take the mean over all the refs
+            mean_scores = np.mean(computed_scores,axis=1)
+            the_scores.append(mean_scores)
+        #unwrap the scores if task_idx was not orginally a list
+        if (hasattr(task_idx, '__iter__')) == False:
+            the_scores = the_scores[0]
+        return the_scores
     return compute_scores_with_shuffle_seq_refs
 
 
