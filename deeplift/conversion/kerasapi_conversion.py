@@ -119,7 +119,8 @@ def conv2d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=config[KerasKeys.weights][1],
+            bias=(config[KerasKeys.weights][1]
+                  if len(config[KerasKeys.weights]) > 1 else 0.0),
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             data_format=config[KerasKeys.data_format],
@@ -150,7 +151,8 @@ def conv1d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=config[KerasKeys.weights][1],
+            bias=(config[KerasKeys.weights][1]
+                  if len(config[KerasKeys.weights]) > 1 else 0.0),
             stride=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             conv_mxts_mode=conv_mxts_mode)] 
@@ -177,7 +179,8 @@ def dense_conversion(config,
                   name=("preact_" if len(converted_activation) > 0
                         else "")+name, 
                   kernel=config[KerasKeys.weights][0],
-                  bias=config[KerasKeys.weights][1],
+                  bias=(config[KerasKeys.weights][1]
+                        if len(config[KerasKeys.weights]) > 1 else 0.0),
                   verbose=verbose,
                   dense_mxts_mode=dense_mxts_mode)]
     to_return.extend(converted_activation)
