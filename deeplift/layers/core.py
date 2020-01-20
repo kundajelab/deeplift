@@ -69,7 +69,13 @@ class Layer(object):
 
     def reset_mxts_updated(self):
         for output_layer in self._output_layers:
-            output_layer.reset_mxts_updated()
+            # only update layer if needed
+            # if output_layer was already called by another layer:
+            #     output_layer._mxts_updated == False
+            # otherwise we call it
+            if output_layer._mxts_updated:                                                                                         
+                 output_layer.reset_mxts_updated()  
+         
         self._initialize_mxts()
         self._mxts_updated = False
         self._mxts_for_inputs_updated = False
