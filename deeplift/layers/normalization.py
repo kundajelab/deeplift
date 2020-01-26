@@ -7,7 +7,7 @@ import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
-import deeplift.util  
+from deeplift.util import to_tf_variable
 from .helper_functions import (
  pseudocount_near_zero, add_val_to_col)
 from . import helper_functions as hf
@@ -33,12 +33,12 @@ class BatchNormalization(SingleInputMixin, Node):
         #implementation, seems to support these only being one dimensional
         assert len(mean.shape)==1
         assert len(var.shape)==1
-        self.gamma = gamma
-        self.beta = beta
+        self.gamma = to_tf_variable(gamma, self.get_name() + '_gamma')
+        self.beta = to_tf_variable(beta, self.get_name() + '_beta')
         self.axis = axis
-        self.mean = mean
-        self.var = var
-        self.epsilon = epsilon
+        self.mean = to_tf_variable(mean, self.get_name() + '_mean')
+        self.var = to_tf_variable(var, self.get_name() + '_var')
+        self.epsilon = tf.constant(epsilon)
 
     def _compute_shape(self, input_shape):
         return input_shape
@@ -47,11 +47,11 @@ class BatchNormalization(SingleInputMixin, Node):
         new_shape = [(1 if (i != self.axis\
                         and i != (len(self._shape)+self.axis)) #neg self.axis
                         else self._shape[i])
-                       for i in range(len(self._shape))] 
-        self.reshaped_mean = self.mean.reshape(new_shape)
-        self.reshaped_var = self.var.reshape(new_shape)
-        self.reshaped_gamma = self.gamma.reshape(new_shape)
-        self.reshaped_beta = self.beta.reshape(new_shape)
+                       for i in range(len(self._shape))]
+        self.reshaped_mean = tf.reshape(self.mean, new_shape)
+        self.reshaped_var = tf.reshape(self.var, new_shape)
+        self.reshaped_gamma = tf.reshape(self.gamma, new_shape)
+        self.reshaped_beta = tf.reshape(self.beta, new_shape)
         return tf.nn.batch_normalization(input_act_vars,
                                      scale=self.reshaped_gamma,
                                      offset=self.reshaped_beta,

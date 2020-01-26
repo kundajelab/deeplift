@@ -8,8 +8,9 @@ import deeplift
 from deeplift import models, layers
 from deeplift.layers.core import NonlinearMxtsMode,\
  DenseMxtsMode, ConvMxtsMode, MaxPoolDeepLiftMode
-import deeplift.util  
+import deeplift.util
 import numpy as np
+import tensorflow as tf
 import json
 import yaml
 import h5py
@@ -61,7 +62,7 @@ def prelu_conversion(config, name, verbose,
                      nonlinear_mxts_mode, **kwargs):
    return [layers.activations.PReLU(alpha=config[KerasKeys.weights][0],
                        name=name, verbose=verbose,
-                       nonlinear_mxts_mode=nonlinear_mxts_mode)] 
+                       nonlinear_mxts_mode=nonlinear_mxts_mode)]
 
 
 def relu_conversion(name, verbose, nonlinear_mxts_mode, **kwargs):
@@ -87,7 +88,7 @@ def activation_conversion(
     return activation_to_conversion_function(activation_name)(
                  config=config,
                  name=name, verbose=verbose,
-                 nonlinear_mxts_mode=nonlinear_mxts_mode) 
+                 nonlinear_mxts_mode=nonlinear_mxts_mode)
 
 
 def conv2d_conversion(config,
@@ -106,7 +107,7 @@ def conv2d_conversion(config,
         if (config['dilation_rate'][0] != 1 or
             config['dilation_rate'][1] != 1):
             raise NotImplementedError(
-                    "Non (1,1) dilation rate not yet supported") 
+                    "Non (1,1) dilation rate not yet supported")
 
     #nonlinear_mxts_mode only used for activation
     converted_activation = activation_conversion(
@@ -119,13 +120,13 @@ def conv2d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=(config[KerasKeys.weights][1] if 
+            bias=(config[KerasKeys.weights][1] if
                   len(config[KerasKeys.weights]) > 1
                   else np.zeros(config[KerasKeys.weights][0].shape[-1])),
             strides=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
             data_format=config[KerasKeys.data_format],
-            conv_mxts_mode=conv_mxts_mode)] 
+            conv_mxts_mode=conv_mxts_mode)]
     to_return.extend(converted_activation)
 
     return deeplift.util.connect_list_of_layers(to_return)
@@ -152,12 +153,12 @@ def conv1d_conversion(config,
             name=("preact_" if len(converted_activation) > 0
                         else "")+name,
             kernel=config[KerasKeys.weights][0],
-            bias=(config[KerasKeys.weights][1] if 
+            bias=(config[KerasKeys.weights][1] if
                   len(config[KerasKeys.weights]) > 1
                   else np.zeros(config[KerasKeys.weights][0].shape[-1])),
             stride=config[KerasKeys.strides],
             padding=config[KerasKeys.padding].upper(),
-            conv_mxts_mode=conv_mxts_mode)] 
+            conv_mxts_mode=conv_mxts_mode)]
     to_return.extend(converted_activation)
     return deeplift.util.connect_list_of_layers(to_return)
 
@@ -176,13 +177,13 @@ def dense_conversion(config,
                             config=config,
                             name=name,
                             verbose=verbose,
-                            nonlinear_mxts_mode=nonlinear_mxts_mode) 
+                            nonlinear_mxts_mode=nonlinear_mxts_mode)
     to_return = [layers.core.Dense(
                   name=("preact_" if len(converted_activation) > 0
-                        else "")+name, 
+                        else "")+name,
                   kernel=config[KerasKeys.weights][0],
-                  bias=(config[KerasKeys.weights][1] if 
-                        len(config[KerasKeys.weights]) > 1 
+                  bias=(config[KerasKeys.weights][1] if
+                        len(config[KerasKeys.weights]) > 1
                         else np.zeros(config[KerasKeys.weights][0].shape[-1])),
                   verbose=verbose,
                   dense_mxts_mode=dense_mxts_mode)]
@@ -204,8 +205,8 @@ def batchnorm_conversion(config, name, verbose, **kwargs):
         axis=config[KerasKeys.axis],
         mean=config[KerasKeys.weights][2],
         var=config[KerasKeys.weights][3],
-        epsilon=config[KerasKeys.epsilon] 
-    )] 
+        epsilon=config[KerasKeys.epsilon]
+    )]
 
 
 def flatten_conversion(name, verbose, **kwargs):
@@ -291,7 +292,7 @@ def input_layer_conversion(config, name, **kwargs):
      layers.core.Input(batch_shape=config[KerasKeys.batch_input_shape],
                        name=name)
     return [deeplift_input_layer]
-     
+
 
 def activation_to_conversion_function(activation_name):
     activation_dict = {
@@ -306,7 +307,7 @@ def activation_to_conversion_function(activation_name):
 def concat_conversion_function(config, name, verbose, **kwargs):
     return [layers.core.Concat(
              axis=config[KerasKeys.axis],
-             name=name, verbose=verbose)] 
+             name=name, verbose=verbose)]
 
 
 def layer_name_to_conversion_function(layer_name):
@@ -324,7 +325,7 @@ def layer_name_to_conversion_function(layer_name):
         'averagepooling2d': avgpool2d_conversion,
 
         'batchnormalization': batchnorm_conversion,
-        'dropout': noop_conversion, 
+        'dropout': noop_conversion,
         'flatten': flatten_conversion,
         'dense': dense_conversion,
 
@@ -333,7 +334,7 @@ def layer_name_to_conversion_function(layer_name):
 
         'sequential': sequential_container_conversion,
         'model': functional_container_conversion,
-        'concatenate': concat_conversion_function 
+        'concatenate': concat_conversion_function
     }
     # lowercase to create resistance to capitalization changes
     # was a problem with previous Keras versions
@@ -353,7 +354,7 @@ def convert_model_from_saved_files(
         if (hasattr(str_data,'decode')):
             str_data = str_data.decode("utf-8")
         model_class_and_config = json.loads(str_data)
-    model_class_name = model_class_and_config["class_name"] 
+    model_class_name = model_class_and_config["class_name"]
     model_config = model_class_and_config["config"]
 
     model_weights = h5py.File(h5_file)
@@ -374,7 +375,7 @@ def convert_model_from_saved_files(
 
     #add in the weights of the layer to the layer config
     for layer_config in layer_configs:
-         
+
         layer_name = layer_config["config"]["name"]
         assert layer_name in model_weights,\
             ("Layer "+layer_name+" is in the layer names but not in the "
@@ -398,12 +399,12 @@ def convert_model_from_saved_files(
                   (layer_config["config"] if
                    isinstance(layer_config["config"], list)
                    else layer_config["config"]["layers"]))
-        else:  
+        else:
             layer_weights = [np.array(model_weights[layer_name][x]) for x in
                              model_weights[layer_name].attrs["weight_names"]]
             layer_config["config"]["weights"] = layer_weights
-        
-    return model_conversion_function(model_config=model_config, **kwargs) 
+
+    return model_conversion_function(model_config=model_config, **kwargs)
 
 
 def insert_weights_into_nested_model_config(nested_model_weights,
@@ -421,14 +422,14 @@ def insert_weights_into_nested_model_config(nested_model_weights,
                       (layer_config["config"]
                        if isinstance(layer_config["config"],list)
                        else layer_config["config"]["layers"]))
-            else: 
-                layer_name = layer_config["config"]["name"] 
+            else:
+                layer_name = layer_config["config"]["name"]
                 layer_weights = [np.array(nested_model_weights[x]) for x in
                                  nested_model_weights.keys() if
                                  x.startswith(layer_name+"/")]
                 if (len(layer_weights) > 0):
                     layer_config["config"]["weights"] = layer_weights
- 
+
 
 def convert_sequential_model(
     model_config,
@@ -446,23 +447,25 @@ def convert_sequential_model(
               +str(nonlinear_mxts_mode))
         sys.stdout.flush()
 
-    converted_layers = []
-    batch_input_shape = model_config[0]['config'][KerasKeys.batch_input_shape]
-    converted_layers.append(
-        layers.core.Input(batch_shape=batch_input_shape, name="input"))
-    #converted_layers is actually mutated to be extended with the
-    #additional layers so the assignment is not strictly necessary,
-    #but whatever
-    converted_layers = sequential_container_conversion(
-                config=model_config, name="", verbose=verbose,
-                nonlinear_mxts_mode=nonlinear_mxts_mode,
-                dense_mxts_mode=dense_mxts_mode,
-                conv_mxts_mode=conv_mxts_mode,
-                maxpool_deeplift_mode=maxpool_deeplift_mode,
-                converted_layers=converted_layers,
-                layer_overrides=layer_overrides)
-    converted_layers[-1].build_fwd_pass_vars()
-    return models.SequentialModel(converted_layers)
+    # use variable scope if multiple deeplift models are constructed in a session
+    with tf.variable_scope(None, default_name='deeplift'):
+        converted_layers = []
+        batch_input_shape = model_config[0]['config'][KerasKeys.batch_input_shape]
+        converted_layers.append(
+            layers.core.Input(batch_shape=batch_input_shape, name="input"))
+        #converted_layers is actually mutated to be extended with the
+        #additional layers so the assignment is not strictly necessary,
+        #but whatever
+        converted_layers = sequential_container_conversion(
+                    config=model_config, name="", verbose=verbose,
+                    nonlinear_mxts_mode=nonlinear_mxts_mode,
+                    dense_mxts_mode=dense_mxts_mode,
+                    conv_mxts_mode=conv_mxts_mode,
+                    maxpool_deeplift_mode=maxpool_deeplift_mode,
+                    converted_layers=converted_layers,
+                    layer_overrides=layer_overrides)
+        converted_layers[-1].build_fwd_pass_vars()
+        return models.SequentialModel(converted_layers)
 
 
 def sequential_container_conversion(config,
@@ -486,7 +489,7 @@ def sequential_container_conversion(config,
             for mode in ['dense_mxts_mode', 'conv_mxts_mode',
                          'nonlinear_mxts_mode']:
                 if mode in layer_overrides[layer_idx]:
-                    modes_to_pass[mode] = layer_overrides[layer_idx][mode] 
+                    modes_to_pass[mode] = layer_overrides[layer_idx][mode]
         if (layer_config["class_name"] != "InputLayer"):
             if layer_config["class_name"] in custom_conversion_funcs:
                 conversion_function = custom_conversion_funcs[
@@ -499,7 +502,7 @@ def sequential_container_conversion(config,
                                  name=(name_prefix+"-" if name_prefix != ""
                                        else "")+str(layer_idx),
                                  verbose=verbose,
-                                 **modes_to_pass)) 
+                                 **modes_to_pass))
         else:
             print("Encountered an Input layer in sequential container; "
                   "skipping due to redundancy")
@@ -550,7 +553,7 @@ def functional_container_conversion(config,
         #they should all be 2-tuples of the input node id
         # and the output node index.
         assert all([len(x)==2 for x in outer_inbound_node_infos])
-        
+
         #Get the model config's input node ids
         #The entries in model_config["input_layers"] are 3-tuples of the format
         # (layer name, node_idx, output_tensor_idx). Once again, I am
@@ -563,7 +566,7 @@ def functional_container_conversion(config,
 
         assert len(input_node_ids)==len(outer_inbound_node_infos)
         input_node_id_to_outer_inbound_node =\
-            OrderedDict(zip(input_node_ids, outer_inbound_node_infos)) 
+            OrderedDict(zip(input_node_ids, outer_inbound_node_infos))
     else:
         input_node_id_to_outer_inbound_node = {}
 
@@ -587,7 +590,7 @@ def functional_container_conversion(config,
         # functional models API, shared layers are represented
         # as a single "layer" object with multiple "nodes". Each node
         # has an associated entry in config["inbound_nodes"] that details
-        # the node's input (where the input consists of node(s) of 
+        # the node's input (where the input consists of node(s) of
         # other layer(s)).
         #Different nodes are only distinguished by
         # the fact that they act on different inputs since all their
@@ -641,8 +644,8 @@ def functional_container_conversion(config,
             #Now we deal with nodes of a type other than InputLayer.
             #Most nodes are of a type that takes only one input node,
             # however there are some nodes (i.e. nodes of type Merge)
-            # that take multiple input nodes. 
-            else: 
+            # that take multiple input nodes.
+            else:
                 inbound_node_info =\
                     layer_config["inbound_nodes"][node_idx]
                 #If we are dealing with a node that takes a single
@@ -653,7 +656,7 @@ def functional_container_conversion(config,
                 #In all the examples I have dealt with, output_tensor_index
                 # is 0 and other_kwargs is an empty dict. I think those
                 # are there for edge cases where a single node outputs
-                # multiple tensors and only one of them are used later. 
+                # multiple tensors and only one of them are used later.
                 if (isinstance(inbound_node_info[0], str)):
                     #We are dealing with a node that takes a single input node
                     #Validate my assumptions about the format:
@@ -669,7 +672,7 @@ def functional_container_conversion(config,
                                                    inbound_node_info[2])
                 #The other case I have in mind are merge layers that
                 # take multiple input nodes. In this case,
-                # inbound_node_info should be a list of 4-tuples 
+                # inbound_node_info should be a list of 4-tuples
                 else:
                     assert (isinstance(inbound_node_info[0], list)
                         and (isinstance(inbound_node_info[0][0], str)
@@ -687,9 +690,9 @@ def functional_container_conversion(config,
                            +x[0]+"_"+str(x[1])), x[2])
                          for x in inbound_node_info]
                     processed_inbound_node_info = inbound_node_ids
-            
+
             if (node_id in input_node_id_to_outer_inbound_node):
-                conversion_function = noop_conversion                 
+                conversion_function = noop_conversion
 
             modes_to_pass = {'dense_mxts_mode': dense_mxts_mode,
                              'conv_mxts_mode': conv_mxts_mode,
@@ -699,7 +702,7 @@ def functional_container_conversion(config,
                 for mode in ['dense_mxts_mode', 'conv_mxts_mode',
                              'nonlinear_mxts_mode']:
                     if mode in layer_overrides[layer_idx]:
-                        modes_to_pass[mode] = layer_overrides[layer_idx][mode] 
+                        modes_to_pass[mode] = layer_overrides[layer_idx][mode]
 
             #Instantiate the deeplift layers associated with the node_id.
             # Note that a single keras node can map to multiple deeplift
@@ -709,7 +712,7 @@ def functional_container_conversion(config,
             # why the return type of conversion_function is a list of layers.
             # In the aforementioned example, the ReLU layer will retain
             # the original deeplift layer name and the Conv layer will
-            # have 'preact_' prefixed to the deeplift layer name 
+            # have 'preact_' prefixed to the deeplift layer name
             converted_deeplift_layers = conversion_function(
                          config=layer_config["config"],
                          name=node_id,
@@ -721,7 +724,7 @@ def functional_container_conversion(config,
                          node_id_to_deeplift_layers=node_id_to_deeplift_layers,
                          node_id_to_input_node_info=node_id_to_input_node_info,
                          name_to_deeplift_layer=name_to_deeplift_layer,
-                       
+
                          **modes_to_pass)
 
             if (type(converted_deeplift_layers).__name__
@@ -759,7 +762,7 @@ def functional_container_conversion(config,
                 == "ConvertedModelContainer"):
                 output_layers.append(
                  converted_deeplift_layers.output_layers[output_tensor_idx])
-            
+
     #Link up all the deeplift layers
     for node_id in node_id_to_input_node_info:
         input_node_info = node_id_to_input_node_info[node_id]
@@ -767,17 +770,17 @@ def functional_container_conversion(config,
             if (isinstance(input_node_info, list)):
                 temp_inp = []
                 for input_node_id,output_tensor_idx in input_node_info:
-                    deeplift_layers = node_id_to_deeplift_layers[input_node_id] 
+                    deeplift_layers = node_id_to_deeplift_layers[input_node_id]
                     if (isinstance(deeplift_layers, list)):
                         assert output_tensor_idx==0
                         temp_inp.append(deeplift_layers[-1])
                     elif (type(deeplift_layers).__name__
                                      == "ConvertedModelContainer"):
                         temp_inp.append(
-                            deeplift_layers.output_layers[output_tensor_idx]) 
+                            deeplift_layers.output_layers[output_tensor_idx])
             else:
                 input_node_id,output_tensor_idx = input_node_info
-                deeplift_layers = node_id_to_deeplift_layers[input_node_id] 
+                deeplift_layers = node_id_to_deeplift_layers[input_node_id]
                 if (isinstance(deeplift_layers, list)):
                     assert output_tensor_idx==0
                     temp_inp = deeplift_layers[-1]
@@ -819,20 +822,22 @@ def convert_functional_model(
     if (verbose):
         print("nonlinear_mxts_mode is set to: "+str(nonlinear_mxts_mode))
 
-    converted_model_container = functional_container_conversion(
-                            config=model_config,
-                            name="", verbose=verbose,
-                            nonlinear_mxts_mode=nonlinear_mxts_mode,
-                            dense_mxts_mode=dense_mxts_mode,
-                            conv_mxts_mode=conv_mxts_mode,
-                            maxpool_deeplift_mode=maxpool_deeplift_mode,
-                            layer_overrides=layer_overrides,
-                            custom_conversion_funcs=custom_conversion_funcs)
+    # use variable scope if multiple deeplift models are constructed in a session
+    with tf.variable_scope(None, default_name='deeplift'):
+        converted_model_container = functional_container_conversion(
+                                config=model_config,
+                                name="", verbose=verbose,
+                                nonlinear_mxts_mode=nonlinear_mxts_mode,
+                                dense_mxts_mode=dense_mxts_mode,
+                                conv_mxts_mode=conv_mxts_mode,
+                                maxpool_deeplift_mode=maxpool_deeplift_mode,
+                                layer_overrides=layer_overrides,
+                                custom_conversion_funcs=custom_conversion_funcs)
 
-    for output_layer in converted_model_container.output_layers:
-        output_layer.build_fwd_pass_vars()
+        for output_layer in converted_model_container.output_layers:
+            output_layer.build_fwd_pass_vars()
 
-    return models.GraphModel(
-            name_to_layer=converted_model_container.name_to_deeplift_layer,
-            input_layer_names=converted_model_container.input_layer_names)
+        return models.GraphModel(
+                name_to_layer=converted_model_container.name_to_deeplift_layer,
+                input_layer_names=converted_model_container.input_layer_names)
 

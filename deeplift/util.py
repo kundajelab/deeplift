@@ -426,3 +426,10 @@ def in_place_shuffle(arr):
         arr[chosen_index] = arr[i]
         arr[i] = val_at_index
     return arr
+
+
+def to_tf_variable(np_array, name):
+    if type(np_array) == list:
+        np_array = np.array(np_array)
+    return tf.get_variable(name, dtype=np_array.dtype,
+                           initializer=np_array, trainable=False)
