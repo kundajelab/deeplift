@@ -347,27 +347,32 @@ def get_shuffle_seq_ref_function(score_computation_function,
     
     def compute_scores_with_shuffle_seq_refs(
         task_idx, input_data_sequences, num_refs_per_seq,
-        batch_size, seed=1, progress_update=None):
+        batch_size, seed=1, progress_update=None, pregen_refs=None):
 
-        import numpy as np
-        np.random.seed(seed)
-        import random
-        random.seed(seed)
+        rng = np.random.RandomState(seed)
 
-        to_run_input_data_seqs = []
-        to_run_input_data_refs = []
-        references_generated = 0
-        for seq in input_data_sequences:
-            for i in range(num_refs_per_seq):
-                references_generated += 1
-                if (progress_update is not None and
-                    references_generated%progress_update==0):
-                    print(str(references_generated)
-                          +" reference seqs generated")
-                if isinstance(seq,np.ndarray):
-                    seq=seq.squeeze()
-                to_run_input_data_seqs.append(seq) 
-                to_run_input_data_refs.append(shuffle_func(seq))
+        if (pregen_refs is None):
+            to_run_input_data_seqs = []
+            to_run_input_data_refs = []
+            references_generated = 0
+            for seq in input_data_sequences:
+                for i in range(num_refs_per_seq):
+                    references_generated += 1
+                    if (progress_update is not None and
+                        references_generated%progress_update==0):
+                        print(str(references_generated)
+                              +" reference seqs generated")
+                    if isinstance(seq,np.ndarray):
+                        seq=seq.squeeze()
+                    to_run_input_data_seqs.append(seq) 
+                    to_run_input_data_refs.append(shuffle_func(seq,rng=rng))
+        else:
+            to_run_input_data_seqs = [seq for seq in input_data_sequences
+                                      for i in range(num_refs_per_seq)]
+            assert len(pregen_refs)==len(to_run_input_data_seqs),\
+                   (len(pregen_refs), len(to_run_input_data_seqs))
+            to_run_input_data_refs = pregen_refs
+
         if one_hot_func is not None:
             if (progress_update is not None):
                 print("One hot encoding sequences...")
@@ -380,8 +385,10 @@ def get_shuffle_seq_ref_function(score_computation_function,
             input_shape=list(input_data_sequences.shape)
             input_shape[0]=input_shape[0]*num_refs_per_seq
             input_shape=tuple(input_shape) 
-            input_data_list = [np.reshape(np.asarray(to_run_input_data_seqs),input_shape)]
-            input_references_list = [np.reshape(np.asarray(to_run_input_data_refs),input_shape)]
+            input_data_list = [np.reshape(np.asarray(to_run_input_data_seqs),
+                                          input_shape)]
+            input_references_list = [
+                np.reshape(np.asarray(to_run_input_data_refs),input_shape)]
         #wrap task_idx in a list if it was not in a list
         # (will unwrap later)
         if (hasattr(task_idx, '__iter__')) == False:
