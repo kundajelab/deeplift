@@ -93,8 +93,8 @@ class Model(object):
             #WARNING: this is not thread-safe. Do not try to
             #parallelize or you can end up with multiple target_layers
             #active at once
-            target_layer.set_active()
             target_layer.update_task_index(task_idx)
+            target_layer.set_active()
             to_return = deeplift.util.run_function_in_batches(
                     func = core_function,
                     input_data_list = input_data_list+input_references_list,
