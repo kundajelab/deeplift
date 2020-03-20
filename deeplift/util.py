@@ -349,12 +349,9 @@ def get_shuffle_seq_ref_function(score_computation_function,
         task_idx, input_data_sequences, num_refs_per_seq,
         batch_size, seed=1, progress_update=None, pregen_refs=None):
 
-        import numpy as np
-        np.random.seed(seed)
-        import random
-        random.seed(seed)
+        rng = np.random.RandomState(seed)
 
-        if (pregen_dinuc_shuff is None):
+        if (pregen_refs is None):
             to_run_input_data_seqs = []
             to_run_input_data_refs = []
             references_generated = 0
@@ -368,11 +365,12 @@ def get_shuffle_seq_ref_function(score_computation_function,
                     if isinstance(seq,np.ndarray):
                         seq=seq.squeeze()
                     to_run_input_data_seqs.append(seq) 
-                    to_run_input_data_refs.append(shuffle_func(seq))
+                    to_run_input_data_refs.append(shuffle_func(seq,rng=rng))
         else:
             to_run_input_data_seqs = [seq for seq in input_data_sequences
                                       for i in range(num_refs_per_seq)]
-            assert len(pregen_refs)==len(to_run_input_data_seqs)
+            assert len(pregen_refs)==len(to_run_input_data_seqs),\
+                   (len(pregen_refs), len(to_run_input_data_seqs))
             to_run_input_data_refs = pregen_refs
 
         if one_hot_func is not None:

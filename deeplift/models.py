@@ -123,7 +123,6 @@ class Model(object):
                 **kwargs)
 
     def _set_scoring_mode_for_target_layer(self, target_layer):
-        print("TARGET LAYER SET TO "+str(target_layer.get_name()))
         if (deeplift.util.is_type(target_layer,
                                   layers.Activation)):
             raise RuntimeError("You set the target layer to an"
