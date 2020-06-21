@@ -109,7 +109,7 @@ scores = np.array(deeplift_contribs_func(task_idx=0,
 
 This will work for sequential models involving dense and/or conv1d/conv2d layers and linear/relu/sigmoid/softmax or prelu activations. Please create a github issue or email avanti [dot] shrikumar@gmail.com readme if you are interested in support for other layer types.
 
-The syntax for using functional models is similar:
+The syntax for using functional models is similar; you can use `deeplift_model.get_name_to_layer().keys()` to get a list of layer names when figuring out how to specify `find_scores_layer_name` and `pre_activation_target_layer_name`:
 
 ```python
 deeplift_model =\
