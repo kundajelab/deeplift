@@ -170,7 +170,7 @@ The choice of reference depends on the question you wish to ask of the data. Gen
 
 #### How can I get a sense of how much an input contributes across all examples?
 
-It is fine to average the DeepLIFT contribution scores across examples. Be aware that there might be considerable heterogeneity in your data (i.e. some inputs may be very important for some subset of examples but not others) so clustering may prove more insightful than averaging.
+It is fine to average the DeepLIFT contribution scores across examples. Be aware that there might be considerable heterogeneity in your data (i.e. some inputs may be very important for some subset of examples but not others, some inputs may contribute positively on some examples and negatively on others) so clustering may prove more insightful than averaging. For the purpose of feature selection, a reasonable heuristic would be to rank inputs in descending order of the average magnitude of the DeepLIFT contribution scores.
 
 #### Can I have multiple input modes?
 
