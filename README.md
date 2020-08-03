@@ -85,7 +85,14 @@ deeplift_model =\
 find_scores_layer_idx = 0
 
 #Compile the function that computes the contribution scores
-#For sigmoid or softmax outputs, target_layer_idx should be -2 (the default)
+#For sigmoid or softmax outputs, target_layer_idx should be -2 (the default). This computes explanations
+# w.r.t. the logits.
+#Note that in the case of softmax outputs, it may be a good idea to normalize the softmax logits so
+# that they sum to zero across all tasks. This ensures that if a feature is contributing equally to
+# to all the softmax logits, it will effectly be seen as contributing to none of the tasks (adding
+# a constant to all logits of a softmax does not change the output). One way to acheive this
+# normalization is to mean-normalize the weights going into the Softmax layer as
+# discussed in eqn. 21 in Section 2.5 of https://arxiv.org/pdf/1605.01713.pdf ("A note on Softmax Activation")
 #(See "3.6 Choice of target layer" in https://arxiv.org/abs/1704.02685 for justification)
 #For regression tasks with a linear output, target_layer_idx should be -1
 #(which simply refers to the last layer)
