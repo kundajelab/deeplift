@@ -1,12 +1,12 @@
-import numpy as np
 from __future__ import division, print_function
+import numpy as np
 
 def string_to_char_array(seq):
     """
     Converts an ASCII string to a NumPy array of byte-long ASCII codes.
     e.g. "ACGT" becomes [65, 67, 71, 84].
     """
-    return np.frombuffer(bytes(seq, "utf8"), dtype=np.int8)
+    return np.frombuffer(bytearray(seq, "utf8"), dtype=np.int8)
 
 
 def char_array_to_string(arr):
