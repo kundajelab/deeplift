@@ -1,4 +1,5 @@
 import numpy as np
+from __future__ import division, print_function
 
 def string_to_char_array(seq):
     """
