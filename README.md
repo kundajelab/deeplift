@@ -10,7 +10,7 @@ This repository implements the methods in ["Learning Important Features Through 
 
 Here is a link to the [slides](https://docs.google.com/file/d/0B15F_QN41VQXSXRFMzgtS01UOU0/edit?usp=docslist_api&filetype=mspresentation) and the [video](https://vimeo.com/238275076) of the 15-minute talk given at ICML. Please see the [FAQ](https://github.com/kundajelab/deeplift/blob/master/README.md#faq) and file a github issue if you have questions.
 
-**Please be aware that figuring out optimal references is still an unsolved problem and we are working on a principled solution. Suggestions on good heuristics for different applications are welcome.**
+**Please be aware that figuring out optimal references is still an open problem. Suggestions on good heuristics for different applications are welcome.** In the meantime, feel free to look at this github issue for general ideas: https://github.com/kundajelab/deeplift/issues/104
 
 Please feel free to follow this repository to stay abreast of updates.
 
@@ -91,7 +91,8 @@ find_scores_layer_idx = 0
 #Note that in the case of softmax outputs, it may be a good idea to normalize the softmax logits so
 # that they sum to zero across all tasks. This ensures that if a feature is contributing equally to
 # to all the softmax logits, it will effectly be seen as contributing to none of the tasks (adding
-# a constant to all logits of a softmax does not change the output). One way to acheive this
+# a constant to all logits of a softmax does not change the output). This is discussed in
+# https://github.com/kundajelab/deeplift/issues/116. One way to efficiently acheive this
 # normalization is to mean-normalize the weights going into the Softmax layer as
 # discussed in eqn. 21 in Section 2.5 of https://arxiv.org/pdf/1605.01713.pdf ("A note on Softmax Activation")
 #If you want the DeepLIFT multipliers instead of the contribution scores, you can use get_target_multipliers_func
