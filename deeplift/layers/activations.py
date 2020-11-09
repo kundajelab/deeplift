@@ -215,13 +215,20 @@ class Sigmoid(Activation):
         return tf.nn.sigmoid(input_act_vars) 
 
     def _get_gradient_at_activation(self, activation_vars):
-        if (self.verbose == True):
-            print("Heads-up: I assume sigmoid is the output layer, "
-                  "not an intermediate one; if it's an intermediate layer "
-                  "then please bug me and I will implement the grad func")
-        return 0.0 #punting; not implemented for tensorflow yet.
-         #This shouldn't be needed unless you
-         #have hidden-unit sigmoid activations
+        #derivative: https://towardsdatascience.com/derivative-of-the-sigmoid-function-536880cf918e
+        out_act = self._build_activation_vars(activation_vars)
+        return out_act*(1-out_act) 
+
+
+class Tanh(Activation):
+
+    def _build_activation_vars(self, input_act_vars):
+        return tf.math.tanh(input_act_vars)
+
+    def _get_gradient_at_activation(self, activation_vars):
+        #derivative: https://blogs.cuit.columbia.edu/zp2130/derivative_of_tanh_function/
+        out_act = self._build_activation_vars(activation_vars)
+        return 1 - tf.math.square(out_act)
 
 
 class Softmax(Activation):
