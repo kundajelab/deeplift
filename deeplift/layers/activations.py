@@ -223,7 +223,7 @@ class Sigmoid(Activation):
 class Tanh(Activation):
 
     def _build_activation_vars(self, input_act_vars):
-        return tf.math.tanh(input_act_vars)
+        return tf.nn.tanh(input_act_vars)
 
     def _get_gradient_at_activation(self, activation_vars):
         #derivative: https://blogs.cuit.columbia.edu/zp2130/derivative_of_tanh_function/
