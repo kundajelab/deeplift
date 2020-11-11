@@ -38,6 +38,7 @@ ActivationTypes = deeplift.util.enum(
     relu='relu',
     prelu='prelu',
     sigmoid='sigmoid',
+    tanh='tanh',
     softmax='softmax',
     linear='linear')
 
@@ -71,6 +72,11 @@ def relu_conversion(name, verbose, nonlinear_mxts_mode, **kwargs):
 
 def sigmoid_conversion(name, verbose, nonlinear_mxts_mode, **kwargs):
     return [layers.activations.Sigmoid(name=name, verbose=verbose,
+                          nonlinear_mxts_mode=nonlinear_mxts_mode)]
+
+
+def tanh_conversion(name, verbose, nonlinear_mxts_mode, **kwargs):
+    return [layers.activations.Tanh(name=name, verbose=verbose,
                           nonlinear_mxts_mode=nonlinear_mxts_mode)]
 
 
@@ -298,6 +304,7 @@ def activation_to_conversion_function(activation_name):
         ActivationTypes.linear: linear_conversion,
         ActivationTypes.relu: relu_conversion,
         ActivationTypes.sigmoid: sigmoid_conversion,
+        ActivationTypes.tanh: tanh_conversion,
         ActivationTypes.softmax: softmax_conversion
     }
     return activation_dict[activation_name.lower()]
