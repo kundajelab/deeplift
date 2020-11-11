@@ -228,7 +228,7 @@ class Tanh(Activation):
     def _get_gradient_at_activation(self, activation_vars):
         #derivative: https://blogs.cuit.columbia.edu/zp2130/derivative_of_tanh_function/
         out_act = self._build_activation_vars(activation_vars)
-        return 1 - tf.math.square(out_act)
+        return 1 - (out_act*out_act)
 
 
 class Softmax(Activation):
