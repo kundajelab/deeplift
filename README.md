@@ -1,7 +1,6 @@
 DeepLIFT: Deep Learning Important FeaTures
 ===
 [![Build Status](https://api.travis-ci.org/kundajelab/deeplift.svg?branch=master)](https://travis-ci.org/kundajelab/deeplift)
-[![Downloads](https://pepy.tech/badge/deeplift/month)](https://pepy.tech/project/deeplift)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/kundajelab/deeplift/blob/master/LICENSE)
 
 **This version of DeepLIFT has been tested with Keras 2.2.0 & tensorflow 1.10.1**. See [this FAQ question](#my-model-architecture-is-not-supported-by-this-deeplift-implementation-what-should-i-do) for information on other implementations of DeepLIFT that may work with different versions of tensorflow/pytorch. See the tags for older versions.
