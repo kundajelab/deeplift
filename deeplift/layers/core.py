@@ -7,7 +7,8 @@ import numpy as np
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
-import deeplift.util  
+import deeplift.util
+from deeplift.util import to_tf_variable
 from .helper_functions import (
  pseudocount_near_zero, add_val_to_col)
 from . import helper_functions as hf
@@ -526,8 +527,11 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
 
     def __init__(self, kernel, bias, dense_mxts_mode, **kwargs):
         super(Dense, self).__init__(**kwargs)
-        self.kernel = np.array(kernel).astype("float32")
-        self.bias = np.array(bias).astype("float32")
+
+        self.kernel = to_tf_variable(np.array(kernel).astype("float32"),
+                                     name=self.get_name() + "_kernel")
+        self.bias = to_tf_variable(np.array(bias).astype("float32"),
+                                   name=self.get_name() + "_bias")
         self.dense_mxts_mode = dense_mxts_mode
 
     def _compute_shape(self, input_shape):
@@ -566,19 +570,22 @@ class Dense(SingleInputMixin, OneDimOutputMixin, Node):
             pos_inp_mask = hf.gt_mask(inp_diff_ref,0.0)
             neg_inp_mask = hf.lt_mask(inp_diff_ref,0.0)
             zero_inp_mask = hf.eq_mask(inp_diff_ref,0.0)
+
+            kernel_T = tf.transpose(self.kernel)
+
             inp_mxts_increments = pos_inp_mask*(
                 tf.matmul(self.get_pos_mxts(),
-                          self.kernel.T*(hf.gt_mask(self.kernel.T, 0.0)))
+                          kernel_T*(hf.gt_mask(kernel_T, 0.0)))
                 + tf.matmul(self.get_neg_mxts(),
-                            self.kernel.T*(hf.lt_mask(self.kernel.T, 0.0)))) 
+                            kernel_T*(hf.lt_mask(kernel_T, 0.0))))
             inp_mxts_increments += neg_inp_mask*(
                 tf.matmul(self.get_pos_mxts(),
-                          self.kernel.T*(hf.lt_mask(self.kernel.T, 0.0)))
+                          kernel_T*(hf.lt_mask(kernel_T, 0.0)))
                 + tf.matmul(self.get_neg_mxts(),
-                            self.kernel.T*(hf.gt_mask(self.kernel.T, 0.0)))) 
+                            kernel_T*(hf.gt_mask(kernel_T, 0.0))))
             inp_mxts_increments += zero_inp_mask*(
                 tf.matmul(0.5*(self.get_pos_mxts()
-                               +self.get_neg_mxts()), self.kernel.T))
+                               +self.get_neg_mxts()), kernel_T))
             #pos_mxts and neg_mxts in the input get the same multiplier
             #because the breakdown between pos and neg wasn't used to
             #compute pos_contribs and neg_contribs in the forward pass
