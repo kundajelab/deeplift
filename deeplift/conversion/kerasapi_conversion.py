@@ -432,7 +432,8 @@ def insert_weights_into_nested_model_config(nested_model_weights,
                 layer_name = layer_config["config"]["name"] 
                 layer_weights = [np.array(nested_model_weights[x]) for x in
                                  nested_model_weights.keys() if
-                                 x.startswith(layer_name+"/")]
+                                 (x.decode("utf-8") if hasattr(x, 'decode')
+                                  else x).startswith(layer_name+"/")]
                 if (len(layer_weights) > 0):
                     layer_config["config"]["weights"] = layer_weights
  
